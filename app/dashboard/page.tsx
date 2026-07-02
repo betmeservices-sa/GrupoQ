@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Clock, MessageSquare, CheckCircle2, Inbox } from "lucide-react";
+import { Bot, CheckCircle2, Clock, Inbox, Megaphone, MessageSquare, Smile, Timer } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
@@ -24,8 +24,14 @@ export default function DashboardPage() {
     return { total, resueltas, sinAsignar, pct };
   }, [state.conversations]);
 
-  const volumen = state.metrics.find((m) => m.label.startsWith("Conversaciones"));
-  const tiempo = state.metrics.find((m) => m.label.startsWith("Tiempo"));
+  // Métricas demo del seed, por etiqueta exacta.
+  const metrica = (label: string) => state.metrics.find((m) => m.label === label);
+  const volumen = metrica("Conversaciones hoy");
+  const leads = metrica("Leads de anuncios");
+  const respuesta = metrica("Tiempo de respuesta");
+  const atencion = metrica("Tiempo medio de atención");
+  const csat = metrica("CSAT");
+  const ia = metrica("Atendidas por IA");
 
   return (
     <div className="flex h-full flex-col">
@@ -43,12 +49,36 @@ export default function DashboardPage() {
             Icon={MessageSquare}
           />
           <MetricCard
+            label="Leads de anuncios (IG/FB)"
+            valor={leads?.valor ?? 0}
+            delta={leads?.delta}
+            Icon={Megaphone}
+          />
+          <MetricCard
             label="Tiempo de respuesta"
-            valor={tiempo?.valor ?? "6 min"}
-            delta={tiempo?.delta}
+            valor={respuesta?.valor ?? "6 min"}
+            delta={respuesta?.delta}
             Icon={Clock}
           />
-          <MetricCard label="Resueltas" valor={`${stats.pct}%`} Icon={CheckCircle2} />
+          <MetricCard
+            label="Tiempo medio de atención"
+            valor={atencion?.valor ?? "9 min"}
+            delta={atencion?.delta}
+            Icon={Timer}
+          />
+          <MetricCard label="Tasa de resolución" valor={`${stats.pct}%`} Icon={CheckCircle2} />
+          <MetricCard
+            label="Satisfacción (CSAT)"
+            valor={csat?.valor ?? "4.6 / 5"}
+            delta={csat?.delta}
+            Icon={Smile}
+          />
+          <MetricCard
+            label="Atendidas por IA"
+            valor={ia?.valor ?? "0%"}
+            delta={ia?.delta}
+            Icon={Bot}
+          />
           <MetricCard label="Sin asignar" valor={stats.sinAsignar} Icon={Inbox} />
         </div>
 

@@ -27,7 +27,7 @@ describe("FakeCommsProvider", () => {
 
   it("resuelve el contacto por id", () => {
     const p = new FakeCommsProvider();
-    expect(p.getContact("c1")?.nombre).toBe("Marvin Alvarenga");
+    expect(p.getContact("c1")?.nombre).toBe("Wendy Alvarado");
     expect(p.getContact("nope")).toBeUndefined();
   });
 });

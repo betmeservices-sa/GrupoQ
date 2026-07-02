@@ -35,6 +35,7 @@
             { "id": "d1", "name": "nombre", "value": "={{ $json.body.nombre }}", "type": "string" },
             { "id": "d2", "name": "telefono", "value": "={{ $json.body.telefono }}", "type": "string" },
             { "id": "d3", "name": "especialidad", "value": "={{ $json.body.especialidad }}", "type": "string" },
+            { "id": "d7", "name": "sucursal", "value": "={{ $json.body.sucursal }}", "type": "string" },
             { "id": "d4", "name": "fecha_preferida", "value": "={{ $json.body.fecha_preferida }}", "type": "string" },
             { "id": "d5", "name": "rango_dias", "value": "={{ $json.body.rango_dias }}", "type": "number" },
             { "id": "d6", "name": "canal", "value": "={{ $json.body.canal }}", "type": "string" }
@@ -50,7 +51,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Aqui conectas tu calendario o base de datos real (Google Calendar, Supabase, etc.).\n// Por ahora devuelve espacios de ejemplo para probar el flujo de punta a punta.\nconst d = $json;\nconst fecha = d.fecha_preferida || '2026-07-15';\nreturn [{\n  json: {\n    disponible: true,\n    especialidad: d.especialidad || null,\n    cliente: d.nombre || null,\n    slots: [\n      { fecha, hora: '10:00', medico: 'Taller Grupo Q' },\n      { fecha, hora: '15:30', medico: 'Taller Grupo Q' }\n    ],\n    mensaje: 'Hay 2 espacios disponibles.'\n  }\n}];"
+        "jsCode": "// Aqui conectas tu calendario o base de datos real (Google Calendar, Supabase, etc.).\n// Por ahora devuelve espacios de ejemplo para probar el flujo de punta a punta.\nconst d = $json;\nconst fecha = d.fecha_preferida || '2026-07-15';\nreturn [{\n  json: {\n    disponible: true,\n    especialidad: d.especialidad || null,\n    sucursal: d.sucursal || null,\n    cliente: d.nombre || null,\n    slots: [\n      { fecha, hora: '10:00', medico: 'Sala de ventas' },\n      { fecha, hora: '15:30', medico: 'Sala de ventas' }\n    ],\n    mensaje: 'Hay 2 espacios disponibles.'\n  }\n}];"
       },
       "id": "code-disp",
       "name": "Consultar disponibilidad",
@@ -90,6 +91,7 @@
             { "id": "c1", "name": "nombre", "value": "={{ $json.body.nombre }}", "type": "string" },
             { "id": "c2", "name": "telefono", "value": "={{ $json.body.telefono }}", "type": "string" },
             { "id": "c3", "name": "especialidad", "value": "={{ $json.body.especialidad }}", "type": "string" },
+            { "id": "c8", "name": "sucursal", "value": "={{ $json.body.sucursal }}", "type": "string" },
             { "id": "c4", "name": "fecha", "value": "={{ $json.body.fecha }}", "type": "string" },
             { "id": "c5", "name": "hora", "value": "={{ $json.body.hora }}", "type": "string" },
             { "id": "c6", "name": "medico", "value": "={{ $json.body.medico }}", "type": "string" },
@@ -106,7 +108,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Aqui conectas el agendamiento real (crear evento en el calendario o fila en BD).\nconst d = $json;\nreturn [{\n  json: {\n    agendada: true,\n    id_cita: 'CITA-' + Date.now(),\n    nombre: d.nombre || null,\n    telefono: d.telefono || null,\n    especialidad: d.especialidad || null,\n    fecha: d.fecha || null,\n    hora: d.hora || null,\n    medico: d.medico || null,\n    mensaje: 'Cita agendada correctamente.'\n  }\n}];"
+        "jsCode": "// Aqui conectas el agendamiento real (crear evento en el calendario o fila en BD).\nconst d = $json;\nreturn [{\n  json: {\n    agendada: true,\n    id_cita: 'CITA-' + Date.now(),\n    nombre: d.nombre || null,\n    telefono: d.telefono || null,\n    especialidad: d.especialidad || null,\n    sucursal: d.sucursal || null,\n    fecha: d.fecha || null,\n    hora: d.hora || null,\n    medico: d.medico || null,\n    mensaje: 'Cita agendada correctamente.'\n  }\n}];"
       },
       "id": "code-conf",
       "name": "Agendar cita",

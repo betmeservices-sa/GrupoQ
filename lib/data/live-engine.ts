@@ -5,7 +5,7 @@ import type { Dispatch } from "react";
 import type { StoreAction } from "../store";
 
 // Conversaciones que reciben mensajes simulados, y un pool de textos creíbles.
-const TARGETS = ["v2", "v3", "v4", "v8", "v10", "v13", "v6", "v9"];
+const TARGETS = ["v1", "v2", "v3", "v5"];
 
 const POOL = [
   "Buenos días, disculpe la molestia, ¿siempre está disponible la cita?",
@@ -15,9 +15,9 @@ const POOL = [
   "¿Necesito llevar algún documento o mi DUI nada más?",
   "Hola, ¿todavía hay cupo para esta semana?",
   "Ok, quedo atenta a su respuesta. Bendiciones.",
-  "¿El parqueo tiene costo adicional?",
-  "Buenas, ¿el taller atiende por la tarde también?",
-  "Me podría confirmar el precio por favor.",
+  "¿La Frontier la tienen en color gris?",
+  "Buenas, ¿atienden los sábados también?",
+  "Me podría confirmar el precio inicial por favor.",
 ];
 
 const INTERVAL_MS = 14000;

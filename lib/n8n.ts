@@ -25,6 +25,7 @@ async function llamar(
 
 export interface InputDisponibilidad {
   especialidad?: string;
+  sucursal?: string;
   fecha_preferida?: string;
   rango_dias?: number;
   nombre?: string;
@@ -35,6 +36,7 @@ export interface InputConfirmar {
   nombre?: string;
   telefono?: string;
   especialidad?: string;
+  sucursal?: string;
   fecha?: string;
   hora?: string;
   medico?: string;
