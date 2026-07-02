@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ── Marca real de Grupo Q (variables tomadas de grupoq.com:
+   --primary #006cb7, --secondary #a32923, --tertiary #2baab1) ── */
+:root {
+  --brand-blue: #006cb7;
+  --brand-blue-dark: #0056b3;
+  --brand-green: #00c040;
+  --brand-red: #a32923;
+  --surface: #f4f7fb;
+  --surface-2: #eef2f8;
+  --card: #ffffff;
+  --border: #e4e9f1;
+  --border-2: #d6deea;
+  --text: #0f1b2d;
+  --text-2: #5b6b80;
+  --text-3: #94a3b4;
+}
+
+@theme inline {
+  /* Barlow = tipografía real de grupoq.com */
+  --font-sans: 'Barlow', Arial, system-ui, sans-serif;
+  --color-brand: var(--brand-blue);
+  --color-brand-dark: var(--brand-blue-dark);
+  --color-accent: var(--brand-green);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-line: var(--border);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--surface);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c2cdde;
+}
+
+/* Animación sutil para mensajes entrantes en vivo */
+@keyframes ccg-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ccg-pop {
+  animation: ccg-pop 0.22s ease-out;
+}

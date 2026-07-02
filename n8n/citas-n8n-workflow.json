@@ -1,0 +1,154 @@
+{
+  "name": "Citas - Disponibilidad y Confirmacion",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Flujo de citas (2 pasos)\n\n**Paso 1 - Disponibilidad**\nPOST  /webhook/cita-disponibilidad\nDevuelve los espacios libres.\n\n**Paso 2 - Confirmar**\nPOST  /webhook/cita-confirmar\nAgenda la cita y devuelve la confirmacion.\n\nEl mismo webhook lo llaman el agente de WhatsApp y el de Vapi.\nReemplaza los nodos Code por tu calendario / base de datos real.",
+        "height": 320,
+        "width": 360,
+        "color": 4
+      },
+      "id": "note-flujo",
+      "name": "Notas",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-420, -40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cita-disponibilidad",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-disp",
+      "name": "Webhook Disponibilidad",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "cita-disponibilidad-hook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "d1", "name": "nombre", "value": "={{ $json.body.nombre }}", "type": "string" },
+            { "id": "d2", "name": "telefono", "value": "={{ $json.body.telefono }}", "type": "string" },
+            { "id": "d3", "name": "especialidad", "value": "={{ $json.body.especialidad }}", "type": "string" },
+            { "id": "d4", "name": "fecha_preferida", "value": "={{ $json.body.fecha_preferida }}", "type": "string" },
+            { "id": "d5", "name": "rango_dias", "value": "={{ $json.body.rango_dias }}", "type": "number" },
+            { "id": "d6", "name": "canal", "value": "={{ $json.body.canal }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-disp",
+      "name": "Mapear datos disponibilidad",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aqui conectas tu calendario o base de datos real (Google Calendar, Supabase, etc.).\n// Por ahora devuelve espacios de ejemplo para probar el flujo de punta a punta.\nconst d = $json;\nconst fecha = d.fecha_preferida || '2026-07-15';\nreturn [{\n  json: {\n    disponible: true,\n    especialidad: d.especialidad || null,\n    cliente: d.nombre || null,\n    slots: [\n      { fecha, hora: '10:00', medico: 'Taller Grupo Q' },\n      { fecha, hora: '15:30', medico: 'Taller Grupo Q' }\n    ],\n    mensaje: 'Hay 2 espacios disponibles.'\n  }\n}];"
+      },
+      "id": "code-disp",
+      "name": "Consultar disponibilidad",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "resp-disp",
+      "name": "Responder disponibilidad",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cita-confirmar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-conf",
+      "name": "Webhook Confirmar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "cita-confirmar-hook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "c1", "name": "nombre", "value": "={{ $json.body.nombre }}", "type": "string" },
+            { "id": "c2", "name": "telefono", "value": "={{ $json.body.telefono }}", "type": "string" },
+            { "id": "c3", "name": "especialidad", "value": "={{ $json.body.especialidad }}", "type": "string" },
+            { "id": "c4", "name": "fecha", "value": "={{ $json.body.fecha }}", "type": "string" },
+            { "id": "c5", "name": "hora", "value": "={{ $json.body.hora }}", "type": "string" },
+            { "id": "c6", "name": "medico", "value": "={{ $json.body.medico }}", "type": "string" },
+            { "id": "c7", "name": "notas", "value": "={{ $json.body.notas }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-conf",
+      "name": "Mapear datos confirmar",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aqui conectas el agendamiento real (crear evento en el calendario o fila en BD).\nconst d = $json;\nreturn [{\n  json: {\n    agendada: true,\n    id_cita: 'CITA-' + Date.now(),\n    nombre: d.nombre || null,\n    telefono: d.telefono || null,\n    especialidad: d.especialidad || null,\n    fecha: d.fecha || null,\n    hora: d.hora || null,\n    medico: d.medico || null,\n    mensaje: 'Cita agendada correctamente.'\n  }\n}];"
+      },
+      "id": "code-conf",
+      "name": "Agendar cita",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "resp-conf",
+      "name": "Responder confirmar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Disponibilidad": {
+      "main": [[{ "node": "Mapear datos disponibilidad", "type": "main", "index": 0 }]]
+    },
+    "Mapear datos disponibilidad": {
+      "main": [[{ "node": "Consultar disponibilidad", "type": "main", "index": 0 }]]
+    },
+    "Consultar disponibilidad": {
+      "main": [[{ "node": "Responder disponibilidad", "type": "main", "index": 0 }]]
+    },
+    "Webhook Confirmar": {
+      "main": [[{ "node": "Mapear datos confirmar", "type": "main", "index": 0 }]]
+    },
+    "Mapear datos confirmar": {
+      "main": [[{ "node": "Agendar cita", "type": "main", "index": 0 }]]
+    },
+    "Agendar cita": {
+      "main": [[{ "node": "Responder confirmar", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}
