@@ -5,9 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { Lock, Menu } from "lucide-react";
 import { StoreProvider } from "@/lib/store";
 import { LiveProvider } from "@/lib/live-context";
+import { useAuth } from "@/lib/auth";
 import { useRole, moduloDeRuta, primerModulo, MODULO_RUTA } from "@/lib/roles";
 import { Sidebar } from "./Sidebar";
 import { LiveMount } from "./LiveMount";
+import { LoginPage } from "./LoginPage";
 
 // Rutas públicas que NO llevan el chrome del dashboard (sidebar, store, etc.).
 const PUBLIC_ROUTES = ["/privacy"];
@@ -16,7 +18,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
-  const { def } = useRole();
+  const { def, setRol } = useRole();
+  const { sesion, login, logout } = useAuth();
 
   // Guard de rol: si la ruta actual es un módulo que este rol NO ve, lo
   // mandamos a su primer módulo permitido. null = ruta libre (no se restringe).
@@ -29,6 +32,24 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (PUBLIC_ROUTES.includes(pathname)) {
     return <>{children}</>;
+  }
+
+  // Puerta de login (demo, sin backend): mientras no se lee localStorage no
+  // pintamos nada; sin sesión, solo la pantalla de login.
+  if (sesion === null) {
+    return <div className="min-h-screen bg-surface" />;
+  }
+  if (!sesion) {
+    return (
+      <LoginPage
+        onLogin={(email, password) => {
+          const ok = login(email, password);
+          // Al entrar, acceso total: el perfil queda en Dirección.
+          if (ok) setRol("admin");
+          return ok;
+        }}
+      />
+    );
   }
 
   return (
@@ -45,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
           )}
 
-          <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
+          <Sidebar open={navOpen} onClose={() => setNavOpen(false)} onLogout={logout} />
 
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {/* Barra superior solo en móvil */}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Inbox, Megaphone, MessagesSquare, Settings, X, type LucideIcon } from "lucide-react";
+import { BarChart3, Inbox, LogOut, Megaphone, MessagesSquare, Settings, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { staff, ME } from "@/lib/data/seed";
@@ -29,9 +29,11 @@ const NAV: NavItem[] = [
 export function Sidebar({
   open = false,
   onClose,
+  onLogout,
 }: {
   open?: boolean;
   onClose?: () => void;
+  onLogout?: () => void;
 }) {
   const pathname = usePathname();
   const { def } = useRole();
@@ -88,10 +90,21 @@ export function Sidebar({
         <RoleSwitcher />
         <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
           <Avatar iniciales={yo.iniciales} size={34} />
-          <div className="min-w-0 leading-tight">
+          <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-sm font-semibold text-[#0f1b2d]">{yo.nombre}</p>
             <p className="truncate text-[11px] text-[#94a3b4]">{def.nombre} · en línea</p>
           </div>
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#94a3b4] transition hover:bg-red-50 hover:text-[#a32923]"
+            >
+              <LogOut size={16} />
+            </button>
+          )}
         </div>
       </div>
     </aside>
