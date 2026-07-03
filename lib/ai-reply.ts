@@ -75,8 +75,16 @@ export async function programarRespuestaIA(opts: {
     const respuesta = await generarRespuesta(
       historial,
       {
-        onGuardarContacto: (d) =>
-          upsertContacto({ from: opts.from, nombre: d.nombre, correo: d.correo }),
+        onGuardarContacto: async (d) => {
+          await upsertContacto({
+            from: opts.from,
+            nombre: d.nombre,
+            apellido: d.apellido,
+            correo: d.correo,
+            tags: d.interes ? [d.interes] : undefined,
+            tenant: opts.tenant,
+          });
+        },
         onReaccionar: (emoji) => enviarReaccion(opts.from, opts.triggerWamid, emoji),
       },
       { telefono: opts.from, tenantId: opts.tenant },

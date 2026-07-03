@@ -83,6 +83,10 @@ export interface TenantConfig {
   roles: Record<RoleId, string>;
   // Departamento por defecto de una conversación de WhatsApp nueva.
   defaultDepartment: DepartmentId;
+  // Etiquetas de contacto (interés/estado). La IA clasifica el interés en una de
+  // estas al escribir el cliente; también se filtran en la pestaña Contactos.
+  // Son propias de cada cliente (autos para Grupo Q, servicios para el hospital).
+  tags: string[];
   seed: TenantSeed;
   ai: { systemPrompt: string };
   dashboard: DashboardCard[];

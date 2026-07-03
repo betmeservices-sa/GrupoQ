@@ -18,8 +18,12 @@ const MODEL = process.env.AI_MODEL || "claude-haiku-4-5";
 // La persona (system prompt) depende del tenant. En el webhook real se pasa el
 // tenantId (derivado del phone_number_id); si no, se usa el tenant activo.
 function systemPromptFor(tenantId?: TenantId): string {
-  if (tenantId && TENANTS[tenantId]) return TENANTS[tenantId].ai.systemPrompt;
-  return activeTenant().ai.systemPrompt;
+  const t = tenantId && TENANTS[tenantId] ? TENANTS[tenantId] : activeTenant();
+  const tags = t.tags ?? [];
+  const clasificacion = tags.length
+    ? `\n\nCLASIFICACIÓN Y FICHA: en cuanto entiendas qué busca el contacto, llama a la herramienta guardar_datos_contacto con el "interes" que mejor aplique de esta lista: ${tags.join(", ")}. Actualízalo si el interés cambia. Guarda también su nombre, apellido y correo apenas los mencione. Haz esto de forma natural, sin anunciar que estás "guardando datos".`
+    : "";
+  return t.ai.systemPrompt + clasificacion;
 }
 
 export interface TurnoIA {
@@ -28,26 +32,50 @@ export interface TurnoIA {
 }
 
 interface AccionesIA {
-  onGuardarContacto?: (d: { nombre?: string; correo?: string }) => Promise<void> | void;
+  onGuardarContacto?: (d: {
+    nombre?: string;
+    apellido?: string;
+    correo?: string;
+    interes?: string;
+  }) => Promise<void> | void;
   onReaccionar?: (emoji: string) => Promise<void> | void;
+}
+
+// Tags de interés del tenant, para clasificar al contacto (autos en Grupo Q,
+// servicios en el hospital). Se inyectan como enum en la tool guardar_datos_contacto.
+function tagsFor(tenantId?: TenantId): string[] {
+  const t = tenantId && TENANTS[tenantId] ? TENANTS[tenantId] : activeTenant();
+  return t.tags ?? [];
+}
+
+// Herramienta de ficha del contacto. El `interes` es un enum con los tags del
+// tenant, así la IA clasifica en una etiqueta válida (o ninguna).
+function toolGuardarContacto(tenantId?: TenantId): Anthropic.Tool {
+  return {
+    name: "guardar_datos_contacto",
+    description:
+      "Guarda o actualiza la ficha del contacto (nombre, apellido, correo) y su INTERÉS. Llámala EN CUANTO tengas el nombre o el correo, o EN CUANTO identifiques qué busca el cliente, aunque sea a media conversación. Puedes llamarla varias veces conforme obtengas más datos.",
+    input_schema: {
+      type: "object",
+      properties: {
+        nombre: { type: "string", description: "Nombre (de pila) del contacto, si lo dio" },
+        apellido: { type: "string", description: "Apellido del contacto, si lo dio" },
+        correo: { type: "string", description: "Correo electrónico del contacto, si lo dio" },
+        interes: {
+          type: "string",
+          enum: tagsFor(tenantId),
+          description:
+            "La etiqueta que MEJOR resume lo que busca el cliente según lo que escribió. Elige SOLO una de la lista; si aún no está claro, omítela.",
+        },
+      },
+    },
+  };
 }
 
 // Herramientas comunes a todos los tenants. `sucursal` es opcional: Grupo Q la
 // usa (salas de venta), el hospital no. La persona de cada tenant decide si la
 // pide o no.
-const TOOLS: Anthropic.Tool[] = [
-  {
-    name: "guardar_datos_contacto",
-    description:
-      "Guarda o actualiza la ficha del contacto. Llámala en cuanto mencione su nombre completo o su correo electrónico, aunque sea a media conversación.",
-    input_schema: {
-      type: "object",
-      properties: {
-        nombre: { type: "string", description: "Nombre completo del contacto, si lo dio" },
-        correo: { type: "string", description: "Correo electrónico del contacto, si lo dio" },
-      },
-    },
-  },
+const TOOLS_BASE: Anthropic.Tool[] = [
   {
     name: "consultar_disponibilidad",
     description:
@@ -137,6 +165,7 @@ export async function generarRespuesta(
   }));
 
   const systemPrompt = systemPromptFor(contexto?.tenantId);
+  const tools: Anthropic.Tool[] = [toolGuardarContacto(contexto?.tenantId), ...TOOLS_BASE];
 
   let texto = "";
   for (let i = 0; i < 4; i++) {
@@ -144,7 +173,7 @@ export async function generarRespuesta(
       model: MODEL,
       max_tokens: 500,
       system: `${systemPrompt}\n\n${contextoTemporal()}`,
-      tools: TOOLS,
+      tools,
       messages,
     });
 
@@ -165,7 +194,9 @@ export async function generarRespuesta(
       let contenido = "Listo.";
       try {
         if (tu.name === "guardar_datos_contacto") {
-          await acciones?.onGuardarContacto?.(tu.input as { nombre?: string; correo?: string });
+          await acciones?.onGuardarContacto?.(
+            tu.input as { nombre?: string; apellido?: string; correo?: string; interes?: string },
+          );
         } else if (tu.name === "reaccionar") {
           const emoji = (tu.input as { emoji?: string }).emoji;
           if (emoji) await acciones?.onReaccionar?.(emoji);

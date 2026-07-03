@@ -41,6 +41,7 @@ export type StoreAction =
   | { type: "SET_STATUS"; conversationId: string; estado: ConversationStatus }
   | { type: "SET_DEPARTMENT"; conversationId: string; departamento: Conversation["departamento"] }
   | { type: "MARK_READ"; conversationId: string }
+  | { type: "NUEVA_CONVERSACION_WA"; telefono: string; nombre?: string }
   | { type: "ELIMINAR_CONVERSACION"; conversationId: string }
   | { type: "INCOMING"; conversationId: string; texto: string }
   | { type: "SEND_INTERNAL"; channelId: string; texto: string; staffId: string }
@@ -300,6 +301,44 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
       };
 
       return { ...state, contacts, conversations, messages: [...state.messages, msg] };
+    }
+    case "NUEVA_CONVERSACION_WA": {
+      // Abre (o crea) el chat de WhatsApp de un contacto desde la pestaña
+      // Contactos. Id determinista `wac-<tel>`: si luego llega un mensaje real,
+      // se dedup a la misma conversación.
+      const tel = action.telefono;
+      const conversationId = `wac-${tel}`;
+      if (state.conversations.some((c) => c.id === conversationId)) return state;
+
+      const existente = state.contacts.find(
+        (c) => c.canal === "whatsapp" && c.telefono === tel,
+      );
+      const nuevaConv: Conversation = {
+        id: conversationId,
+        canal: "whatsapp",
+        contactId: existente ? existente.id : `wa-${tel}`,
+        departamento: activeTenant().defaultDepartment,
+        estado: "nuevo",
+        noLeidos: 0,
+        ultimoMensajeTs: tsFromSeq(state.tsSeq),
+      };
+      const contacts = existente
+        ? state.contacts
+        : [
+            {
+              id: `wa-${tel}`,
+              nombre: action.nombre?.trim() || telefonoBonito(tel),
+              telefono: tel,
+              canal: "whatsapp" as const,
+            },
+            ...state.contacts,
+          ];
+      return {
+        ...state,
+        contacts,
+        conversations: [nuevaConv, ...state.conversations],
+        tsSeq: state.tsSeq + 1,
+      };
     }
     case "ELIMINAR_CONVERSACION": {
       const conv = state.conversations.find((c) => c.id === action.conversationId);

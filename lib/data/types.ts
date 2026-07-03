@@ -45,10 +45,13 @@ export interface StaffUser {
 export interface Contact {
   id: string;
   nombre: string;
+  apellido?: string;
+  correo?: string;
   telefono?: string;
   handle?: string; // @usuario en redes
   canal: Channel;
   notas?: string;
+  tags?: string[]; // etiquetas de interés/estado (definidas por tenant)
 }
 
 export interface MessageMedia {

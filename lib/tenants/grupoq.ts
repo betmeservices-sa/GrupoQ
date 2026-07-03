@@ -120,6 +120,14 @@ export const grupoqTenant: TenantConfig = {
     admin: "Dirección (todo)",
   },
   defaultDepartment: "atencion",
+  tags: [
+    "Servicio al cliente",
+    "Interés SUV",
+    "Interés Pickup",
+    "Interés Microbuses",
+    "Interés Sedán",
+    "Cliente cerrado",
+  ],
   seed: grupoqSeed,
   ai: { systemPrompt: SYSTEM_PROMPT },
   dashboard: [

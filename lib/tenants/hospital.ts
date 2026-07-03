@@ -94,6 +94,14 @@ export const hospitalTenant: TenantConfig = {
     admin: "Dirección (todo)",
   },
   defaultDepartment: "recepcion",
+  tags: [
+    "Consulta general",
+    "Interés Ginecología",
+    "Interés Obstetricia",
+    "Interés Pediatría",
+    "Interés Reproducción",
+    "Paciente agendada",
+  ],
   seed: hospitalSeed,
   ai: { systemPrompt: SYSTEM_PROMPT },
   dashboard: [

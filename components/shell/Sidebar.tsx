@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Inbox, LogOut, Megaphone, MessagesSquare, Settings, X, type LucideIcon } from "lucide-react";
+import { BarChart3, Contact, Inbox, LogOut, Megaphone, MessagesSquare, Settings, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { staff, ME } from "@/lib/data/seed";
@@ -20,6 +20,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { id: "bandeja", href: "/", label: "Bandeja", Icon: Inbox },
+  { id: "contactos", href: "/contactos", label: "Contactos", Icon: Contact },
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },

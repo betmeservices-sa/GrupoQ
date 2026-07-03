@@ -67,10 +67,14 @@ create policy "ai_paused anon all" on public.ai_paused
 create table if not exists public.wa_contacts (
   wa_from text primary key,
   nombre text,
+  apellido text,
   correo text,
   notas text,
+  tags text[] not null default '{}',
+  tenant text,
   updated_at timestamptz not null default now()
 );
+create index if not exists wa_contacts_tenant_idx on public.wa_contacts (tenant);
 create table if not exists public.wa_adjuntos (
   id bigint generated always as identity primary key,
   wa_from text not null,

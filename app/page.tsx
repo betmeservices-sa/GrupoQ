@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MessageSquareDashed } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useStore } from "@/lib/store";
@@ -102,6 +102,22 @@ export default function BandejaPage() {
     setActivaId(id);
     dispatch({ type: "MARK_READ", conversationId: id });
   }
+
+  // "Iniciar conversación" desde la pestaña Contactos: abre (o crea) el chat.
+  useEffect(() => {
+    const raw = sessionStorage.getItem("ccg.iniciarConv");
+    if (!raw) return;
+    sessionStorage.removeItem("ccg.iniciarConv");
+    try {
+      const { telefono, nombre } = JSON.parse(raw) as { telefono: string; nombre?: string };
+      const tel = String(telefono || "").replace(/\D/g, "");
+      if (tel.length < 8) return;
+      dispatch({ type: "NUEVA_CONVERSACION_WA", telefono: tel, nombre });
+      setActivaId(`wac-${tel}`);
+    } catch {
+      // json inválido: ignorar
+    }
+  }, [dispatch]);
 
   const sinLeerTotal = state.conversations.reduce((sum, c) => sum + c.noLeidos, 0);
 
