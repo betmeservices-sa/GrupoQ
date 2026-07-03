@@ -21,6 +21,13 @@ alter table public.wa_messages
   add column if not exists media_tipo text,
   add column if not exists media_mime text,
   add column if not exists media_filename text;
+-- Cliente (tenant) al que entró el número en vivo: hospital | grupoq.
+alter table public.wa_messages
+  add column if not exists tenant text not null default 'hospital';
+create index if not exists wa_messages_tenant_idx on public.wa_messages (tenant, id);
+drop policy if exists "wa_messages_delete_anon" on public.wa_messages;
+create policy "wa_messages_delete_anon" on public.wa_messages
+  for delete to anon using (true);
 
 alter table public.wa_messages enable row level security;
 drop policy if exists "wa_messages_insert_anon" on public.wa_messages;
@@ -84,6 +91,20 @@ create policy "wa_contacts anon all" on public.wa_contacts
   for all to anon using (true) with check (true);
 drop policy if exists "wa_adjuntos anon all" on public.wa_adjuntos;
 create policy "wa_adjuntos anon all" on public.wa_adjuntos
+  for all to anon using (true) with check (true);
+
+-- ---------- wa_routing: a qué cliente entra el número en vivo ----------
+create table if not exists public.wa_routing (
+  id int primary key default 1,
+  tenant text not null default 'hospital',
+  updated_at timestamptz not null default now(),
+  constraint wa_routing_singleton check (id = 1)
+);
+insert into public.wa_routing (id, tenant) values (1, 'hospital')
+  on conflict (id) do nothing;
+alter table public.wa_routing enable row level security;
+drop policy if exists "wa_routing anon all" on public.wa_routing;
+create policy "wa_routing anon all" on public.wa_routing
   for all to anon using (true) with check (true);
 
 -- ---------- wa_conversaciones: estado por contacto ----------

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { addOutbound } from "@/lib/wa-store";
 import { enviarTextoWa } from "@/lib/wa-send";
 import { setChatOverride } from "@/lib/ai-store";
+import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: env.error }, { status: 502 });
   }
   if (env.id) {
-    await addOutbound({ waId: env.id, to, texto: text, ts: new Date().toISOString() });
+    await addOutbound({ waId: env.id, to, texto: text, ts: new Date().toISOString(), tenant: tenantFromRequest(req) });
   }
   return NextResponse.json({ ok: true, id: env.id });
 }

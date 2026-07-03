@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { addOutbound } from "@/lib/wa-store";
 import { addAdjunto } from "@/lib/contacts-store";
+import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -153,6 +154,7 @@ export async function POST(req: Request) {
     to,
     texto: caption ?? textoFallback,
     ts,
+    tenant: tenantFromRequest(req),
   });
 
   await addAdjunto({

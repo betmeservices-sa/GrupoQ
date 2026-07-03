@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { activeTenant } from "@/lib/tenants/active";
+import { WaRoutingPanel } from "@/components/settings/WaRoutingPanel";
 
 type TemplateCategory = "MARKETING" | "UTILITY" | "AUTHENTICATION";
 type TemplateStatus = "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED";
@@ -198,6 +199,8 @@ export default function SettingsPage() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <WaRoutingPanel />
+
         {demo && (
           <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.5px] text-amber-800">
             <AlertCircle size={16} className="mt-0.5 shrink-0" />

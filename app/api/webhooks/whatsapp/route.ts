@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { addInbound } from "@/lib/wa-store";
 import { addAdjunto } from "@/lib/contacts-store";
 import { programarRespuestaIA } from "@/lib/ai-reply";
+import { getWaTenant } from "@/lib/wa-routing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,6 +72,10 @@ export async function POST(req: Request) {
     return new Response("Bad Request", { status: 400 });
   }
 
+  // A qué cliente entra el número en vivo (switch global). Etiqueta cada mensaje
+  // y decide con qué guion responde la IA.
+  const tenantActivo = await getWaTenant();
+
   const entrantes: Array<{ from: string; wamid: string }> = [];
   try {
     const entries = (payload as { entry?: unknown[] })?.entry ?? [];
@@ -118,6 +123,7 @@ export async function POST(req: Request) {
             nombre: nombrePorWaId.get(m.from) || undefined,
             texto,
             ts,
+            tenant: tenantActivo,
             media:
               adjunto && adjunto.media?.id
                 ? {
@@ -157,7 +163,9 @@ export async function POST(req: Request) {
   if (entrantes.length > 0) {
     after(async () => {
       await Promise.all(
-        entrantes.map((t) => programarRespuestaIA({ from: t.from, triggerWamid: t.wamid })),
+        entrantes.map((t) =>
+          programarRespuestaIA({ from: t.from, triggerWamid: t.wamid, tenant: tenantActivo }),
+        ),
       );
     });
   }

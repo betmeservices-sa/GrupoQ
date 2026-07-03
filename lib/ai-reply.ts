@@ -5,6 +5,7 @@ import { getChatAiActiva } from "./ai-store";
 import { upsertContacto } from "./contacts-store";
 import { generarRespuesta, type TurnoIA } from "./ai";
 import { enviarTextoWa, mostrarEscribiendo, enviarReaccion } from "./wa-send";
+import type { TenantId } from "./tenants/types";
 
 // Espera ALEATORIA antes de responder, para que se sienta humano (a veces
 // contesta rapido, a veces se tarda). Default 2-3s para que TODO el trabajo de
@@ -43,6 +44,7 @@ function sesionReciente<T extends { ts: string }>(msgs: T[]): T[] {
 export async function programarRespuestaIA(opts: {
   from: string;
   triggerWamid: string;
+  tenant?: TenantId;
 }): Promise<void> {
   try {
     // Activa si: override del chat (si existe) o, si no, el interruptor global.
@@ -52,7 +54,7 @@ export async function programarRespuestaIA(opts: {
 
     // ¿Sigo siendo el último mensaje de esta conversación? Si llegó uno más nuevo
     // (otra parte de la ráfaga) o ya hay respuesta, me retiro: otro handler responde.
-    const conv = (await getSince(0))
+    const conv = (await getSince(0, opts.tenant))
       .filter((m) => m.from === opts.from)
       .sort((a, b) => a.seq - b.seq);
     // Si el ultimo mensaje ya no es mi disparador (llego otro o ya hay respuesta),
@@ -78,11 +80,11 @@ export async function programarRespuestaIA(opts: {
           upsertContacto({ from: opts.from, nombre: d.nombre, correo: d.correo }),
         onReaccionar: (emoji) => enviarReaccion(opts.from, opts.triggerWamid, emoji),
       },
-      { telefono: opts.from },
+      { telefono: opts.from, tenantId: opts.tenant },
     );
     const env = await enviarTextoWa(opts.from, respuesta);
     if (env.ok && env.id) {
-      await addOutbound({ waId: env.id, to: opts.from, texto: respuesta, ts: new Date().toISOString() });
+      await addOutbound({ waId: env.id, to: opts.from, texto: respuesta, ts: new Date().toISOString(), tenant: opts.tenant });
     } else {
       console.error("IA: falló el envío:", env.error);
     }

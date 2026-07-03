@@ -1,6 +1,10 @@
 // Persistencia de mensajes de WhatsApp (recibidos y enviados).
 // Si hay Supabase configurado, guarda/lee de la tabla `wa_messages` (persiste,
 // sobrevive reinicios, sirve desplegado). Si no, cae a un store EN MEMORIA.
+//
+// Cada mensaje lleva un `tenant` (hospital | grupoq): como hay UN solo número en
+// vivo, un switch global decide a qué cliente entran los mensajes. Así cada
+// dashboard filtra y muestra solo lo suyo, y la IA usa el guion de ese cliente.
 import { getSupabase } from "./supabase";
 
 export type Direccion = "in" | "out"; // in = del cliente, out = de la empresa
@@ -20,6 +24,7 @@ export interface WaInbound {
   texto: string;
   ts: string; // ISO 8601
   direccion: Direccion;
+  tenant?: string; // cliente al que entró el número en vivo (hospital | grupoq)
   media?: WaMedia;
 }
 
@@ -39,6 +44,7 @@ async function guardar(m: Omit<WaInbound, "seq">): Promise<void> {
         texto: m.texto,
         ts: m.ts,
         direccion: m.direccion,
+        tenant: m.tenant ?? "hospital",
         media_id: m.media?.id ?? null,
         media_tipo: m.media?.tipo ?? null,
         media_mime: m.media?.mime ?? null,
@@ -67,6 +73,7 @@ export async function addOutbound(m: {
   to: string; // número del cliente (clave de la conversación)
   texto: string;
   ts: string;
+  tenant?: string;
 }): Promise<void> {
   return guardar({
     waId: m.waId,
@@ -74,21 +81,23 @@ export async function addOutbound(m: {
     texto: m.texto,
     ts: m.ts,
     direccion: "out",
+    tenant: m.tenant,
   });
 }
 
-// Devuelve los mensajes con cursor (seq/id) mayor al del cliente.
-export async function getSince(after: number): Promise<WaInbound[]> {
+// Devuelve los mensajes con cursor (seq/id) mayor al del cliente. Si se pasa
+// `tenant`, solo los de ese cliente (así cada dashboard ve lo suyo).
+export async function getSince(after: number, tenant?: string): Promise<WaInbound[]> {
   const sb = getSupabase();
   if (sb) {
-    const { data, error } = await sb
+    let q = sb
       .from("wa_messages")
       .select(
-        "id, wa_id, wa_from, nombre, texto, ts, direccion, media_id, media_tipo, media_mime, media_filename",
+        "id, wa_id, wa_from, nombre, texto, ts, direccion, tenant, media_id, media_tipo, media_mime, media_filename",
       )
-      .gt("id", after)
-      .order("id", { ascending: true })
-      .limit(100);
+      .gt("id", after);
+    if (tenant) q = q.eq("tenant", tenant);
+    const { data, error } = await q.order("id", { ascending: true }).limit(100);
     if (error) {
       console.error("Supabase select WA:", error.message);
       return [];
@@ -101,6 +110,7 @@ export async function getSince(after: number): Promise<WaInbound[]> {
       texto: r.texto as string,
       ts: r.ts as string,
       direccion: ((r.direccion as string | null) ?? "in") as Direccion,
+      tenant: (r.tenant as string | null) ?? undefined,
       media: r.media_id
         ? {
             id: r.media_id as string,
@@ -111,5 +121,20 @@ export async function getSince(after: number): Promise<WaInbound[]> {
         : undefined,
     }));
   }
-  return mem.filter((m) => m.seq > after);
+  return mem.filter((m) => m.seq > after && (!tenant || m.tenant === tenant));
+}
+
+// Borra el historial de conversaciones (para reiniciar el demo). Si se pasa
+// `tenant`, solo el de ese cliente.
+export async function clearHistory(tenant?: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) {
+    for (let i = mem.length - 1; i >= 0; i--) {
+      if (!tenant || mem[i].tenant === tenant) mem.splice(i, 1);
+    }
+    return;
+  }
+  const base = sb.from("wa_messages").delete();
+  const { error } = await (tenant ? base.eq("tenant", tenant) : base.neq("id", 0));
+  if (error) console.error("Supabase clear WA:", error.message);
 }

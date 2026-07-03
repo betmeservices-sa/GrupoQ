@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { addOutbound } from "@/lib/wa-store";
 import { enviarPlantilla } from "@/lib/wa-send";
 import { setChatOverride } from "@/lib/ai-store";
+import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
   }
   if (env.id) {
     const texto = body.texto?.trim() || `[plantilla: ${name}]`;
-    await addOutbound({ waId: env.id, to, texto, ts: new Date().toISOString() });
+    await addOutbound({ waId: env.id, to, texto, ts: new Date().toISOString(), tenant: tenantFromRequest(req) });
   }
   return NextResponse.json({ ok: true, id: env.id });
 }
