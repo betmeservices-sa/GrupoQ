@@ -8,12 +8,11 @@ import { enviarTextoWa, mostrarEscribiendo, enviarReaccion } from "./wa-send";
 import type { TenantId } from "./tenants/types";
 
 // Espera ALEATORIA antes de responder, para que se sienta humano (a veces
-// contesta rapido, a veces se tarda). Default 2-3s para que TODO el trabajo de
-// `after` (espera + consultas + Claude + envio) quepa en el limite de 10s de
-// Vercel Hobby. Para el rango completo 3-9s sube AI_DELAY_MIN_MS/MAX_MS con
-// Vercel Pro (funciones de 60s).
-const DELAY_MIN_MS = Number(process.env.AI_DELAY_MIN_MS) || 2000;
-const DELAY_MAX_MS = Number(process.env.AI_DELAY_MAX_MS) || 3000;
+// contesta rapido, a veces se tarda). Rango 3-9s: en Vercel Pro la funcion del
+// webhook corre hasta 60s (maxDuration=60), asi que la espera + consultas +
+// Claude + envio caben de sobra. Ajustable con AI_DELAY_MIN_MS / AI_DELAY_MAX_MS.
+const DELAY_MIN_MS = Number(process.env.AI_DELAY_MIN_MS) || 3000;
+const DELAY_MAX_MS = Number(process.env.AI_DELAY_MAX_MS) || 9000;
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));

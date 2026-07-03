@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { MessageSquareDashed } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useStore } from "@/lib/store";
+import { useRole } from "@/lib/roles";
 import { ME } from "@/lib/data/seed";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LiveToggle } from "@/components/shell/LiveToggle";
@@ -37,6 +38,9 @@ async function persistirWa(wa_from: string, payload: Record<string, string | nul
 
 export default function BandejaPage() {
   const { state, dispatch } = useStore();
+  const { rol } = useRole();
+  // Solo gerencia/jefatura/dirección pueden borrar y bloquear una conversación.
+  const puedeBloquear = rol === "gerente_marketing" || rol === "jefe" || rol === "admin";
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIALES);
   const [activaId, setActivaId] = useState<string | null>(null);
   const [ctxOpen, setCtxOpen] = useState(false); // panel de contexto en movil
@@ -278,6 +282,29 @@ export default function BandejaPage() {
                   persistirWa(contactoActivo.telefono, { estado: nuevoEstado });
                 }
               }}
+              onBloquear={
+                puedeBloquear && activa.canal === "whatsapp" && contactoActivo.telefono
+                  ? async () => {
+                      const tel = contactoActivo.telefono!;
+                      const ok = window.confirm(
+                        `¿Borrar y bloquear a ${contactoActivo.nombre}? Se elimina la conversación y este número no podrá volver a escribir.`,
+                      );
+                      if (!ok) return;
+                      // Optimista: quita la conversación y cierra el hilo.
+                      dispatch({ type: "ELIMINAR_CONVERSACION", conversationId: activa.id });
+                      setActivaId(null);
+                      try {
+                        await fetch("/api/whatsapp/block", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ from: tel }),
+                        });
+                      } catch (err) {
+                        console.error("block error:", err);
+                      }
+                    }
+                  : undefined
+              }
             />
           ) : (
             <EmptyState

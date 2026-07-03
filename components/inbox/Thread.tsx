@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Check, ChevronLeft, Info, UserPlus } from "lucide-react";
+import { Ban, Check, ChevronLeft, Info, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { depto } from "@/lib/format";
 import { Avatar, inicialesDe } from "@/components/ui/Avatar";
@@ -19,6 +19,7 @@ export function Thread({
   onSend,
   onAsignarme,
   onResolver,
+  onBloquear,
   onBack,
   onInfo,
   onTyping,
@@ -35,6 +36,7 @@ export function Thread({
   onSend: (texto: string) => void | Promise<void>;
   onAsignarme: () => void;
   onResolver: () => void;
+  onBloquear?: () => void; // solo lo pasan roles gerente/jefe/direccion
   onBack?: () => void;
   onInfo?: () => void;
   onTyping?: () => void;
@@ -110,6 +112,18 @@ export function Thread({
               {conversation.estado === "resuelto" ? "Resuelta" : "Resolver"}
             </span>
           </button>
+          {onBloquear && conversation.canal === "whatsapp" && (
+            <button
+              type="button"
+              onClick={onBloquear}
+              aria-label="Borrar y bloquear"
+              title="Borrar y bloquear esta conversación"
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-2 py-1.5 text-[12.5px] font-semibold text-[#5b6b80] transition hover:border-[#a32923] hover:bg-red-50 hover:text-[#a32923] sm:px-2.5"
+            >
+              <Ban size={15} />
+              <span className="hidden sm:inline">Bloquear</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onInfo}

@@ -138,3 +138,21 @@ export async function clearHistory(tenant?: string): Promise<void> {
   const { error } = await (tenant ? base.eq("tenant", tenant) : base.neq("id", 0));
   if (error) console.error("Supabase clear WA:", error.message);
 }
+
+// Borra TODO lo de UN número (mensajes, adjuntos, contacto, metadatos y estado
+// de IA). Lo usa "Borrar y bloquear"; el bloqueo real (que no vuelva a escribir)
+// lo hace la Block Users API en lib/wa-send.
+export async function borrarConversacionCompleta(from: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) {
+    for (let i = mem.length - 1; i >= 0; i--) {
+      if (mem[i].from === from) mem.splice(i, 1);
+    }
+    return;
+  }
+  const tablas = ["wa_messages", "wa_adjuntos", "wa_contacts", "wa_conversaciones", "ai_paused"];
+  for (const t of tablas) {
+    const { error } = await sb.from(t).delete().eq("wa_from", from);
+    if (error) console.error(`Supabase borrar ${t} de ${from}:`, error.message);
+  }
+}

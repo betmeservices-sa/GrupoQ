@@ -41,6 +41,7 @@ export type StoreAction =
   | { type: "SET_STATUS"; conversationId: string; estado: ConversationStatus }
   | { type: "SET_DEPARTMENT"; conversationId: string; departamento: Conversation["departamento"] }
   | { type: "MARK_READ"; conversationId: string }
+  | { type: "ELIMINAR_CONVERSACION"; conversationId: string }
   | { type: "INCOMING"; conversationId: string; texto: string }
   | { type: "SEND_INTERNAL"; channelId: string; texto: string; staffId: string }
   | { type: "ADD_SOCIAL_POST"; red: SocialPost["red"]; texto: string; fecha: string }
@@ -299,6 +300,18 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
       };
 
       return { ...state, contacts, conversations, messages: [...state.messages, msg] };
+    }
+    case "ELIMINAR_CONVERSACION": {
+      const conv = state.conversations.find((c) => c.id === action.conversationId);
+      if (!conv) return state;
+      const conversations = state.conversations.filter((c) => c.id !== action.conversationId);
+      const messages = state.messages.filter((m) => m.conversationId !== action.conversationId);
+      // Borra el contacto solo si ninguna otra conversación lo usa.
+      const enUso = conversations.some((c) => c.contactId === conv.contactId);
+      const contacts = enUso
+        ? state.contacts
+        : state.contacts.filter((c) => c.id !== conv.contactId);
+      return { ...state, conversations, messages, contacts };
     }
     case "HIDRATAR_CONVERSACION": {
       // Solo aplica si la conversación ya existe en el store (creada por WHATSAPP_INCOMING).

@@ -36,6 +36,31 @@ export async function enviarTextoWa(
   return { ok: true, id };
 }
 
+// Bloquea un número con la Block Users API: deja de recibir sus mensajes en el
+// webhook (no vuelve a aparecer en la bandeja). Idempotente: si ya estaba
+// bloqueado, Graph responde ok igual.
+export async function bloquearNumeroWa(
+  waId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneId) {
+    return { ok: false, error: "Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID" };
+  }
+  const res = await fetch(`${GRAPH}/${phoneId}/block_users`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", block_users: [{ user: waId }] }),
+  });
+  const data: unknown = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const error =
+      (data as { error?: { message?: string } })?.error?.message ?? `Graph respondió ${res.status}`;
+    return { ok: false, error };
+  }
+  return { ok: true };
+}
+
 // Muestra "escribiendo..." en el WhatsApp del cliente (y marca leído) usando el
 // wamid del último mensaje recibido. Dura hasta 25s o hasta que llegue la respuesta.
 export async function mostrarEscribiendo(messageId: string): Promise<void> {
