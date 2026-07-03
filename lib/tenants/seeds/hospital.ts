@@ -30,84 +30,11 @@ export const hospitalSeed: TenantSeed = {
     { id: "s9", nombre: "Dra. Marta Guevara", rol: "medico", departamento: "imagenes", iniciales: "MG" },
     { id: "s10", nombre: "Dr. Roberto Cáceres", rol: "medico", departamento: "pediatria", iniciales: "RC" },
   ],
-  contacts: [
-    { id: "c1", nombre: "María Elena Vásquez", telefono: "+503 7123 4567", canal: "whatsapp", notas: "Control prenatal, 28 semanas." },
-    { id: "c2", nombre: "Karla Patricia Romero", telefono: "+503 7890 1122", canal: "whatsapp" },
-    { id: "c3", nombre: "Wendy Alvarado", handle: "@wendy.alv", canal: "instagram" },
-    { id: "c4", nombre: "Gloria Esperanza Mejía", telefono: "+503 7654 3210", canal: "whatsapp", notas: "Primera consulta." },
-    { id: "c5", nombre: "Andrea Sosa", handle: "Andrea Sosa", canal: "facebook" },
-    { id: "c6", nombre: "Fátima Beatriz Linares", telefono: "+503 7234 5566", canal: "whatsapp", notas: "Pareja en tratamiento de fertilidad." },
-    { id: "c7", nombre: "Claudia Reyes", handle: "@clau.reyes", canal: "instagram" },
-    { id: "c8", nombre: "Rosa Amelia Campos", telefono: "+503 7445 8899", canal: "whatsapp" },
-    { id: "c9", nombre: "Daniela Quintanilla", telefono: "+503 7011 2233", canal: "whatsapp", notas: "Resultados de laboratorio pendientes." },
-    { id: "c10", nombre: "Stephanie Gómez", handle: "Stephanie Gómez", canal: "facebook" },
-    { id: "c11", nombre: "Ingrid Carolina Flores", telefono: "+503 7322 1144", canal: "whatsapp" },
-    { id: "c12", nombre: "Norma Lisseth Aguilar", telefono: "+503 7588 9900", canal: "whatsapp", notas: "Control de bebé de 6 meses." },
-    { id: "c13", nombre: "Jacqueline Moreno", handle: "@jacky.m", canal: "instagram" },
-    { id: "c14", nombre: "Brenda Carolina Díaz", telefono: "+503 7099 4455", canal: "whatsapp" },
-  ],
-  conversations: [
-    { id: "v1", canal: "whatsapp", contactId: "c1", departamento: "obstetricia", estado: "en_progreso", asignadoA: "s3", noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:42:00" },
-    { id: "v2", canal: "whatsapp", contactId: "c2", departamento: "ginecologia", estado: "nuevo", noLeidos: 2, ultimoMensajeTs: "2026-06-23T10:18:00" },
-    { id: "v3", canal: "instagram", contactId: "c3", departamento: "recepcion", estado: "nuevo", noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:05:00" },
-    { id: "v4", canal: "whatsapp", contactId: "c4", departamento: "ginecologia", estado: "nuevo", noLeidos: 3, ultimoMensajeTs: "2026-06-23T10:31:00" },
-    { id: "v5", canal: "facebook", contactId: "c5", departamento: "recepcion", estado: "en_progreso", asignadoA: ME, noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:15:00" },
-    { id: "v6", canal: "whatsapp", contactId: "c6", departamento: "reproduccion", estado: "en_progreso", asignadoA: "s5", noLeidos: 1, ultimoMensajeTs: "2026-06-23T08:58:00" },
-    { id: "v7", canal: "instagram", contactId: "c7", departamento: "pediatria", estado: "resuelto", asignadoA: "s4", noLeidos: 0, ultimoMensajeTs: "2026-06-22T16:40:00" },
-    { id: "v8", canal: "whatsapp", contactId: "c8", departamento: "laboratorio", estado: "nuevo", noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:22:00" },
-    { id: "v9", canal: "whatsapp", contactId: "c9", departamento: "laboratorio", estado: "en_progreso", asignadoA: "s6", noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:05:00" },
-    { id: "v10", canal: "facebook", contactId: "c10", departamento: "imagenes", estado: "nuevo", noLeidos: 2, ultimoMensajeTs: "2026-06-23T10:12:00" },
-    { id: "v11", canal: "whatsapp", contactId: "c11", departamento: "ginecologia", estado: "resuelto", asignadoA: "s2", noLeidos: 0, ultimoMensajeTs: "2026-06-22T15:20:00" },
-    { id: "v12", canal: "whatsapp", contactId: "c12", departamento: "pediatria", estado: "en_progreso", asignadoA: "s10", noLeidos: 0, ultimoMensajeTs: "2026-06-23T08:30:00" },
-    { id: "v13", canal: "instagram", contactId: "c13", departamento: "recepcion", estado: "nuevo", noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:27:00" },
-    { id: "v14", canal: "whatsapp", contactId: "c14", departamento: "obstetricia", estado: "resuelto", asignadoA: "s3", noLeidos: 0, ultimoMensajeTs: "2026-06-21T11:00:00" },
-  ],
-  messages: [
-    // v1 - control prenatal
-    { id: "m1", conversationId: "v1", autor: "cliente", texto: "Buenos días, quería confirmar mi cita de control prenatal para esta semana.", ts: "2026-06-23T09:30:00" },
-    { id: "m2", conversationId: "v1", autor: "staff", staffId: "s3", texto: "Buenos días María Elena, claro que sí. Su cita es el jueves a las 10:00 am con el Dr. Portillo.", ts: "2026-06-23T09:36:00" },
-    { id: "m3", conversationId: "v1", autor: "cliente", texto: "Perfecto, muchas gracias. ¿Debo llevar algún examen?", ts: "2026-06-23T09:40:00" },
-    { id: "m4", conversationId: "v1", autor: "staff", staffId: "s3", texto: "Traiga su última ecografía y los resultados de hematología. La esperamos.", ts: "2026-06-23T09:42:00" },
-    // v2 - costos consulta gineco (nuevo, sin asignar)
-    { id: "m5", conversationId: "v2", autor: "cliente", texto: "Hola, buen día. ¿Cuánto cuesta la consulta con ginecólogo?", ts: "2026-06-23T10:14:00" },
-    { id: "m6", conversationId: "v2", autor: "cliente", texto: "Y si atienden los sábados también?", ts: "2026-06-23T10:18:00" },
-    // v3 - IG, info general
-    { id: "m7", conversationId: "v3", autor: "cliente", texto: "Hola! Vi su publicación sobre el paquete de control de embarazo, me pueden dar más info?", ts: "2026-06-23T10:05:00" },
-    // v4 - primera consulta (nuevo, 3 sin leer)
-    { id: "m8", conversationId: "v4", autor: "cliente", texto: "Buenas, necesito una cita lo antes posible.", ts: "2026-06-23T10:25:00" },
-    { id: "m9", conversationId: "v4", autor: "cliente", texto: "Tengo unos dolores y me preocupa.", ts: "2026-06-23T10:28:00" },
-    { id: "m10", conversationId: "v4", autor: "cliente", texto: "Estoy disponible toda la tarde.", ts: "2026-06-23T10:31:00" },
-    // v5 - facebook, asignada a mi
-    { id: "m11", conversationId: "v5", autor: "cliente", texto: "Buenas tardes, ¿tienen estacionamiento en el hospital?", ts: "2026-06-23T09:05:00" },
-    { id: "m12", conversationId: "v5", autor: "staff", staffId: "me", texto: "Buenas tardes Andrea, sí, contamos con estacionamiento propio para pacientes. Con gusto la esperamos.", ts: "2026-06-23T09:15:00" },
-    // v6 - reproduccion asistida
-    { id: "m13", conversationId: "v6", autor: "cliente", texto: "Doctor, ya tenemos los resultados de mi esposo. ¿Cuándo podemos pasar a consulta?", ts: "2026-06-23T08:50:00" },
-    { id: "m14", conversationId: "v6", autor: "staff", staffId: "s5", texto: "Excelente Fátima. Pueden venir el lunes a las 3:00 pm para revisar todo juntos.", ts: "2026-06-23T08:55:00" },
-    { id: "m15", conversationId: "v6", autor: "cliente", texto: "Gracias doctor, ahí estaremos.", ts: "2026-06-23T08:58:00" },
-    // v7 - pediatria, resuelto
-    { id: "m16", conversationId: "v7", autor: "cliente", texto: "Buenas, mi bebé tiene 3 meses, cuándo le toca la siguiente vacuna?", ts: "2026-06-22T16:20:00" },
-    { id: "m17", conversationId: "v7", autor: "staff", staffId: "s4", texto: "Hola Claudia, a los 4 meses le corresponde la segunda dosis. Le agendo para la otra semana.", ts: "2026-06-22T16:35:00" },
-    { id: "m18", conversationId: "v7", autor: "cliente", texto: "Perfecto, mil gracias!", ts: "2026-06-22T16:40:00" },
-    // v8 - laboratorio (nuevo)
-    { id: "m19", conversationId: "v8", autor: "cliente", texto: "Buenos días, ¿necesito cita para hacerme exámenes de sangre o llego directo?", ts: "2026-06-23T10:22:00" },
-    // v9 - laboratorio en progreso
-    { id: "m20", conversationId: "v9", autor: "cliente", texto: "Buen día, ya están listos mis resultados?", ts: "2026-06-23T08:55:00" },
-    { id: "m21", conversationId: "v9", autor: "staff", staffId: "s6", texto: "Buen día Daniela, sus resultados estarán listos hoy después de las 2:00 pm. Se los enviamos por este medio.", ts: "2026-06-23T09:05:00" },
-    // v10 - imagenes (facebook, nuevo)
-    { id: "m22", conversationId: "v10", autor: "cliente", texto: "Hola, quiero info sobre el ultrasonido 4D, cuánto cuesta?", ts: "2026-06-23T10:08:00" },
-    { id: "m23", conversationId: "v10", autor: "cliente", texto: "Y a partir de cuántas semanas se recomienda?", ts: "2026-06-23T10:12:00" },
-    // v11 - gineco resuelto
-    { id: "m24", conversationId: "v11", autor: "cliente", texto: "Doctora, gracias por la atención de ayer. Ya me siento mejor con el tratamiento.", ts: "2026-06-22T15:10:00" },
-    { id: "m25", conversationId: "v11", autor: "staff", staffId: "s2", texto: "Me alegra mucho Ingrid. Cualquier cosa me escribe. Cuídese.", ts: "2026-06-22T15:20:00" },
-    // v12 - pediatria control 6 meses
-    { id: "m26", conversationId: "v12", autor: "cliente", texto: "Buenos días doctor, el bebé ya cumplió 6 meses, toca su control de crecimiento verdad?", ts: "2026-06-23T08:20:00" },
-    { id: "m27", conversationId: "v12", autor: "staff", staffId: "s10", texto: "Así es Norma. Le agendo el control para el viernes a las 9:00 am.", ts: "2026-06-23T08:30:00" },
-    // v13 - IG nuevo
-    { id: "m28", conversationId: "v13", autor: "cliente", texto: "Buenas, atienden con seguro médico? Tengo SISA.", ts: "2026-06-23T10:27:00" },
-    // v14 - obstetricia resuelto
-    { id: "m29", conversationId: "v14", autor: "cliente", texto: "Doctor muchas gracias, todo salió bien con el parto. Bendiciones.", ts: "2026-06-21T10:50:00" },
-    { id: "m30", conversationId: "v14", autor: "staff", staffId: "s3", texto: "Felicidades a la familia Brenda. Nos vemos en el control posparto. Un abrazo.", ts: "2026-06-21T11:00:00" },
-  ],
+  // Bandeja limpia: sin conversaciones de muestra. Los chats aparecen aquí
+  // cuando llega un mensaje REAL de WhatsApp (webhook -> Supabase -> inbox).
+  contacts: [],
+  conversations: [],
+  messages: [],
   internalChannels: [
     { id: "ic1", nombre: "general", tipo: "canal", miembros: [ME, "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10"] },
     { id: "ic2", nombre: "ginecologia", tipo: "canal", miembros: [ME, "s2", "s7"] },
