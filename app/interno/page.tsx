@@ -32,9 +32,9 @@ export default function InternoPage() {
           canal ? "hidden lg:block" : "block",
         )}
       >
-        <h1 className="text-[17px] font-extrabold tracking-tight text-[#006cb7]">Chat interno</h1>
+        <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Chat interno</h1>
         <p className="text-[12.5px] text-[#94a3b4]">
-          Comunicación entre áreas de Grupo Q
+          Comunicación entre áreas
         </p>
       </header>
 

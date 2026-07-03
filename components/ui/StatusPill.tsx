@@ -1,10 +1,30 @@
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/cn";
 import type { ConversationStatus } from "@/lib/data/types";
 
-const MAP: Record<ConversationStatus, { label: string; className: string }> = {
-  nuevo: { label: "Nuevo", className: "bg-red-50 text-[#a32923] ring-1 ring-[#a32923]/20" },
-  en_progreso: { label: "En progreso", className: "bg-amber-50 text-amber-700 ring-1 ring-amber-300/50" },
-  resuelto: { label: "Resuelto", className: "bg-emerald-50 text-[#2f9e2f] ring-1 ring-[#00c040]/30" },
+// "Nuevo" usa el color de acento del tenant (rojo en Grupo Q, azul en el
+// hospital) vía CSS vars. Los demás estados son neutros (ámbar/verde) e iguales
+// para todos.
+const MAP: Record<
+  ConversationStatus,
+  { label: string; className: string; style?: CSSProperties }
+> = {
+  nuevo: {
+    label: "Nuevo",
+    className: "ring-1",
+    style: {
+      backgroundColor: "var(--brand-accent-soft)",
+      color: "var(--brand-accent)",
+    },
+  },
+  en_progreso: {
+    label: "En progreso",
+    className: "bg-amber-50 text-amber-700 ring-1 ring-amber-300/50",
+  },
+  resuelto: {
+    label: "Resuelto",
+    className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300/50",
+  },
 };
 
 export function StatusPill({
@@ -14,7 +34,7 @@ export function StatusPill({
   estado: ConversationStatus;
   className?: string;
 }) {
-  const { label, className: tone } = MAP[estado];
+  const { label, className: tone, style } = MAP[estado];
   return (
     <span
       className={cn(
@@ -22,6 +42,7 @@ export function StatusPill({
         tone,
         className,
       )}
+      style={style}
     >
       {label}
     </span>

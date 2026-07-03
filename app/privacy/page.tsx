@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidad — Centro de Comunicación",
-  description:
-    "Política de privacidad del Centro de Comunicación de Grupo Q.",
+  title: "Política de Privacidad, Centro de Comunicación",
+  description: "Política de privacidad del Centro de Comunicación.",
 };
 
 export default function PrivacyPage() {
@@ -12,14 +11,14 @@ export default function PrivacyPage() {
       <h1 className="text-2xl font-extrabold tracking-tight text-[#0f1b2d]">
         Política de Privacidad
       </h1>
-      <p className="mt-1 text-sm text-[#006cb7]">Centro de Comunicación · Grupo Q</p>
+      <p className="mt-1 text-sm text-brand">Centro de Comunicación</p>
       <p className="mt-1 text-xs text-[#94a3b4]">Última actualización: 2 de julio de 2026</p>
 
       <div className="mt-8 space-y-6 text-[14.5px] leading-relaxed">
         <section>
           <h2 className="mb-1.5 text-base font-bold text-[#0f1b2d]">1. Quiénes somos</h2>
           <p>
-            El Centro de Comunicación es la plataforma interna de comunicación de Grupo Q,
+            El Centro de Comunicación es la plataforma interna de comunicación de la empresa,
             que unifica la atención a clientes por WhatsApp, redes sociales y correo
             electrónico, junto con la coordinación interna entre áreas.
           </p>
@@ -73,7 +72,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="mb-1.5 text-base font-bold text-[#0f1b2d]">7. Contacto</h2>
           <p>
-            Para cualquier consulta sobre esta política, comuníquese con Grupo Q a través de
+            Para cualquier consulta sobre esta política, comuníquese con la empresa a través de
             sus canales oficiales de atención.
           </p>
         </section>

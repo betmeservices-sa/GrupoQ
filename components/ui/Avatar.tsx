@@ -21,7 +21,7 @@ export function Avatar({
         width: size,
         height: size,
         fontSize: size * 0.38,
-        backgroundColor: color ?? "#006cb7",
+        backgroundColor: color ?? "var(--brand-blue)",
       }}
       aria-hidden
     >

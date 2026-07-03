@@ -11,7 +11,7 @@ export default function RedesPage() {
   return (
     <div className="flex h-full flex-col">
       <header className="border-b border-line bg-card px-5 py-3">
-        <h1 className="text-[17px] font-extrabold tracking-tight text-[#006cb7]">
+        <h1 className="text-[17px] font-extrabold tracking-tight text-brand">
           Redes sociales
         </h1>
         <p className="text-[12.5px] text-[#94a3b4]">

@@ -3,9 +3,9 @@ import "./globals.css";
 import { AppShell } from "@/components/shell/AppShell";
 
 export const metadata: Metadata = {
-  title: "Centro de Comunicación, Grupo Q",
+  title: "Centro de Comunicación",
   description:
-    "Bandeja omnicanal interna de Grupo Q: WhatsApp, redes sociales y chat entre áreas.",
+    "Plataforma omnicanal interna: WhatsApp, redes sociales y chat entre áreas.",
 };
 
 export default function RootLayout({

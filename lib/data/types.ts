@@ -5,14 +5,26 @@ export type Channel = "whatsapp" | "instagram" | "facebook" | "internal";
 
 export type ConversationStatus = "nuevo" | "en_progreso" | "resuelto";
 
+// Unión de los departamentos de TODOS los tenants. Cada tenant usa solo los
+// suyos (los declara en su seed); el tipo los admite a todos para que un solo
+// código base sirva a varios clientes.
 export type DepartmentId =
+  // Grupo Q (automotriz)
   | "ventas"
   | "usados"
   | "taller"
   | "repuestos"
   | "pintura"
   | "crediq"
-  | "atencion";
+  | "atencion"
+  // Hospital Centro Ginecológico
+  | "ginecologia"
+  | "obstetricia"
+  | "pediatria"
+  | "reproduccion"
+  | "laboratorio"
+  | "imagenes"
+  | "recepcion";
 
 export type RoleId = "recepcion" | "marketing" | "medico" | "jefe" | "admin";
 
@@ -122,6 +134,32 @@ export interface Metric {
   label: string;
   valor: string | number;
   delta?: number; // variación porcentual, positiva o negativa
+}
+
+// --- Plantillas de WhatsApp (Meta message templates) ---
+export type TemplateCategory = "MARKETING" | "UTILITY" | "AUTHENTICATION";
+export type TemplateStatus =
+  | "APPROVED"
+  | "PENDING"
+  | "REJECTED"
+  | "PAUSED"
+  | "DISABLED";
+
+export interface TemplateComponent {
+  type: "HEADER" | "BODY" | "FOOTER" | "BUTTONS";
+  format?: "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
+  text?: string;
+  buttons?: Array<{ type: string; text: string; url?: string; phone_number?: string }>;
+  example?: { header_text?: string[]; body_text?: string[][] };
+}
+
+export interface WaTemplate {
+  id?: string;
+  name: string;
+  language: string;
+  category: TemplateCategory;
+  status: TemplateStatus;
+  components: TemplateComponent[];
 }
 
 // --- Llamadas (Vapi) ---

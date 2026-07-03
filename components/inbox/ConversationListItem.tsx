@@ -47,7 +47,7 @@ export function ConversationListItem({
             {ultimo ? ultimo.texto : "Sin mensajes"}
           </p>
           {conversation.noLeidos > 0 && (
-            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#a32923] px-1.5 text-[11px] font-bold text-white">
+            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent)] px-1.5 text-[11px] font-bold text-white">
               {conversation.noLeidos}
             </span>
           )}
@@ -60,7 +60,7 @@ export function ConversationListItem({
             {d.nombre}
           </span>
           {conversation.estado === "nuevo" && (
-            <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#a32923]">
+            <span className="rounded-md bg-[var(--brand-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand-accent)]">
               Nuevo
             </span>
           )}

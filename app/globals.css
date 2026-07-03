@@ -1,13 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-/* ── Marca real de Grupo Q (variables tomadas de grupoq.com:
-   --primary #006cb7, --secondary #a32923, --tertiary #2baab1) ── */
+/* ── Tema por cliente (tenant) ──
+   Los colores de marca y la tipografía se intercambian según [data-tenant] en
+   <html> (lo fija el shell tras el login). :root es un tema NEUTRO para la
+   pantalla de login (antes de saber qué cliente es). El resto de variables
+   (superficie, texto, bordes) son compartidas. */
 :root {
-  --brand-blue: #006cb7;
-  --brand-blue-dark: #0056b3;
-  --brand-green: #00c040;
-  --brand-red: #a32923;
+  /* Neutro (login): azul pizarra sobrio, ni Grupo Q ni hospital. */
+  --brand-blue: #3f5875;
+  --brand-blue-dark: #2d4257;
+  --brand-green: #3fa66a;
+  --brand-red: #c0563f;
+  --brand-accent: #3f5875;
+  --brand-accent-soft: #eef2f7;
+  --font-app: 'Barlow', Arial, system-ui, sans-serif;
+
+  /* Compartidas por todos los tenants. */
   --surface: #f4f7fb;
   --surface-2: #eef2f8;
   --card: #ffffff;
@@ -18,12 +28,34 @@
   --text-3: #94a3b4;
 }
 
+/* Grupo Q / Grupo Nissan — variables reales de grupoq.com. */
+[data-tenant="grupoq"] {
+  --brand-blue: #006cb7;
+  --brand-blue-dark: #0056b3;
+  --brand-green: #00c040;
+  --brand-red: #a32923;
+  --brand-accent: #a32923; /* rojo de marca: pills "Nuevo", acentos */
+  --brand-accent-soft: #fdecea;
+  --font-app: 'Barlow', Arial, system-ui, sans-serif;
+}
+
+/* Hospital Centro Ginecológico — azul + verde de su sitio. */
+[data-tenant="hospital"] {
+  --brand-blue: #0067f8;
+  --brand-blue-dark: #0a4fb8;
+  --brand-green: #4ac12f;
+  --brand-red: #d64545; /* rojo neutro para estados (el hospital no tiene rojo de marca) */
+  --brand-accent: #0067f8; /* acento del hospital = su azul */
+  --brand-accent-soft: #e8f1ff;
+  --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
 @theme inline {
-  /* Barlow = tipografía real de grupoq.com */
-  --font-sans: 'Barlow', Arial, system-ui, sans-serif;
+  --font-sans: var(--font-app);
   --color-brand: var(--brand-blue);
   --color-brand-dark: var(--brand-blue-dark);
   --color-accent: var(--brand-green);
+  --color-brand-accent: var(--brand-accent);
   --color-surface: var(--surface);
   --color-card: var(--card);
   --color-line: var(--border);

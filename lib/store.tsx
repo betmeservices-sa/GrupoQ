@@ -9,6 +9,7 @@ import {
 } from "react";
 import { fakeProvider } from "./data/provider";
 import { telefonoBonito } from "./phone";
+import { activeTenant } from "./tenants/active";
 import type {
   Contact,
   Conversation,
@@ -221,6 +222,8 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
       if (state.messages.some((m) => m.id === action.waId)) return state;
 
       const esEntrante = action.direccion !== "out"; // out = lo envió la empresa
+      // Departamento de arranque de una conversación nueva, según el tenant.
+      const deptDefault = activeTenant().defaultDepartment;
 
       const existente = state.contacts.find(
         (c) => c.canal === "whatsapp" && c.telefono === action.from,
@@ -253,7 +256,7 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
               id: conversationId,
               canal: "whatsapp",
               contactId: existente.id,
-              departamento: "atencion",
+              departamento: deptDefault,
               estado: "nuevo",
               noLeidos: esEntrante ? 1 : 0,
               ultimoMensajeTs: action.ts,
@@ -277,7 +280,7 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
             id: conversationId,
             canal: "whatsapp",
             contactId,
-            departamento: "atencion",
+            departamento: deptDefault,
             estado: "nuevo",
             noLeidos: esEntrante ? 1 : 0,
             ultimoMensajeTs: action.ts,

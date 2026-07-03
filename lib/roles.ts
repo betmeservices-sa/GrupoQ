@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { RoleId } from "./data/types";
+import { activeTenant } from "./tenants/active";
 
 export type ModuleId = "bandeja" | "interno" | "redes" | "dashboard" | "settings";
 
@@ -11,15 +12,27 @@ export interface RoleDef {
   ve: ModuleId[];
 }
 
-// Cada rol ve solo sus modulos. Atencion al Cliente y Asesor atienden clientes
-// (bandeja), pero NO ven redes ni metricas. Marketing ve redes y dashboard, pero
-// NO la bandeja de clientes (privacidad). Direccion ve todo.
+// Qué módulos ve cada rol (igual para todos los tenants). Recepción/Asesor
+// atienden la bandeja pero NO ven redes ni métricas. Marketing ve redes y
+// dashboard, pero NO la bandeja (privacidad). Dirección ve todo.
+const VE: Record<RoleId, ModuleId[]> = {
+  recepcion: ["bandeja", "interno"],
+  marketing: ["redes", "dashboard", "interno", "settings"],
+  medico: ["bandeja", "interno"],
+  jefe: ["bandeja", "interno", "dashboard"],
+  admin: ["bandeja", "interno", "redes", "dashboard", "settings"],
+};
+
+// Las etiquetas de los roles vienen del tenant activo (ej. "Médico" en el
+// hospital, "Asesor" en Grupo Q). Los ids internos no cambian.
+const rolesLabels = activeTenant().roles;
+
 export const ROLES: Record<RoleId, RoleDef> = {
-  recepcion: { id: "recepcion", nombre: "Atención al Cliente", ve: ["bandeja", "interno"] },
-  marketing: { id: "marketing", nombre: "Marketing", ve: ["redes", "dashboard", "interno", "settings"] },
-  medico: { id: "medico", nombre: "Asesor", ve: ["bandeja", "interno"] },
-  jefe: { id: "jefe", nombre: "Jefe de área", ve: ["bandeja", "interno", "dashboard"] },
-  admin: { id: "admin", nombre: "Dirección (todo)", ve: ["bandeja", "interno", "redes", "dashboard", "settings"] },
+  recepcion: { id: "recepcion", nombre: rolesLabels.recepcion, ve: VE.recepcion },
+  marketing: { id: "marketing", nombre: rolesLabels.marketing, ve: VE.marketing },
+  medico: { id: "medico", nombre: rolesLabels.medico, ve: VE.medico },
+  jefe: { id: "jefe", nombre: rolesLabels.jefe, ve: VE.jefe },
+  admin: { id: "admin", nombre: rolesLabels.admin, ve: VE.admin },
 };
 
 // Ruta de cada modulo (para navegar / redirigir).

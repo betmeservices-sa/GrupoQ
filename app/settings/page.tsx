@@ -12,6 +12,7 @@ import {
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { activeTenant } from "@/lib/tenants/active";
 
 type TemplateCategory = "MARKETING" | "UTILITY" | "AUTHENTICATION";
 type TemplateStatus = "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED";
@@ -188,7 +189,7 @@ export default function SettingsPage() {
   return (
     <div className="flex h-full flex-col">
       <header className="border-b border-line bg-card px-5 py-3">
-        <h1 className="text-[17px] font-extrabold tracking-tight text-[#006cb7]">
+        <h1 className="text-[17px] font-extrabold tracking-tight text-brand">
           Configuración · Plantillas de WhatsApp
         </h1>
         <p className="text-[12.5px] text-[#94a3b4]">
@@ -287,7 +288,7 @@ export default function SettingsPage() {
               <input
                 value={header}
                 onChange={(e) => setHeader(e.target.value)}
-                placeholder="Grupo Q"
+                placeholder={activeTenant().brand.nombreCorto}
                 className={INPUT}
               />
             </div>
@@ -342,7 +343,7 @@ export default function SettingsPage() {
               <input
                 value={footer}
                 onChange={(e) => setFooter(e.target.value)}
-                placeholder="Grupo Q"
+                placeholder={activeTenant().brand.nombreCorto}
                 className={INPUT}
               />
             </div>

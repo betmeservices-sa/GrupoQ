@@ -9,33 +9,19 @@
 // pierden al reiniciar el server). El token necesita permiso
 // `whatsapp_business_management` (además del de mensajería).
 
+import type {
+  TemplateCategory,
+  TemplateStatus,
+  TemplateComponent,
+  WaTemplate,
+} from "./data/types";
+import { TENANTS, DEFAULT_TENANT } from "./tenants";
+import type { TenantId } from "./tenants/types";
+
+export type { TemplateCategory, TemplateStatus, TemplateComponent, WaTemplate };
+
 const VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v21.0";
 const GRAPH = `https://graph.facebook.com/${VERSION}`;
-
-export type TemplateCategory = "MARKETING" | "UTILITY" | "AUTHENTICATION";
-export type TemplateStatus =
-  | "APPROVED"
-  | "PENDING"
-  | "REJECTED"
-  | "PAUSED"
-  | "DISABLED";
-
-export interface TemplateComponent {
-  type: "HEADER" | "BODY" | "FOOTER" | "BUTTONS";
-  format?: "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
-  text?: string;
-  buttons?: Array<{ type: string; text: string; url?: string; phone_number?: string }>;
-  example?: { header_text?: string[]; body_text?: string[][] };
-}
-
-export interface WaTemplate {
-  id?: string;
-  name: string;
-  language: string;
-  category: TemplateCategory;
-  status: TemplateStatus;
-  components: TemplateComponent[];
-}
 
 // Lo que manda el formulario de la plataforma (forma simplificada).
 export interface NuevoTemplate {
@@ -97,37 +83,22 @@ function construirComponents(input: NuevoTemplate): TemplateComponent[] {
   return components;
 }
 
-// --- Almacén FAKE (solo cuando no hay credenciales) ---
-let fakeStore: WaTemplate[] = [
-  {
-    name: "recordatorio_cita",
-    language: "es",
-    category: "UTILITY",
-    status: "APPROVED",
-    components: [
-      {
-        type: "BODY",
-        text: "Hola {{1}}, le recordamos su cita de servicio en Grupo Q el {{2}} a las {{3}}. Responda CONFIRMAR o REAGENDAR.",
-        example: { body_text: [["Ana", "12 de julio", "10:00 am"]] },
-      },
-      { type: "FOOTER", text: "Grupo Q · Vas a llegar" },
-    ],
-  },
-  {
-    name: "bienvenida",
-    language: "es",
-    category: "MARKETING",
-    status: "APPROVED",
-    components: [
-      { type: "HEADER", format: "TEXT", text: "Grupo Q" },
-      {
-        type: "BODY",
-        text: "Hola {{1}}, gracias por escribir a Grupo Q. ¿En qué le podemos ayudar hoy?",
-        example: { body_text: [["María"]] },
-      },
-    ],
-  },
-];
+// --- Almacén FAKE por tenant (solo cuando no hay credenciales) ---
+// Cada cliente arranca con sus propias plantillas demo (lib/tenants/<t>.waTemplates).
+const fakeStores = new Map<TenantId, WaTemplate[]>();
+
+function clone<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T;
+}
+
+function storeDe(tenant: TenantId): WaTemplate[] {
+  let s = fakeStores.get(tenant);
+  if (!s) {
+    s = TENANTS[tenant].waTemplates.map(clone);
+    fakeStores.set(tenant, s);
+  }
+  return s;
+}
 
 interface GraphTemplate {
   id?: string;
@@ -138,14 +109,16 @@ interface GraphTemplate {
   components?: TemplateComponent[];
 }
 
-export async function listarTemplates(): Promise<{
+export async function listarTemplates(
+  tenant: TenantId = DEFAULT_TENANT,
+): Promise<{
   ok: boolean;
   templates: WaTemplate[];
   demo: boolean;
   error?: string;
 }> {
   const c = creds();
-  if (!c) return { ok: true, templates: fakeStore, demo: true };
+  if (!c) return { ok: true, templates: storeDe(tenant), demo: true };
 
   const url = `${GRAPH}/${c.waba}/message_templates?fields=id,name,status,category,language,components&limit=200`;
   const res = await fetch(url, {
@@ -171,7 +144,10 @@ export async function listarTemplates(): Promise<{
   return { ok: true, templates: rows, demo: false };
 }
 
-export async function crearTemplate(input: NuevoTemplate): Promise<{
+export async function crearTemplate(
+  input: NuevoTemplate,
+  tenant: TenantId = DEFAULT_TENANT,
+): Promise<{
   ok: boolean;
   template?: WaTemplate;
   demo: boolean;
@@ -208,7 +184,8 @@ export async function crearTemplate(input: NuevoTemplate): Promise<{
       status: "PENDING",
       components,
     };
-    fakeStore = [t, ...fakeStore.filter((x) => x.name !== t.name)];
+    const store = storeDe(tenant);
+    fakeStores.set(tenant, [t, ...store.filter((x) => x.name !== t.name)]);
     return { ok: true, template: t, demo: true };
   }
 
@@ -249,14 +226,17 @@ export async function crearTemplate(input: NuevoTemplate): Promise<{
   };
 }
 
-export async function eliminarTemplate(name: string): Promise<{
+export async function eliminarTemplate(
+  name: string,
+  tenant: TenantId = DEFAULT_TENANT,
+): Promise<{
   ok: boolean;
   demo: boolean;
   error?: string;
 }> {
   const c = creds();
   if (!c) {
-    fakeStore = fakeStore.filter((t) => t.name !== name);
+    fakeStores.set(tenant, storeDe(tenant).filter((t) => t.name !== name));
     return { ok: true, demo: true };
   }
   const res = await fetch(

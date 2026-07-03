@@ -1,20 +1,46 @@
 "use client";
 
 import { useMemo } from "react";
-import { Bot, CheckCircle2, Clock, Inbox, Megaphone, MessageSquare, Smile, Timer } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  Clock,
+  Inbox,
+  Megaphone,
+  MessageSquare,
+  Smile,
+  Timer,
+  type LucideIcon,
+} from "lucide-react";
 import { useStore } from "@/lib/store";
+import { activeTenant } from "@/lib/tenants/active";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
 import { CallsPanel } from "@/components/dashboard/CallsPanel";
 
+// Íconos disponibles para las tarjetas del dashboard (referenciados por nombre
+// desde la config del tenant).
+const ICONS: Record<string, LucideIcon> = {
+  MessageSquare,
+  Megaphone,
+  Clock,
+  Timer,
+  CheckCircle2,
+  Smile,
+  Bot,
+  Inbox,
+};
+
+// Estados de conversación. Colores por CSS var para que sigan la marca del tenant.
 const ESTADOS = [
-  { id: "nuevo", label: "Nuevos", color: "#a32923" },
+  { id: "nuevo", label: "Nuevos", color: "var(--brand-accent)" },
   { id: "en_progreso", label: "En progreso", color: "#f5a623" },
-  { id: "resuelto", label: "Resueltos", color: "#00c040" },
+  { id: "resuelto", label: "Resueltos", color: "var(--brand-green)" },
 ] as const;
 
 export default function DashboardPage() {
   const { state } = useStore();
+  const cards = activeTenant().dashboard;
 
   const stats = useMemo(() => {
     const total = state.conversations.length;
@@ -24,62 +50,35 @@ export default function DashboardPage() {
     return { total, resueltas, sinAsignar, pct };
   }, [state.conversations]);
 
-  // Métricas demo del seed, por etiqueta exacta.
-  const metrica = (label: string) => state.metrics.find((m) => m.label === label);
-  const volumen = metrica("Conversaciones hoy");
-  const leads = metrica("Leads de anuncios");
-  const respuesta = metrica("Tiempo de respuesta");
-  const atencion = metrica("Tiempo medio de atención");
-  const csat = metrica("CSAT");
-  const ia = metrica("Atendidas por IA");
-
   return (
     <div className="flex h-full flex-col">
       <header className="border-b border-line bg-card px-5 py-3">
-        <h1 className="text-[17px] font-extrabold tracking-tight text-[#006cb7]">Dashboard</h1>
+        <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Dashboard</h1>
         <p className="text-[12.5px] text-[#94a3b4]">Resumen de la actividad de comunicación</p>
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-5">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <MetricCard
-            label="Conversaciones hoy"
-            valor={volumen?.valor ?? state.conversations.length}
-            delta={volumen?.delta}
-            Icon={MessageSquare}
-          />
-          <MetricCard
-            label="Leads de anuncios (IG/FB)"
-            valor={leads?.valor ?? 0}
-            delta={leads?.delta}
-            Icon={Megaphone}
-          />
-          <MetricCard
-            label="Tiempo de respuesta"
-            valor={respuesta?.valor ?? "6 min"}
-            delta={respuesta?.delta}
-            Icon={Clock}
-          />
-          <MetricCard
-            label="Tiempo medio de atención"
-            valor={atencion?.valor ?? "9 min"}
-            delta={atencion?.delta}
-            Icon={Timer}
-          />
-          <MetricCard label="Tasa de resolución" valor={`${stats.pct}%`} Icon={CheckCircle2} />
-          <MetricCard
-            label="Satisfacción (CSAT)"
-            valor={csat?.valor ?? "4.6 / 5"}
-            delta={csat?.delta}
-            Icon={Smile}
-          />
-          <MetricCard
-            label="Atendidas por IA"
-            valor={ia?.valor ?? "0%"}
-            delta={ia?.delta}
-            Icon={Bot}
-          />
-          <MetricCard label="Sin asignar" valor={stats.sinAsignar} Icon={Inbox} />
+          {cards.map((card) => {
+            const Icon = ICONS[card.icon] ?? MessageSquare;
+            if (card.kind === "resolucionPct") {
+              return <MetricCard key={card.label} label={card.label} valor={`${stats.pct}%`} Icon={Icon} />;
+            }
+            if (card.kind === "sinAsignar") {
+              return <MetricCard key={card.label} label={card.label} valor={stats.sinAsignar} Icon={Icon} />;
+            }
+            // kind "metric": valor de seed.metrics por label exacta.
+            const metric = state.metrics.find((m) => m.label === card.metricLabel);
+            return (
+              <MetricCard
+                key={card.label}
+                label={card.label}
+                valor={metric?.valor ?? card.fallback ?? "—"}
+                delta={metric?.delta}
+                Icon={Icon}
+              />
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

@@ -53,8 +53,8 @@ const DIR_META: Record<
   CallRecord["direccion"],
   { Icon: LucideIcon; color: string; label: string }
 > = {
-  inbound: { Icon: PhoneIncoming, color: "#00c040", label: "Entrante" },
-  outbound: { Icon: PhoneOutgoing, color: "#006cb7", label: "Saliente" },
+  inbound: { Icon: PhoneIncoming, color: "var(--brand-green)", label: "Entrante" },
+  outbound: { Icon: PhoneOutgoing, color: "var(--brand-blue)", label: "Saliente" },
   web: { Icon: Phone, color: "#94a3b4", label: "Web" },
 };
 

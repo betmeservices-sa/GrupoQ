@@ -111,7 +111,7 @@ export default function BandejaPage() {
         )}
       >
         <div>
-          <h1 className="text-[17px] font-extrabold tracking-tight text-[#006cb7]">
+          <h1 className="text-[17px] font-extrabold tracking-tight text-brand">
             Bandeja unificada
           </h1>
           <p className="text-[12.5px] text-[#94a3b4]">

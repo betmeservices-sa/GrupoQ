@@ -6,6 +6,7 @@ import { Lock, Menu } from "lucide-react";
 import { StoreProvider } from "@/lib/store";
 import { LiveProvider } from "@/lib/live-context";
 import { useAuth } from "@/lib/auth";
+import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import { useRole, moduloDeRuta, primerModulo, MODULO_RUTA } from "@/lib/roles";
 import { Sidebar } from "./Sidebar";
 import { LiveMount } from "./LiveMount";
@@ -18,7 +19,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
-  const { def, setRol } = useRole();
+  const { def } = useRole();
   const { sesion, login, logout } = useAuth();
 
   // Guard de rol: si la ruta actual es un módulo que este rol NO ve, lo
@@ -30,6 +31,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!permitido) router.replace(MODULO_RUTA[primerModulo(def)]);
   }, [permitido, def, router]);
 
+  // Aplica el tema del cliente activo en <html data-tenant>. Sin sesión se quita
+  // (la pantalla de login usa el tema neutro de :root).
+  useEffect(() => {
+    const el = document.documentElement;
+    if (sesion) el.dataset.tenant = activeTenantId();
+    else if (sesion === false) delete el.dataset.tenant;
+  }, [sesion]);
+
   if (PUBLIC_ROUTES.includes(pathname)) {
     return <>{children}</>;
   }
@@ -40,16 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <div className="min-h-screen bg-surface" />;
   }
   if (!sesion) {
-    return (
-      <LoginPage
-        onLogin={(email, password) => {
-          const ok = login(email, password);
-          // Al entrar, acceso total: el perfil queda en Dirección.
-          if (ok) setRol("admin");
-          return ok;
-        }}
-      />
-    );
+    return <LoginPage onLogin={login} />;
   }
 
   return (
@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Menu size={22} />
               </button>
               <span className="text-sm font-extrabold tracking-tight text-[#0f1b2d]">
-                Grupo Q
+                {activeTenant().brand.nombreCorto}
               </span>
             </div>
 

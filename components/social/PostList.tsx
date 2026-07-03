@@ -22,7 +22,7 @@ function fechaPost(iso: string): string {
 }
 
 const GRUPOS = [
-  { estado: "programado", titulo: "Programadas", Icon: CalendarClock, tone: "text-[#006cb7]" },
+  { estado: "programado", titulo: "Programadas", Icon: CalendarClock, tone: "text-brand" },
   { estado: "publicado", titulo: "Publicadas", Icon: CheckCircle2, tone: "text-[#2f9e2f]" },
   { estado: "borrador", titulo: "Borradores", Icon: FileText, tone: "text-[#94a3b4]" },
 ] as const;
