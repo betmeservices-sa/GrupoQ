@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import type { RoleId } from "./data/types";
 import { activeTenant } from "./tenants/active";
 
@@ -68,20 +68,38 @@ export function primerModulo(def: RoleDef): ModuleId {
 const STORAGE_KEY = "ccg.rol";
 const DEFAULT_ROLE: RoleId = "gerente_marketing"; // el demo abre como Gerente de Marketing (acceso total)
 
-export function useRole() {
-  const [rol, setRolState] = useState<RoleId>(DEFAULT_ROLE);
+// Store compartido del rol: un solo estado para TODOS los que usan useRole
+// (RoleSwitcher, Sidebar, AppShell). Así "Ver como" filtra el menú y las rutas
+// en vivo, sin recargar. (Antes cada componente tenía su propio useState y no se
+// sincronizaban.)
+let rolActual: RoleId = DEFAULT_ROLE;
+const oyentes = new Set<() => void>();
+function emitir() {
+  for (const l of oyentes) l();
+}
+function subscribe(l: () => void) {
+  oyentes.add(l);
+  return () => oyentes.delete(l);
+}
 
+export function setRol(next: RoleId) {
+  rolActual = next;
+  if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, next);
+  emitir();
+}
+
+export function useRole() {
+  const rol = useSyncExternalStore(
+    subscribe,
+    () => rolActual,
+    () => DEFAULT_ROLE, // snapshot en el servidor (evita mismatch de hidratación)
+  );
+
+  // Hidrata desde localStorage una sola vez (post-montaje).
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY) as RoleId | null;
-    if (saved && saved in ROLES) {
-      setRolState(saved);
-    }
+    if (saved && saved in ROLES && saved !== rolActual) setRol(saved);
   }, []);
-
-  function setRol(next: RoleId) {
-    setRolState(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
-  }
 
   return { rol, setRol, def: ROLES[rol] };
 }
