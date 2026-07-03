@@ -88,6 +88,7 @@ export const hospitalTenant: TenantConfig = {
   roles: {
     recepcion: "Recepción",
     marketing: "Marketing",
+    gerente_marketing: "Gerente de Marketing",
     medico: "Médico",
     jefe: "Jefe de departamento",
     admin: "Dirección (todo)",

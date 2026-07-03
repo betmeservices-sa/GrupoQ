@@ -19,7 +19,7 @@ export const hospitalSeed: TenantSeed = {
     { id: "recepcion", nombre: "Recepción", color: "#64748b" },
   ],
   staff: [
-    { id: ME, nombre: "Gabriela Méndez", rol: "admin", departamento: "recepcion", iniciales: "GM" },
+    { id: ME, nombre: "Gerente de Marketing", rol: "gerente_marketing", departamento: "recepcion", iniciales: "GM" },
     { id: "s2", nombre: "Dra. Ana Beatriz Rivas", rol: "medico", departamento: "ginecologia", iniciales: "AR" },
     { id: "s3", nombre: "Dr. Carlos Portillo", rol: "medico", departamento: "obstetricia", iniciales: "CP" },
     { id: "s4", nombre: "Dra. Sofía Henríquez", rol: "jefe", departamento: "pediatria", iniciales: "SH" },

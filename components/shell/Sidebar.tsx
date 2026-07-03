@@ -92,7 +92,7 @@ export function Sidebar({
           <Avatar iniciales={yo.iniciales} size={34} />
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-sm font-semibold text-[#0f1b2d]">{yo.nombre}</p>
-            <p className="truncate text-[11px] text-[#94a3b4]">{def.nombre} · en línea</p>
+            <p className="truncate text-[11px] text-[#94a3b4]">En línea</p>
           </div>
           {onLogout && (
             <button

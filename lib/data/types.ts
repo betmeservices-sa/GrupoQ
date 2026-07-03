@@ -26,7 +26,7 @@ export type DepartmentId =
   | "imagenes"
   | "recepcion";
 
-export type RoleId = "recepcion" | "marketing" | "medico" | "jefe" | "admin";
+export type RoleId = "recepcion" | "marketing" | "gerente_marketing" | "medico" | "jefe" | "admin";
 
 export interface Department {
   id: DepartmentId;

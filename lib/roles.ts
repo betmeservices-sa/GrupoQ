@@ -12,15 +12,20 @@ export interface RoleDef {
   ve: ModuleId[];
 }
 
-// Qué módulos ve cada rol (igual para todos los tenants). Recepción/Asesor
-// atienden la bandeja pero NO ven redes ni métricas. Marketing ve redes y
-// dashboard, pero NO la bandeja (privacidad). Dirección ve todo.
+// Qué módulos ve cada rol (igual para todos los tenants):
+//   Recepción       -> Bandeja + Chat interno
+//   Marketing       -> Bandeja + Redes sociales
+//   Dirección       -> todo
+//   Gerente de Mkt. -> todo
+// Médico/Asesor y Jefe mantienen su acceso operativo (bandeja/interno/dashboard).
+const TODO: ModuleId[] = ["bandeja", "interno", "redes", "dashboard", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
   recepcion: ["bandeja", "interno"],
-  marketing: ["redes", "dashboard", "interno", "settings"],
+  marketing: ["bandeja", "redes"],
+  gerente_marketing: TODO,
   medico: ["bandeja", "interno"],
   jefe: ["bandeja", "interno", "dashboard"],
-  admin: ["bandeja", "interno", "redes", "dashboard", "settings"],
+  admin: TODO,
 };
 
 // Las etiquetas de los roles vienen del tenant activo (ej. "Médico" en el
@@ -30,6 +35,7 @@ const rolesLabels = activeTenant().roles;
 export const ROLES: Record<RoleId, RoleDef> = {
   recepcion: { id: "recepcion", nombre: rolesLabels.recepcion, ve: VE.recepcion },
   marketing: { id: "marketing", nombre: rolesLabels.marketing, ve: VE.marketing },
+  gerente_marketing: { id: "gerente_marketing", nombre: rolesLabels.gerente_marketing, ve: VE.gerente_marketing },
   medico: { id: "medico", nombre: rolesLabels.medico, ve: VE.medico },
   jefe: { id: "jefe", nombre: rolesLabels.jefe, ve: VE.jefe },
   admin: { id: "admin", nombre: rolesLabels.admin, ve: VE.admin },
@@ -60,7 +66,7 @@ export function primerModulo(def: RoleDef): ModuleId {
 }
 
 const STORAGE_KEY = "ccg.rol";
-const DEFAULT_ROLE: RoleId = "admin"; // el demo abre mostrando todo
+const DEFAULT_ROLE: RoleId = "gerente_marketing"; // el demo abre como Gerente de Marketing (acceso total)
 
 export function useRole() {
   const [rol, setRolState] = useState<RoleId>(DEFAULT_ROLE);

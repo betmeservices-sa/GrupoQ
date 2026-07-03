@@ -25,8 +25,8 @@ export function useAuth() {
     const tenant = resolveTenantByLogin(email, password);
     if (!tenant) return false;
     window.localStorage.setItem(SESION_KEY, email.trim().toLowerCase());
-    // El demo abre con acceso total (perfil Dirección).
-    window.localStorage.setItem(ROL_KEY, "admin");
+    // El demo abre como Gerente de Marketing (acceso total).
+    window.localStorage.setItem(ROL_KEY, "gerente_marketing");
     setActiveTenant(tenant);
     // Cookie para que el servidor (p. ej. plantillas de WhatsApp) sepa el tenant.
     document.cookie = `ccg_tenant=${tenant};path=/;max-age=31536000;samesite=lax`;

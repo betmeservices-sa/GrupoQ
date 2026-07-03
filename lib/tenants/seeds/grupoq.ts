@@ -18,7 +18,7 @@ export const grupoqSeed: TenantSeed = {
     { id: "atencion", nombre: "Atención al Cliente", color: "#64748b" },
   ],
   staff: [
-    { id: ME, nombre: "Sandra", rol: "admin", departamento: "atencion", iniciales: "SA" },
+    { id: ME, nombre: "Gerente de Marketing", rol: "gerente_marketing", departamento: "atencion", iniciales: "GM" },
     { id: "s2", nombre: "Ana Rivas", rol: "medico", departamento: "ventas", iniciales: "AR" },
     { id: "s3", nombre: "Carlos Portillo", rol: "medico", departamento: "taller", iniciales: "CP" },
     { id: "s4", nombre: "Silvia Henríquez", rol: "jefe", departamento: "ventas", iniciales: "SH" },
@@ -82,7 +82,7 @@ export const grupoqSeed: TenantSeed = {
     { id: "im5", channelId: "ic2", staffId: "s4", texto: "Sí, queda una unidad. Te la reservo para tu cliente.", ts: "2026-06-23T09:18:00" },
     { id: "im6", channelId: "ic5", staffId: "s3", texto: "Ingresó un vehículo en grúa con falla eléctrica. Lo estamos evaluando en la bahía 1.", ts: "2026-06-23T07:45:00" },
     { id: "im7", channelId: "ic5", staffId: "s7", texto: "Voy en camino para apoyar. Tengan listo el escáner de diagnóstico.", ts: "2026-06-23T07:48:00" },
-    { id: "im8", channelId: "dm1", staffId: "s7", texto: "Sandra, ¿me pasas el reporte de conversaciones de la semana para la reunión?", ts: "2026-06-23T09:50:00" },
+    { id: "im8", channelId: "dm1", staffId: "s7", texto: "¿Me pasas el reporte de conversaciones de la semana para la reunión?", ts: "2026-06-23T09:50:00" },
     { id: "im9", channelId: "dm1", staffId: ME, texto: "Claro Verónica, se lo envío antes del mediodía.", ts: "2026-06-23T09:55:00" },
   ],
   socialPosts: [

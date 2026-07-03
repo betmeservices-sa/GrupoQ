@@ -114,6 +114,7 @@ export const grupoqTenant: TenantConfig = {
   roles: {
     recepcion: "Atención al Cliente",
     marketing: "Marketing",
+    gerente_marketing: "Gerente de Marketing",
     medico: "Asesor",
     jefe: "Jefe de área",
     admin: "Dirección (todo)",
