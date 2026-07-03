@@ -434,7 +434,7 @@ function ContactoModal({
           <Campo label="Correo" value={form.correo} onChange={(v) => set("correo", v)} placeholder="maria@correo.com" type="email" />
           <Campo
             label="Teléfono"
-            value={form.telefono}
+            value={editando ? telefonoBonito(form.telefono) : form.telefono}
             onChange={(v) => set("telefono", v)}
             placeholder="7002-0001"
             type="tel"
