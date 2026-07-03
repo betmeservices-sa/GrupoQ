@@ -85,6 +85,7 @@ function subscribe(l: () => void) {
 }
 
 export function setRol(next: RoleId) {
+  if (!(next in ROLES)) return; // ignora roles inválidos (nunca dejamos el store en un estado que rompa)
   rolActual = next;
   if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, next);
   emitir();
@@ -103,5 +104,7 @@ export function useRole() {
     if (saved && saved in ROLES && saved !== rolActual) setRol(saved);
   }, []);
 
-  return { rol, setRol, def: ROLES[rol] };
+  // Fallback defensivo: si el rol guardado no existe (p. ej. un rol viejo que se
+  // quitó), usamos el rol por defecto en vez de romper la app con def undefined.
+  return { rol, setRol, def: ROLES[rol] ?? ROLES[DEFAULT_ROLE] };
 }
