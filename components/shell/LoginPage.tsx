@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Eye, EyeOff, Lock, Mail, MessagesSquare } from "lucide-react";
+import { Eye, EyeOff, Lock, User, MessagesSquare } from "lucide-react";
 
 // Login NEUTRO: una sola puerta para todos los clientes. No muestra marca de
 // ningún cliente; al validar, el correo decide a qué dashboard (tenant) entra.
@@ -47,19 +47,19 @@ export function LoginPage({
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
               <label className="block">
                 <span className="mb-1.5 block text-[12.5px] font-semibold text-[#0f1b2d]">
-                  Correo
+                  Usuario
                 </span>
                 <div className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 focus-within:border-brand">
-                  <Mail size={16} className="shrink-0 text-[#94a3b4]" />
+                  <User size={16} className="shrink-0 text-[#94a3b4]" />
                   <input
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
                       setError(false);
                     }}
-                    placeholder="nombre@empresa.com"
-                    autoComplete="email"
+                    placeholder="usuario"
+                    autoComplete="username"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}

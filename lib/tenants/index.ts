@@ -25,21 +25,31 @@ export function getTenant(id: TenantId): TenantConfig {
 }
 
 // --- Login demo (sin backend): cada credencial mapea a un tenant ---
+// `usuario` puede ser un nombre de usuario o un correo (se compara en minúsculas).
 export interface DemoLogin {
-  email: string;
+  usuario: string;
   password: string;
   tenant: TenantId;
 }
 
+// ESTRUCTURA: un solo usuario ("demoagentia") y la CONTRASEÑA decide a qué
+// dashboard entra. Para sumar un dashboard futuro: crea su TenantConfig y agrega
+// aquí una línea con la misma cuenta y una contraseña nueva:
+//   { usuario: "demoagentia", password: "demoX", tenant: "nuevoTenant" }
 export const DEMO_LOGINS: DemoLogin[] = [
-  { email: "hospital@demo.com", password: "demo1234", tenant: "hospital" },
-  { email: "grupoq@demo.com", password: "demo1234", tenant: "grupoq" },
+  { usuario: "demoagentia", password: "demoh", tenant: "hospital" },
+  { usuario: "demoagentia", password: "demoi", tenant: "grupoq" },
+
+  // Aliases previos (siguen funcionando).
+  { usuario: "hospital@demo.com", password: "demo1234", tenant: "hospital" },
+  { usuario: "grupoq@demo.com", password: "demo1234", tenant: "grupoq" },
 ];
 
-// Devuelve el tenant si el correo + contraseña son válidos; null si no.
-export function resolveTenantByLogin(email: string, password: string): TenantId | null {
-  const e = email.trim().toLowerCase();
-  const match = DEMO_LOGINS.find((l) => l.email === e && l.password === password);
+// Devuelve el tenant si el usuario + contraseña son válidos; null si no. El
+// usuario no distingue mayúsculas; la contraseña sí.
+export function resolveTenantByLogin(usuario: string, password: string): TenantId | null {
+  const u = usuario.trim().toLowerCase();
+  const match = DEMO_LOGINS.find((l) => l.usuario.toLowerCase() === u && l.password === password);
   return match ? match.tenant : null;
 }
 
