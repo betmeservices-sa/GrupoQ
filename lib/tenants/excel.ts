@@ -99,6 +99,9 @@ export const excelTenant: TenantConfig = {
     tagline: "Pasión en Movimiento",
     loginTitulo: "Centro de Comunicación",
     emailPlaceholder: "nombre@excelautomotriz.com",
+    logoSrc: "/excel-logo.png",
+    logoAlt: "Excel Automotriz · Pasión en Movimiento",
+    // Fallback si no carga el logo (Brand usa logoSrc primero).
     wordmark: { icon: "CarFront", titulo: "Excel", subtitulo: "Automotriz" },
   },
   labels: { contacto: "cliente", contactoPlural: "clientes" },
