@@ -50,6 +50,17 @@
   --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
+/* Excel Automotriz: rojo/granate de marca + grafito como acento */
+[data-tenant="excel"] {
+  --brand-blue: #c8102e; /* rojo Excel = color principal de marca */
+  --brand-blue-dark: #9e1220; /* granate para hover/estados oscuros */
+  --brand-green: #2e9e5b; /* verde para éxito / en línea */
+  --brand-red: #9e1220; /* rojo de marca para estados */
+  --brand-accent: #334155; /* grafito/plata: pills "Nuevo", acentos */
+  --brand-accent-soft: #eef1f5;
+  --font-app: 'Barlow', Arial, system-ui, sans-serif;
+}
+
 @theme inline {
   --font-sans: var(--font-app);
   --color-brand: var(--brand-blue);

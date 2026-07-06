@@ -9,13 +9,14 @@ export type ConversationStatus = "nuevo" | "en_progreso" | "resuelto";
 // suyos (los declara en su seed); el tipo los admite a todos para que un solo
 // código base sirva a varios clientes.
 export type DepartmentId =
-  // Grupo Q (automotriz)
+  // Automotriz (Grupo Q y Excel comparten ventas/usados/taller/repuestos/atencion)
   | "ventas"
   | "usados"
   | "taller"
   | "repuestos"
   | "pintura"
   | "crediq"
+  | "financiamiento" // Excel: AutoFácil
   | "atencion"
   // Hospital Centro Ginecológico
   | "ginecologia"

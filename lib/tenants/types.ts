@@ -19,7 +19,7 @@ import type {
   WaTemplate,
 } from "@/lib/data/types";
 
-export type TenantId = "hospital" | "grupoq";
+export type TenantId = "hospital" | "grupoq" | "excel";
 
 // Datos semilla (mock) de un tenant. Misma forma que el antiguo lib/data/seed.
 export interface TenantSeed {

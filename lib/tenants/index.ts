@@ -4,12 +4,14 @@
 import type { TenantConfig, TenantId } from "./types";
 import { hospitalTenant } from "./hospital";
 import { grupoqTenant } from "./grupoq";
+import { excelTenant } from "./excel";
 
 export type { TenantConfig, TenantId } from "./types";
 
 export const TENANTS: Record<TenantId, TenantConfig> = {
   hospital: hospitalTenant,
   grupoq: grupoqTenant,
+  excel: excelTenant,
 };
 
 // Tenant por defecto (SSR / antes de login). No es visible: la UI se pinta tras
@@ -17,7 +19,7 @@ export const TENANTS: Record<TenantId, TenantConfig> = {
 export const DEFAULT_TENANT: TenantId = "grupoq";
 
 export function isTenantId(v: string | null | undefined): v is TenantId {
-  return v === "hospital" || v === "grupoq";
+  return v === "hospital" || v === "grupoq" || v === "excel";
 }
 
 export function getTenant(id: TenantId): TenantConfig {
@@ -39,10 +41,12 @@ export interface DemoLogin {
 export const DEMO_LOGINS: DemoLogin[] = [
   { usuario: "demoagentia", password: "demoh", tenant: "hospital" },
   { usuario: "demoagentia", password: "demoi", tenant: "grupoq" },
+  { usuario: "demoagentia", password: "demoe", tenant: "excel" },
 
   // Aliases previos (siguen funcionando).
   { usuario: "hospital@demo.com", password: "demo1234", tenant: "hospital" },
   { usuario: "grupoq@demo.com", password: "demo1234", tenant: "grupoq" },
+  { usuario: "excel@demo.com", password: "demo1234", tenant: "excel" },
 ];
 
 // Devuelve el tenant si el usuario + contraseña son válidos; null si no. El
