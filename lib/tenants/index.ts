@@ -41,7 +41,7 @@ export interface DemoLogin {
 export const DEMO_LOGINS: DemoLogin[] = [
   { usuario: "demoagentia", password: "demoh", tenant: "hospital" },
   { usuario: "demoagentia", password: "demoi", tenant: "grupoq" },
-  { usuario: "demoagentia", password: "demoe", tenant: "excel" },
+  { usuario: "demoagentia", password: "demoj", tenant: "excel" },
 
   // Aliases previos (siguen funcionando).
   { usuario: "hospital@demo.com", password: "demo1234", tenant: "hospital" },
