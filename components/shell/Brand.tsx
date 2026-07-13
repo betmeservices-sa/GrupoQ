@@ -1,10 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { HeartPulse, CarFront } from "lucide-react";
+import { HeartPulse, CarFront, Bot } from "lucide-react";
 import { activeTenant } from "@/lib/tenants/active";
 
-const WORDMARK_ICONS = { HeartPulse, CarFront } as const;
+const WORDMARK_ICONS = { HeartPulse, CarFront, Bot } as const;
 
 // Marca del tenant ACTIVO. Si el tenant trae logoSrc, pinta el logo real; si no,
 // pinta un wordmark (ícono + nombre + lema). Se usa dentro del shell, cuando ya

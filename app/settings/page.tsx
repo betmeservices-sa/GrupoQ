@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   RefreshCw,
   Info,
+  Facebook,
+  Instagram,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { activeTenant } from "@/lib/tenants/active";
@@ -85,6 +87,16 @@ export default function SettingsPage() {
   const [enviando, setEnviando] = useState(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
+
+  // Resultado del flujo "Conectar Facebook e Instagram" (?meta=... lo pone el
+  // callback de OAuth al volver).
+  const [metaEstado, setMetaEstado] = useState<string | null>(null);
+  const [metaDetalle, setMetaDetalle] = useState<string | null>(null);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    setMetaEstado(p.get("meta"));
+    setMetaDetalle(p.get("paginas") ?? p.get("motivo"));
+  }, []);
 
   const numVars = useMemo(() => contarVariables(cuerpo), [cuerpo]);
 
@@ -191,14 +203,66 @@ export default function SettingsPage() {
     <div className="flex h-full flex-col">
       <header className="border-b border-line bg-card px-5 py-3">
         <h1 className="text-[17px] font-extrabold tracking-tight text-brand">
-          Configuración · Plantillas de WhatsApp
+          Configuración
         </h1>
         <p className="text-[12.5px] text-[#94a3b4]">
-          Crea y administra las plantillas pre-aprobadas por Meta para iniciar conversaciones
+          Conexiones con Meta y plantillas de WhatsApp
         </p>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        {/* Conexión OAuth con Meta: el botón inicia /api/meta/connect y el
+            callback vuelve aquí con ?meta=conectado|demo|error. */}
+        <div className="mb-4 rounded-2xl border border-line bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-sm font-bold text-[#0f1b2d]">
+                <Facebook size={16} className="text-brand" />
+                <Instagram size={16} className="text-brand" />
+                Conexiones · Facebook e Instagram
+              </div>
+              <p className="mt-1 max-w-xl text-[12.5px] text-[#5b6b80]">
+                Conecta la página de Facebook y la cuenta de Instagram del negocio para
+                recibir y responder mensajes, publicar y ver estadísticas desde esta
+                bandeja. Se abre la pantalla oficial de Meta para autorizar los permisos.
+              </p>
+            </div>
+            <a
+              href="/api/meta/connect"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-brand/25 transition hover:brightness-105"
+            >
+              <Facebook size={16} />
+              Conectar Facebook e Instagram
+            </a>
+          </div>
+
+          {metaEstado === "conectado" && (
+            <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12.5px] font-medium text-[#2f9e2f] ring-1 ring-[#00c040]/30">
+              <CheckCircle2 size={14} />
+              Conexión exitosa: {metaDetalle ?? "0"} página(s) autorizada(s). Los tokens
+              quedaron registrados en el servidor.
+            </p>
+          )}
+          {metaEstado === "demo" && (
+            <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800 ring-1 ring-amber-300/50">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                <span className="font-semibold">Modo demo.</span> El flujo se simuló porque
+                no hay <code className="rounded bg-amber-100 px-1">META_APP_SECRET</code>{" "}
+                configurado. Con las credenciales reales, aquí se intercambia el code por
+                los tokens del cliente.
+              </span>
+            </p>
+          )}
+          {metaEstado === "error" && (
+            <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-[12.5px] font-medium text-red-700 ring-1 ring-red-300/50">
+              <AlertCircle size={14} />
+              No se pudo completar la conexión
+              {metaDetalle ? ` (motivo: ${metaDetalle})` : ""}. Intenta de nuevo.
+            </p>
+          )}
+        </div>
+
         <WaRoutingPanel />
 
         {demo && (

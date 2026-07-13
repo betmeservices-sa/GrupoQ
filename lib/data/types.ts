@@ -25,7 +25,10 @@ export type DepartmentId =
   | "reproduccion"
   | "laboratorio"
   | "imagenes"
-  | "recepcion";
+  | "recepcion"
+  // MiAgentIA (agencia de agentes IA)
+  | "soporte"
+  | "onboarding";
 
 export type RoleId = "recepcion" | "marketing" | "gerente_marketing" | "medico" | "jefe" | "admin";
 

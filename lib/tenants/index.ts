@@ -5,6 +5,7 @@ import type { TenantConfig, TenantId } from "./types";
 import { hospitalTenant } from "./hospital";
 import { grupoqTenant } from "./grupoq";
 import { excelTenant } from "./excel";
+import { miagentiaTenant } from "./miagentia";
 
 export type { TenantConfig, TenantId } from "./types";
 
@@ -12,6 +13,7 @@ export const TENANTS: Record<TenantId, TenantConfig> = {
   hospital: hospitalTenant,
   grupoq: grupoqTenant,
   excel: excelTenant,
+  miagentia: miagentiaTenant,
 };
 
 // Tenant por defecto (SSR / antes de login). No es visible: la UI se pinta tras
@@ -19,7 +21,7 @@ export const TENANTS: Record<TenantId, TenantConfig> = {
 export const DEFAULT_TENANT: TenantId = "grupoq";
 
 export function isTenantId(v: string | null | undefined): v is TenantId {
-  return v === "hospital" || v === "grupoq" || v === "excel";
+  return v === "hospital" || v === "grupoq" || v === "excel" || v === "miagentia";
 }
 
 export function getTenant(id: TenantId): TenantConfig {
@@ -42,11 +44,13 @@ export const DEMO_LOGINS: DemoLogin[] = [
   { usuario: "demoagentia", password: "demoh", tenant: "hospital" },
   { usuario: "demoagentia", password: "demoi", tenant: "grupoq" },
   { usuario: "demoagentia", password: "demoj", tenant: "excel" },
+  { usuario: "demoagentia", password: "demok", tenant: "miagentia" },
 
   // Aliases previos (siguen funcionando).
   { usuario: "hospital@demo.com", password: "demo1234", tenant: "hospital" },
   { usuario: "grupoq@demo.com", password: "demo1234", tenant: "grupoq" },
   { usuario: "excel@demo.com", password: "demo1234", tenant: "excel" },
+  { usuario: "miagentia@demo.com", password: "demo1234", tenant: "miagentia" },
 ];
 
 // Devuelve el tenant si el usuario + contraseña son válidos; null si no. El

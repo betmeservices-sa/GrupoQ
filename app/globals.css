@@ -50,6 +50,17 @@
   --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
+/* MiAgentIA: violeta de la landing (miagentia.com) + cian como acento */
+[data-tenant="miagentia"] {
+  --brand-blue: #7c3aed; /* violeta de marca, legible sobre blanco */
+  --brand-blue-dark: #6d28d9;
+  --brand-green: #2e9e5b;
+  --brand-red: #d64545; /* rojo neutro para estados */
+  --brand-accent: #0e7490; /* cian oscuro: pills "Nuevo", acentos */
+  --brand-accent-soft: #ecfeff;
+  --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
 /* Excel Automotriz: rojo/granate de marca + grafito como acento */
 [data-tenant="excel"] {
   --brand-blue: #c8102e; /* rojo Excel = color principal de marca */
