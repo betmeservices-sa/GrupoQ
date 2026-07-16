@@ -93,11 +93,15 @@ export default function SettingsPage() {
   const [metaEstado, setMetaEstado] = useState<string | null>(null);
   const [metaDetalle, setMetaDetalle] = useState<string | null>(null);
   const [metaPermisos, setMetaPermisos] = useState<string | null>(null);
+  const [metaPlist, setMetaPlist] = useState<string | null>(null);
+  const [metaPerror, setMetaPerror] = useState<string | null>(null);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     setMetaEstado(p.get("meta"));
     setMetaDetalle(p.get("paginas") ?? p.get("motivo"));
     setMetaPermisos(p.get("permisos"));
+    setMetaPlist(p.get("plist"));
+    setMetaPerror(p.get("perror"));
   }, []);
 
   const numVars = useMemo(() => contarVariables(cuerpo), [cuerpo]);
@@ -257,6 +261,20 @@ export default function SettingsPage() {
                 vacía de un intento anterior. Solución: en Facebook ve a Configuración
                 &gt; Integraciones comerciales, elimina esta app, y vuelve a presionar
                 Conectar; en el diálogo selecciona la(s) página(s) cuando te lo pregunte.
+                {metaPlist && (
+                  <>
+                    <br />
+                    <span className="font-semibold">Permisos otorgados:</span>{" "}
+                    <code className="break-all rounded bg-amber-100 px-1">{metaPlist}</code>
+                  </>
+                )}
+                {metaPerror && (
+                  <>
+                    <br />
+                    <span className="font-semibold">Error al listar páginas:</span>{" "}
+                    <code className="rounded bg-amber-100 px-1">{metaPerror}</code>
+                  </>
+                )}
               </span>
             </p>
           )}

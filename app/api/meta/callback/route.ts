@@ -127,9 +127,16 @@ export async function GET(req: Request) {
       otorgados,
     );
 
-    return volver(
-      `meta=conectado&paginas=${paginas.length}&permisos=${otorgados.length}`,
-    );
+    const extra = new URLSearchParams({
+      meta: "conectado",
+      paginas: String(paginas.length),
+      permisos: String(otorgados.length),
+      // Lista corta de permisos otorgados, para diagnosticar desde el banner
+      // sin necesidad de leer los logs de Vercel.
+      plist: otorgados.join(","),
+    });
+    if (pages.error) extra.set("perror", String(pages.error.code ?? pages.error.message ?? "err"));
+    return volver(extra.toString());
   } catch (e) {
     console.error("[meta-oauth] error de red:", e);
     return volver("meta=error&motivo=red");
