@@ -99,7 +99,43 @@ export async function GET(req: Request) {
         }),
     );
     const pages = await pagesRes.json();
-    const paginas: PaginaMeta[] = pages.data ?? [];
+    let paginas: PaginaMeta[] = pages.data ?? [];
+
+    // Plan B (acceso vía Business Manager): cuando el usuario administra las
+    // páginas a través de un portafolio comercial y no con rol directo,
+    // /me/accounts puede venir vacío aunque el permiso esté otorgado. Los IDs
+    // exactos que el usuario autorizó viajan en los granular_scopes del token;
+    // con ellos se consulta cada página directo.
+    let idsAutorizados: string[] = [];
+    if (paginas.length === 0) {
+      const dbgRes = await fetch(
+        `${GRAPH}/debug_token?` +
+          new URLSearchParams({
+            input_token: userToken,
+            access_token: `${META_APP_ID}|${secret}`,
+          }),
+      );
+      const dbg = await dbgRes.json();
+      const gran = (dbg.data?.granular_scopes ?? []) as Array<{
+        scope: string;
+        target_ids?: string[];
+      }>;
+      idsAutorizados = gran.find((g) => g.scope === "pages_show_list")?.target_ids ?? [];
+      const porId = await Promise.all(
+        idsAutorizados.map(async (id) => {
+          const r = await fetch(
+            `${GRAPH}/${id}?` +
+              new URLSearchParams({
+                fields: "id,name,access_token,instagram_business_account",
+                access_token: userToken,
+              }),
+          );
+          const j = await r.json();
+          return j.error ? null : (j as PaginaMeta);
+        }),
+      );
+      paginas = porId.filter((p): p is PaginaMeta => p !== null);
+    }
 
     // Diagnóstico: qué permisos otorgó realmente Meta en esta autorización.
     // Si paginas=0, casi siempre es que el usuario no seleccionó ninguna página
@@ -125,6 +161,8 @@ export async function GET(req: Request) {
       })),
       "permisos otorgados:",
       otorgados,
+      "ids granulares:",
+      idsAutorizados,
     );
 
     const extra = new URLSearchParams({
@@ -135,6 +173,10 @@ export async function GET(req: Request) {
       // sin necesidad de leer los logs de Vercel.
       plist: otorgados.join(","),
     });
+    if (idsAutorizados.length) extra.set("gids", String(idsAutorizados.length));
+    if (paginas.length) {
+      extra.set("nombres", paginas.map((p) => p.name).slice(0, 5).join(", "));
+    }
     if (pages.error) extra.set("perror", String(pages.error.code ?? pages.error.message ?? "err"));
     return volver(extra.toString());
   } catch (e) {

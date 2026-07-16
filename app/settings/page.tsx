@@ -95,6 +95,7 @@ export default function SettingsPage() {
   const [metaPermisos, setMetaPermisos] = useState<string | null>(null);
   const [metaPlist, setMetaPlist] = useState<string | null>(null);
   const [metaPerror, setMetaPerror] = useState<string | null>(null);
+  const [metaNombres, setMetaNombres] = useState<string | null>(null);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     setMetaEstado(p.get("meta"));
@@ -102,6 +103,7 @@ export default function SettingsPage() {
     setMetaPermisos(p.get("permisos"));
     setMetaPlist(p.get("plist"));
     setMetaPerror(p.get("perror"));
+    setMetaNombres(p.get("nombres"));
   }, []);
 
   const numVars = useMemo(() => contarVariables(cuerpo), [cuerpo]);
@@ -246,6 +248,7 @@ export default function SettingsPage() {
             <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12.5px] font-medium text-[#2f9e2f] ring-1 ring-[#00c040]/30">
               <CheckCircle2 size={14} />
               Conexión exitosa: {metaDetalle ?? "0"} página(s) autorizada(s)
+              {metaNombres ? ` (${metaNombres})` : ""}
               {metaPermisos ? ` y ${metaPermisos} permiso(s) otorgado(s)` : ""}. Los
               tokens quedaron registrados en el servidor.
             </p>
