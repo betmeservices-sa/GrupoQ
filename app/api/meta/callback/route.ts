@@ -101,6 +101,17 @@ export async function GET(req: Request) {
     const pages = await pagesRes.json();
     const paginas: PaginaMeta[] = pages.data ?? [];
 
+    // Diagnóstico: qué permisos otorgó realmente Meta en esta autorización.
+    // Si paginas=0, casi siempre es que el usuario no seleccionó ninguna página
+    // en el diálogo (Meta cachea esa selección entre intentos).
+    const permsRes = await fetch(
+      `${GRAPH}/me/permissions?access_token=${encodeURIComponent(userToken)}`,
+    );
+    const perms = await permsRes.json();
+    const otorgados: string[] = (perms.data ?? [])
+      .filter((p: { permission: string; status: string }) => p.status === "granted")
+      .map((p: { permission: string }) => p.permission);
+
     // TODO(REAL): persistir por tenant en Supabase (tabla meta_connections):
     // v.tenant, userToken (largo), y por página: page id, name, page token e
     // instagram_business_account.id. Con eso la bandeja enruta webhooks por
@@ -112,9 +123,13 @@ export async function GET(req: Request) {
         name: p.name,
         ig: p.instagram_business_account?.id ?? null,
       })),
+      "permisos otorgados:",
+      otorgados,
     );
 
-    return volver(`meta=conectado&paginas=${paginas.length}`);
+    return volver(
+      `meta=conectado&paginas=${paginas.length}&permisos=${otorgados.length}`,
+    );
   } catch (e) {
     console.error("[meta-oauth] error de red:", e);
     return volver("meta=error&motivo=red");

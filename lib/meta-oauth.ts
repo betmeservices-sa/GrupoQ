@@ -91,6 +91,9 @@ export function urlDialogoOAuth(state: string, redirect: string): string {
     state,
     response_type: "code",
     scope: META_SCOPES.join(","),
+    // Vuelve a pedir permisos rechazados en intentos anteriores en vez de
+    // reutilizar en silencio la autorización cacheada.
+    auth_type: "rerequest",
   });
   return `${DIALOG}?${p.toString()}`;
 }

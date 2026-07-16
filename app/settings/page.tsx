@@ -92,10 +92,12 @@ export default function SettingsPage() {
   // callback de OAuth al volver).
   const [metaEstado, setMetaEstado] = useState<string | null>(null);
   const [metaDetalle, setMetaDetalle] = useState<string | null>(null);
+  const [metaPermisos, setMetaPermisos] = useState<string | null>(null);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     setMetaEstado(p.get("meta"));
     setMetaDetalle(p.get("paginas") ?? p.get("motivo"));
+    setMetaPermisos(p.get("permisos"));
   }, []);
 
   const numVars = useMemo(() => contarVariables(cuerpo), [cuerpo]);
@@ -236,11 +238,26 @@ export default function SettingsPage() {
             </a>
           </div>
 
-          {metaEstado === "conectado" && (
+          {metaEstado === "conectado" && metaDetalle !== "0" && (
             <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12.5px] font-medium text-[#2f9e2f] ring-1 ring-[#00c040]/30">
               <CheckCircle2 size={14} />
-              Conexión exitosa: {metaDetalle ?? "0"} página(s) autorizada(s). Los tokens
-              quedaron registrados en el servidor.
+              Conexión exitosa: {metaDetalle ?? "0"} página(s) autorizada(s)
+              {metaPermisos ? ` y ${metaPermisos} permiso(s) otorgado(s)` : ""}. Los
+              tokens quedaron registrados en el servidor.
+            </p>
+          )}
+          {metaEstado === "conectado" && metaDetalle === "0" && (
+            <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800 ring-1 ring-amber-300/50">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                <span className="font-semibold">
+                  La autorización funcionó pero no incluyó ninguna página
+                </span>{" "}
+                ({metaPermisos ?? "0"} permiso(s) otorgado(s)). Meta guardó una selección
+                vacía de un intento anterior. Solución: en Facebook ve a Configuración
+                &gt; Integraciones comerciales, elimina esta app, y vuelve a presionar
+                Conectar; en el diálogo selecciona la(s) página(s) cuando te lo pregunte.
+              </span>
             </p>
           )}
           {metaEstado === "demo" && (
