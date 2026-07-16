@@ -1,12 +1,26 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { PostComposer } from "@/components/social/PostComposer";
 import { PostList } from "@/components/social/PostList";
 import { SocialStats } from "@/components/social/SocialStats";
+import type { SocialStats as SocialStatsT } from "@/lib/data/types";
 
 export default function RedesPage() {
   const { state, dispatch } = useStore();
+
+  // Stats reales de las cuentas conectadas por OAuth (si el tenant conectó su
+  // página). demo:true = sin conexión, se queda el seed del tenant.
+  const [reales, setReales] = useState<SocialStatsT[] | null>(null);
+  useEffect(() => {
+    fetch("/api/meta/stats", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok && !d.demo && d.stats?.length) setReales(d.stats);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -26,7 +40,7 @@ export default function RedesPage() {
           }
         />
         <div className="flex min-w-0 flex-1 flex-col">
-          <SocialStats stats={state.socialStats} />
+          <SocialStats stats={reales ?? state.socialStats} live={Boolean(reales)} />
           <PostList posts={state.socialPosts} />
         </div>
       </div>

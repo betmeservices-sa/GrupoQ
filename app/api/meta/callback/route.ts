@@ -6,6 +6,7 @@ import {
   redirectUri,
   validarState,
 } from "@/lib/meta-oauth";
+import { guardarConexiones } from "@/lib/meta-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -148,10 +149,21 @@ export async function GET(req: Request) {
       .filter((p: { permission: string; status: string }) => p.status === "granted")
       .map((p: { permission: string }) => p.permission);
 
-    // TODO(REAL): persistir por tenant en Supabase (tabla meta_connections):
-    // v.tenant, userToken (largo), y por página: page id, name, page token e
-    // instagram_business_account.id. Con eso la bandeja enruta webhooks por
-    // page id → tenant, igual que WhatsApp enruta por phone_number_id.
+    // Persistencia por tenant: Supabase (tabla meta_connections) o memoria en
+    // dev. Con esto la bandeja y las stats enrutan por page id → tenant, igual
+    // que WhatsApp enruta por phone_number_id.
+    const guardado = await guardarConexiones(
+      v.tenant,
+      paginas.map((p) => ({
+        tenant: v.tenant,
+        pageId: p.id,
+        pageName: p.name,
+        pageToken: p.access_token,
+        igId: p.instagram_business_account?.id ?? null,
+        userToken,
+      })),
+    );
+
     console.log(
       `[meta-oauth] tenant=${v.tenant} conectó ${paginas.length} página(s):`,
       paginas.map((p) => ({
@@ -174,6 +186,7 @@ export async function GET(req: Request) {
       plist: otorgados.join(","),
     });
     if (idsAutorizados.length) extra.set("gids", String(idsAutorizados.length));
+    extra.set("guardado", guardado);
     if (paginas.length) {
       extra.set("nombres", paginas.map((p) => p.name).slice(0, 5).join(", "));
     }

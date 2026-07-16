@@ -3,11 +3,19 @@ import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { compacto } from "@/lib/format";
 import type { SocialStats as SocialStatsT } from "@/lib/data/types";
 
-export function SocialStats({ stats }: { stats: SocialStatsT[] }) {
+export function SocialStats({ stats, live = false }: { stats: SocialStatsT[]; live?: boolean }) {
   return (
     <div className="shrink-0 border-b border-line bg-surface px-5 py-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[13px] font-bold text-[#0f1b2d]">Estadísticas de cuentas</h2>
+        <h2 className="flex items-center gap-2 text-[13px] font-bold text-[#0f1b2d]">
+          Estadísticas de cuentas
+          {live && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-[#2f9e2f] ring-1 ring-[#00c040]/30">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00c040]" />
+              EN VIVO
+            </span>
+          )}
+        </h2>
         <span className="text-[11px] font-medium text-[#94a3b4]">
           Meta Graph API · últimos 30 días
         </span>
