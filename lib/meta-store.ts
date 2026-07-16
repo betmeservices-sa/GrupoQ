@@ -16,7 +16,12 @@ export interface MetaConnection {
   userToken: string | null;
 }
 
-const memoria = new Map<string, MetaConnection[]>();
+// Anclado en globalThis: en dev, cada ruta compila su propia instancia del
+// módulo y un Map a nivel de módulo NO se comparte entre el callback y la ruta
+// de stats (además el HMR lo borraría). En Vercel esto no aplica: ahí persiste
+// Supabase.
+const g = globalThis as unknown as { __metaConexiones?: Map<string, MetaConnection[]> };
+const memoria: Map<string, MetaConnection[]> = (g.__metaConexiones ??= new Map());
 
 // Guarda (upsert) las conexiones de un tenant. No lanza: si Supabase falla,
 // queda al menos en memoria y el flujo OAuth no se cae.
