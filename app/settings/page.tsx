@@ -106,6 +106,20 @@ export default function SettingsPage() {
     setMetaNombres(p.get("nombres"));
   }, []);
 
+  // Estado PERMANENTE de la conexión (qué páginas tiene conectadas el tenant),
+  // independiente del banner de resultado que solo aparece al volver de Meta.
+  const [conexiones, setConexiones] = useState<
+    { pageId: string; nombre: string; instagram: boolean }[]
+  >([]);
+  useEffect(() => {
+    fetch("/api/meta/connections", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok) setConexiones(d.conexiones);
+      })
+      .catch(() => {});
+  }, [metaEstado]);
+
   const numVars = useMemo(() => contarVariables(cuerpo), [cuerpo]);
 
   const preview = useMemo(() => {
@@ -240,9 +254,28 @@ export default function SettingsPage() {
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-brand/25 transition hover:brightness-105"
             >
               <Facebook size={16} />
-              Conectar Facebook e Instagram
+              {conexiones.length ? "Reconectar / agregar cuentas" : "Conectar Facebook e Instagram"}
             </a>
           </div>
+
+          {conexiones.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {conexiones.map((c) => (
+                <span
+                  key={c.pageId}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-[#2f9e2f] ring-1 ring-[#00c040]/30"
+                >
+                  <CheckCircle2 size={13} />
+                  {c.nombre}
+                  {c.instagram && (
+                    <span className="flex items-center gap-0.5 text-[#94a3b4]">
+                      · <Instagram size={11} /> vinculado
+                    </span>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
 
           {metaEstado === "conectado" && metaDetalle !== "0" && (
             <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12.5px] font-medium text-[#2f9e2f] ring-1 ring-[#00c040]/30">
