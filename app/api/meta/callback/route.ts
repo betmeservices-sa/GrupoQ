@@ -164,6 +164,31 @@ export async function GET(req: Request) {
       })),
     );
 
+    // 7. Suscribe la app a los eventos de mensajes de cada página (webhook de
+    // Messenger e Instagram). Sin esto Meta NO entrega los mensajes entrantes
+    // a /api/webhooks/meta. Si falla, se registra y el redirect sigue (se
+    // puede reintentar reconectando).
+    await Promise.all(
+      paginas.map(async (p) => {
+        try {
+          const r = await fetch(`${GRAPH}/${p.id}/subscribed_apps`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              subscribed_fields: "messages,messaging_postbacks",
+              access_token: p.access_token,
+            }),
+          });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok || j.error) {
+            console.error(`[meta-oauth] subscribed_apps falló para ${p.id}:`, j.error ?? j);
+          }
+        } catch (e) {
+          console.error(`[meta-oauth] subscribed_apps error de red para ${p.id}:`, e);
+        }
+      }),
+    );
+
     console.log(
       `[meta-oauth] tenant=${v.tenant} conectó ${paginas.length} página(s):`,
       paginas.map((p) => ({

@@ -57,6 +57,18 @@ export type StoreAction =
       media?: Message["media"];
     }
   | {
+      // Mensaje real de Messenger o Instagram (sondea /api/meta/inbox).
+      type: "META_INCOMING";
+      mid: string;
+      canal: "facebook" | "instagram";
+      pageId: string;
+      senderId: string;
+      senderName?: string;
+      texto: string;
+      ts: string;
+      direction?: "in" | "out";
+    }
+  | {
       // Rehidrata asignado/estado/departamento de la BD al montar.
       type: "HIDRATAR_CONVERSACION";
       wa_from: string;
@@ -298,6 +310,70 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
         texto: action.texto,
         ts: action.ts,
         media: action.media,
+      };
+
+      return { ...state, contacts, conversations, messages: [...state.messages, msg] };
+    }
+    case "META_INCOMING": {
+      // Mensaje real de Messenger/Instagram. Mismo esquema que WHATSAPP_INCOMING
+      // con ids deterministas: la conversación lleva canal, página y remitente
+      // (metac-<canal>-<pageId>-<senderId>) para que responder sepa a dónde va.
+      if (state.messages.some((m) => m.id === action.mid)) return state;
+
+      const esEntrante = action.direction !== "out";
+      const deptDefault = activeTenant().defaultDepartment;
+      const conversationId = `metac-${action.canal}-${action.pageId}-${action.senderId}`;
+      const contactId = `meta-${action.canal}-${action.senderId}`;
+
+      let contacts = state.contacts;
+      let conversations = state.conversations;
+
+      const conv = state.conversations.find((c) => c.id === conversationId);
+      if (conv) {
+        conversations = state.conversations.map((c) =>
+          c.id === conversationId
+            ? {
+                ...c,
+                ultimoMensajeTs: action.ts,
+                noLeidos: esEntrante ? c.noLeidos + 1 : c.noLeidos,
+                estado: c.estado === "resuelto" ? "en_progreso" : c.estado,
+              }
+            : c,
+        );
+      } else {
+        if (!state.contacts.some((c) => c.id === contactId)) {
+          const nuevoContacto: Contact = {
+            id: contactId,
+            // Sin nombre de perfil (Meta no lo manda en el webhook): se muestra
+            // el canal + el final del id, p. ej. "IG 483920".
+            nombre:
+              action.senderName ||
+              `${action.canal === "instagram" ? "IG" : "FB"} ${action.senderId.slice(-6)}`,
+            handle: action.senderId,
+            canal: action.canal,
+          };
+          contacts = [nuevoContacto, ...state.contacts];
+        }
+        conversations = [
+          {
+            id: conversationId,
+            canal: action.canal,
+            contactId,
+            departamento: deptDefault,
+            estado: "nuevo",
+            noLeidos: esEntrante ? 1 : 0,
+            ultimoMensajeTs: action.ts,
+          },
+          ...state.conversations,
+        ];
+      }
+
+      const msg: Message = {
+        id: action.mid,
+        conversationId,
+        autor: esEntrante ? "cliente" : "staff",
+        texto: action.texto,
+        ts: action.ts,
       };
 
       return { ...state, contacts, conversations, messages: [...state.messages, msg] };

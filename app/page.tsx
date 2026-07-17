@@ -207,6 +207,33 @@ export default function BandejaPage() {
                   setAiRefresh((n) => n + 1);
                   return;
                 }
+                // Messenger/Instagram REAL: solo las conversaciones creadas por
+                // el puente (id metac-<canal>-<pageId>-<senderId>). Las del seed
+                // siguen siendo locales.
+                if (
+                  (activa.canal === "facebook" || activa.canal === "instagram") &&
+                  activa.id.startsWith("metac-")
+                ) {
+                  const [, canal, pageId, recipientId] = activa.id.split("-");
+                  const r = await fetch("/api/meta/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ canal, pageId, recipientId, texto }),
+                  });
+                  const d = await r.json().catch(() => ({ ok: false }));
+                  if (!d.ok) {
+                    console.error("Meta send fallo:", d.error);
+                    throw new Error(d.error ?? "Fallo el envio");
+                  }
+                  dispatch({
+                    type: "SEND_MESSAGE",
+                    conversationId: activa.id,
+                    texto,
+                    staffId: ME,
+                    waId: d.id,
+                  });
+                  return;
+                }
                 dispatch({ type: "SEND_MESSAGE", conversationId: activa.id, texto, staffId: ME });
               }}
               onSendTemplate={

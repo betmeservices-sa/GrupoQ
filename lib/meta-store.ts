@@ -57,6 +57,46 @@ export async function guardarConexiones(
   return "db";
 }
 
+// Resuelve una conexión por el id del ACTIVO (page_id de Facebook o ig_id de
+// Instagram). Es el enrutador de los webhooks de Messenger/IG: Meta manda el id
+// de la página o de la cuenta de IG y con esto sabemos a qué tenant pertenece
+// (igual que WhatsApp enruta por phone_number_id).
+export async function conexionPorActivo(id: string): Promise<MetaConnection | null> {
+  if (!id) return null;
+  const sb = getSupabase();
+  if (sb) {
+    const { data, error } = await sb
+      .from("meta_connections")
+      .select("tenant,page_id,page_name,page_token,ig_id,user_token")
+      .or(`page_id.eq.${id},ig_id.eq.${id}`)
+      .limit(1);
+    if (!error && data && data.length) {
+      const r = data[0];
+      return {
+        tenant: r.tenant,
+        pageId: r.page_id,
+        pageName: r.page_name ?? "",
+        pageToken: r.page_token,
+        igId: r.ig_id,
+        userToken: r.user_token,
+      };
+    }
+    if (error) console.error("[meta-store] conexionPorActivo falló:", error.message);
+  }
+  for (const lista of memoria.values()) {
+    const hit = lista.find((c) => c.pageId === id || c.igId === id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// SOLO PARA DEV: siembra una conexión en el store en MEMORIA (sin tocar la
+// base) para probar el webhook local sin pasar por el OAuth real.
+export function seedConexionMemoria(c: MetaConnection): void {
+  const previas = memoria.get(c.tenant) ?? [];
+  memoria.set(c.tenant, [...previas.filter((p) => p.pageId !== c.pageId), c]);
+}
+
 export async function conexionesDe(tenant: string): Promise<MetaConnection[]> {
   const sb = getSupabase();
   if (sb) {

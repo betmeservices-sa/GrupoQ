@@ -188,3 +188,52 @@ describe("storeReducer - HIDRATAR_CONVERSACION", () => {
     expect(c.departamento).toBe("atencion"); // no debe cambiar
   });
 });
+
+// ---------------------------------------------------------------------------
+// META_INCOMING (mensajes reales de Messenger e Instagram)
+// ---------------------------------------------------------------------------
+describe("storeReducer - META_INCOMING", () => {
+  const BASE = {
+    type: "META_INCOMING" as const,
+    mid: "m_test_1",
+    canal: "instagram" as const,
+    pageId: "111222333444555",
+    senderId: "998877665544",
+    texto: "Hola, vi su publicación.",
+    ts: "2026-06-23T12:00:00",
+  };
+  const CONV_ID = `metac-instagram-${BASE.pageId}-${BASE.senderId}`;
+
+  it("crea contacto y conversación con el canal correcto en el primer mensaje", () => {
+    const after = storeReducer(freshState(), BASE);
+    const c = after.conversations.find((x) => x.id === CONV_ID)!;
+    expect(c.canal).toBe("instagram");
+    expect(c.noLeidos).toBe(1);
+    const contacto = after.contacts.find((x) => x.id === `meta-instagram-${BASE.senderId}`)!;
+    expect(contacto.canal).toBe("instagram");
+    expect(contacto.handle).toBe(BASE.senderId);
+    const added = msgs(after, CONV_ID).at(-1)!;
+    expect(added.autor).toBe("cliente");
+    expect(added.texto).toBe(BASE.texto);
+  });
+
+  it("dedup por mid: el mismo mensaje dos veces no duplica", () => {
+    const once = storeReducer(freshState(), BASE);
+    const twice = storeReducer(once, BASE);
+    expect(twice).toBe(once);
+  });
+
+  it("direction out agrega como staff sin subir no leídos", () => {
+    const withIn = storeReducer(freshState(), BASE);
+    const after = storeReducer(withIn, {
+      ...BASE,
+      mid: "m_test_2",
+      texto: "Con gusto, ¿qué modelo busca?",
+      ts: "2026-06-23T12:01:00",
+      direction: "out",
+    });
+    const added = msgs(after, CONV_ID).at(-1)!;
+    expect(added.autor).toBe("staff");
+    expect(after.conversations.find((x) => x.id === CONV_ID)!.noLeidos).toBe(1);
+  });
+});
