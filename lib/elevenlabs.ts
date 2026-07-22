@@ -47,56 +47,12 @@ export function hayLlaveEleven(): boolean {
   return Boolean(claveEleven());
 }
 
-export interface ItemHistorial {
-  fechaUnix: number;
-  voiceId: string;
-  voiceName: string;
-  source: string; // TTS, ConvAI, etc.
-  caracteres: number;
-  textoSnippet: string;
-}
-
-// Sondeo: trae las ultimas generaciones registradas en ElevenLabs. Sirve para
-// saber si el uso de Vapi (streaming) deja rastro aca o no. Si el streaming no
-// registra, esta lista vendra vacia o sin items del rango de las llamadas.
-export async function fetchHistorialReciente(pageSize = 100): Promise<{
-  total: number;
-  porSource: Record<string, number>;
-  muestras: ItemHistorial[];
-} | null> {
-  const key = claveEleven();
-  if (!key) return null;
-
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 12000);
-  try {
-    const res = await fetch(`${EL_BASE}/v1/history?page_size=${pageSize}`, {
-      headers: { "xi-api-key": key },
-      cache: "no-store",
-      signal: ac.signal,
-    });
-    if (!res.ok) throw new Error(`ElevenLabs history respondio ${res.status}`);
-    const d = (await res.json()) as { history?: Array<Record<string, unknown>> };
-    const items = Array.isArray(d.history) ? d.history : [];
-
-    const porSource: Record<string, number> = {};
-    for (const it of items) {
-      const s = String(it.source ?? "?");
-      porSource[s] = (porSource[s] ?? 0) + 1;
-    }
-    const muestras: ItemHistorial[] = items.slice(0, 8).map((it) => ({
-      fechaUnix: Number(it.date_unix ?? 0),
-      voiceId: String(it.voice_id ?? ""),
-      voiceName: String(it.voice_name ?? ""),
-      source: String(it.source ?? "?"),
-      caracteres: Number(it.character_count_change_to ?? 0) - Number(it.character_count_change_from ?? 0),
-      textoSnippet: String(it.text ?? "").slice(0, 60),
-    }));
-    return { total: items.length, porSource, muestras };
-  } finally {
-    clearTimeout(timer);
-  }
-}
+// Nota (2026-07-22): el cruce por llamada NO se implemento a proposito. El
+// historial de ElevenLabs (/v1/history) SI registra las generaciones de Vapi en
+// la hora exacta de cada llamada, pero para el streaming que usa Vapi el texto y
+// el nombre de voz vienen VACIOS: solo hay conteo de caracteres, y ese ya lo da
+// Vapi por llamada (ttsCharacters). Cruzar aportaria solo una verificacion
+// contable de nicho, asi que se dejo en la cuota a nivel cuenta.
 
 export async function fetchCuotaEleven(): Promise<CuotaEleven | null> {
   const key = claveEleven();
