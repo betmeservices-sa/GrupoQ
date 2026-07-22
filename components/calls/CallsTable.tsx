@@ -50,7 +50,6 @@ export function CallsTable({
             <th className="px-3 py-3 font-medium">Habla</th>
             <th className="px-3 py-3 font-medium">Resultado</th>
             <th className="px-3 py-3 text-right font-medium">Costo real</th>
-            <th className="px-3 py-3 text-right font-medium">USD/min</th>
           </tr>
         </thead>
         <tbody>
@@ -83,11 +82,10 @@ export function CallsTable({
                   <td className="px-3 py-3 text-right">
                     {fmtUSD(costoRealLlamada(c, tarifaCarrier))}
                   </td>
-                  <td className="px-3 py-3 text-right">{fmtUSD(d.costoPorMinuto)}</td>
                 </tr>
                 {exp && (
                   <tr className="border-b border-line/60 bg-surface">
-                    <td colSpan={9} className="px-6 py-4">
+                    <td colSpan={8} className="px-6 py-4">
                       <div className="mb-2 text-[11px] text-[#94a3b4]">
                         Motivo técnico: <code>{c.estadoFinal ?? "—"}</code>
                       </div>

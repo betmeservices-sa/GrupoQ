@@ -43,25 +43,7 @@ export function CostBreakdown({
         })}
       </ul>
 
-      <div className="mt-4 rounded-xl border border-brand/20 bg-brand/5 p-3 text-xs">
-        <p className="mb-2 font-bold text-[#0f1b2d]">Costo por minuto</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-[17px] font-extrabold text-[#0f1b2d]">
-              {fmtUSD(metrics.costoFijoPorMin)}
-            </p>
-            <p className="text-[#94a3b4]">Agente (fijo: Vapi + STT). Tu tarifa estable.</p>
-          </div>
-          <div>
-            <p className="text-[17px] font-extrabold text-[#0f1b2d]">
-              + {fmtUSD(metrics.costoLlmPorMin)}
-            </p>
-            <p className="text-[#94a3b4]">LLM (variable: por token, según la conversación).</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-surface p-3 text-xs">
+      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-surface p-3 text-xs">
         <div>
           <p className="font-semibold text-[#0f1b2d]">
             {metrics.caracteresTTS.toLocaleString("es-SV")}

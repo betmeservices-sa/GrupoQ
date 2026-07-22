@@ -252,37 +252,6 @@ describe("consumo de voz (caracteres de ElevenLabs)", () => {
     expect(m.desglose.llmCompletionTokens).toBe(60);
   });
 
-  it("separa el costo por minuto en piso fijo (Vapi+STT) y LLM variable", () => {
-    // hablo1: 39s, vapi 0.05... espera, uso desglose explicito para el calculo.
-    // Dos llamadas con vapi+stt vs llm distintos, para verificar la division.
-    const a: CallRecord = {
-      id: "pm1",
-      direccion: "outbound",
-      numeroCliente: "+50370000000",
-      creada: "2026-07-20T10:00:00Z",
-      inicio: "2026-07-20T10:00:05Z",
-      fin: "2026-07-20T10:01:05Z", // 60s = 1 min exacto
-      duracionSeg: 60,
-      costo: 0.08,
-      estadoFinal: "customer-ended-call",
-      costoDesglose: {
-        transport: 0,
-        stt: 0.011,
-        llm: 0.02,
-        tts: 0,
-        vapi: 0.05,
-        total: 0.081,
-        ttsCharacters: 500,
-        llmPromptTokens: 4000,
-        llmCompletionTokens: 80,
-      },
-    };
-    const m = resumirLlamadas([a]);
-    // 1 minuto hablado. Piso = (vapi 0.05 + stt 0.011)/1 = 0.061. LLM = 0.02/1 = 0.02
-    expect(m.costoFijoPorMin).toBeCloseTo(0.061, 4);
-    expect(m.costoLlmPorMin).toBeCloseTo(0.02, 4);
-  });
-
   it("deja el promedio en cero si ninguna llamada hablo", () => {
     const m = resumirLlamadas([rechazada]);
     expect(m.caracteresTTS).toBe(0);

@@ -172,13 +172,6 @@ export function resumirLlamadas(calls: CallRecord[], tarifaCarrier = 0): CallMet
   const minutosHablados = totalSeg / 60;
   const costoCarrier = redondear(minutosHablados * tarifaCarrier, 4);
 
-  // Separacion clave para cotizar: el piso (Vapi + STT) es casi constante por
-  // minuto (la "tarifa" del agente); el LLM se cobra por token y varia con la
-  // conversacion, no con el tiempo.
-  const costoFijoPorMin =
-    minutosHablados > 0 ? (desglose.vapi + desglose.stt) / minutosHablados : 0;
-  const costoLlmPorMin = minutosHablados > 0 ? desglose.llm / minutosHablados : 0;
-
   return {
     total: calls.length,
     entrantes: calls.filter((c) => c.direccion === "inbound").length,
@@ -206,7 +199,5 @@ export function resumirLlamadas(calls: CallRecord[], tarifaCarrier = 0): CallMet
       const suma = conVoz.reduce((s, c) => s + (c.costoDesglose?.ttsCharacters ?? 0), 0);
       return Math.round(suma / conVoz.length);
     })(),
-    costoFijoPorMin: Math.round(costoFijoPorMin * 10000) / 10000,
-    costoLlmPorMin: Math.round(costoLlmPorMin * 10000) / 10000,
   };
 }

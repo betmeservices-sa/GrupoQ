@@ -255,9 +255,4 @@ export interface CallMetrics {
   // llamadas antes (pipeline-error-eleven-labs-voice-failed).
   caracteresTTS: number;
   caracteresPorLlamada: number;
-  // Costo por minuto separado en sus dos naturalezas:
-  //  - fijo: Vapi + STT. Es la "tarifa" real del agente, casi constante.
-  //  - variable: LLM. Se cobra por token, depende de la conversacion, no del tiempo.
-  costoFijoPorMin: number; // ~la tarifa estable del agente
-  costoLlmPorMin: number; // el variable
 }
