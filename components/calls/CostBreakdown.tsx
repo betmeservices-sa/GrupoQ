@@ -43,7 +43,22 @@ export function CostBreakdown({
         })}
       </ul>
 
-      <div className="mt-4 rounded-xl bg-surface p-3 text-xs leading-relaxed text-[#475569]">
+      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-surface p-3 text-xs">
+        <div>
+          <p className="font-semibold text-[#0f1b2d]">
+            {metrics.caracteresTTS.toLocaleString("es-SV")}
+          </p>
+          <p className="text-[#94a3b4]">Caracteres de voz (ElevenLabs)</p>
+        </div>
+        <div>
+          <p className="font-semibold text-[#0f1b2d]">
+            {metrics.caracteresPorLlamada.toLocaleString("es-SV")}
+          </p>
+          <p className="text-[#94a3b4]">Promedio por llamada hablada</p>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-xl bg-surface p-3 text-xs leading-relaxed text-[#475569]">
         {tarifaCarrier > 0 ? (
           <>
             Costo real estimado:{" "}

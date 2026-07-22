@@ -189,6 +189,12 @@ export interface CallCostBreakdown {
   tts: number;
   vapi: number;
   total: number;
+  // Consumo bruto. ttsCharacters son los caracteres que la voz (ElevenLabs)
+  // sintetizo en esa llamada; con llave propia de 11labs el costo tts llega en
+  // 0 porque lo factura esa cuenta, no Vapi.
+  ttsCharacters: number;
+  llmPromptTokens: number;
+  llmCompletionTokens: number;
 }
 
 export interface CallRecord {
@@ -245,4 +251,8 @@ export interface CallMetrics {
   porPrefijo: PrefijoStats[];
   costoCarrier: number; // minutos hablados * tarifa configurada
   costoReal: number; // costoTotal + costoCarrier
+  // Consumo de voz. Util para vigilar la cuota de ElevenLabs, que ya tumbo
+  // llamadas antes (pipeline-error-eleven-labs-voice-failed).
+  caracteresTTS: number;
+  caracteresPorLlamada: number;
 }

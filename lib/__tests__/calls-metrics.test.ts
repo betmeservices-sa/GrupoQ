@@ -196,5 +196,49 @@ describe("resumirLlamadas", () => {
     expect(m.tasaConexion).toBe(0);
     expect(m.costoPorMinutoPromedio).toBeNull();
     expect(m.ringPromedioSeg).toBeNull();
+    expect(m.caracteresTTS).toBe(0);
+    expect(m.caracteresPorLlamada).toBe(0);
+  });
+});
+
+describe("consumo de voz (caracteres de ElevenLabs)", () => {
+  const desglose = (total: number, chars: number) => ({
+    transport: 0,
+    stt: 0,
+    llm: 0,
+    tts: 0,
+    vapi: total,
+    total,
+    ttsCharacters: chars,
+    llmPromptTokens: 100,
+    llmCompletionTokens: 20,
+  });
+
+  const hablo1: CallRecord = { ...exitosa, id: "v1", costoDesglose: desglose(0.05, 600) };
+  const hablo2: CallRecord = { ...transferida, id: "v2", costoDesglose: desglose(0.03, 200) };
+  // Rechazada por el carrier: nunca hablo, 0 caracteres.
+  const rechazada: CallRecord = { ...carrier, id: "v3", costoDesglose: desglose(0, 0) };
+
+  it("suma los caracteres de todas las llamadas", () => {
+    const m = resumirLlamadas([hablo1, hablo2, rechazada]);
+    expect(m.caracteresTTS).toBe(800);
+  });
+
+  it("promedia SOLO sobre las llamadas que hablaron, no sobre las rechazadas", () => {
+    const m = resumirLlamadas([hablo1, hablo2, rechazada]);
+    // (600 + 200) / 2 = 400. Si contara la rechazada daria 267 y enganaria.
+    expect(m.caracteresPorLlamada).toBe(400);
+  });
+
+  it("acumula los tokens del LLM en el desglose", () => {
+    const m = resumirLlamadas([hablo1, hablo2, rechazada]);
+    expect(m.desglose.llmPromptTokens).toBe(300);
+    expect(m.desglose.llmCompletionTokens).toBe(60);
+  });
+
+  it("deja el promedio en cero si ninguna llamada hablo", () => {
+    const m = resumirLlamadas([rechazada]);
+    expect(m.caracteresTTS).toBe(0);
+    expect(m.caracteresPorLlamada).toBe(0);
   });
 });

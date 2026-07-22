@@ -83,6 +83,9 @@ const DESGLOSE_CERO: CallCostBreakdown = {
   tts: 0,
   vapi: 0,
   total: 0,
+  ttsCharacters: 0,
+  llmPromptTokens: 0,
+  llmCompletionTokens: 0,
 };
 
 const OUTCOMES: CallOutcome[] = [
@@ -125,6 +128,9 @@ export function resumirLlamadas(calls: CallRecord[], tarifaCarrier = 0): CallMet
         tts: acc.tts + d.tts,
         vapi: acc.vapi + d.vapi,
         total: acc.total + d.total,
+        ttsCharacters: acc.ttsCharacters + d.ttsCharacters,
+        llmPromptTokens: acc.llmPromptTokens + d.llmPromptTokens,
+        llmCompletionTokens: acc.llmCompletionTokens + d.llmCompletionTokens,
       };
     },
     { ...DESGLOSE_CERO },
@@ -177,5 +183,14 @@ export function resumirLlamadas(calls: CallRecord[], tarifaCarrier = 0): CallMet
     porPrefijo,
     costoCarrier,
     costoReal: redondear(costoTotal + costoCarrier, 4),
+    caracteresTTS: desglose.ttsCharacters,
+    // Solo sobre las llamadas que realmente hablaron: promediar incluyendo las
+    // rechazadas (0 caracteres) daria un numero enganosamente bajo.
+    caracteresPorLlamada: (() => {
+      const conVoz = calls.filter((c) => (c.costoDesglose?.ttsCharacters ?? 0) > 0);
+      if (conVoz.length === 0) return 0;
+      const suma = conVoz.reduce((s, c) => s + (c.costoDesglose?.ttsCharacters ?? 0), 0);
+      return Math.round(suma / conVoz.length);
+    })(),
   };
 }

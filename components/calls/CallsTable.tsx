@@ -85,6 +85,28 @@ export function CallsTable({ calls }: { calls: CallRecord[] }) {
                       <div className="mb-2 text-[11px] text-[#94a3b4]">
                         Motivo técnico: <code>{c.estadoFinal ?? "—"}</code>
                       </div>
+                      {c.costoDesglose && (
+                        <div className="mb-2 flex flex-wrap gap-4 text-[11px] text-[#475569]">
+                          <span>
+                            Voz:{" "}
+                            <strong className="text-[#0f1b2d]">
+                              {c.costoDesglose.ttsCharacters.toLocaleString("es-SV")}
+                            </strong>{" "}
+                            caracteres
+                          </span>
+                          <span>
+                            LLM:{" "}
+                            <strong className="text-[#0f1b2d]">
+                              {c.costoDesglose.llmPromptTokens.toLocaleString("es-SV")}
+                            </strong>{" "}
+                            prompt /{" "}
+                            <strong className="text-[#0f1b2d]">
+                              {c.costoDesglose.llmCompletionTokens.toLocaleString("es-SV")}
+                            </strong>{" "}
+                            respuesta
+                          </span>
+                        </div>
+                      )}
                       {c.grabacionUrl && (
                         <a
                           href={c.grabacionUrl}

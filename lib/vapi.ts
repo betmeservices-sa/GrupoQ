@@ -35,7 +35,7 @@ const DIRECTORIO_VACIO: Directorio = { numeros: new Map(), assistants: new Map()
 // Reparte un costo entre componentes con la proporcion real observada en la
 // cuenta: plataforma 64%, modelo 23%, transcripcion 13%. TTS y transporte van
 // en cero, igual que en produccion (voz con llave propia y trunk propio).
-function desgloseDemo(costo: number): CallCostBreakdown {
+function desgloseDemo(costo: number, caracteres = 0): CallCostBreakdown {
   const r = (n: number) => Math.round(n * 10000) / 10000;
   return {
     vapi: r(costo * 0.64),
@@ -44,17 +44,20 @@ function desgloseDemo(costo: number): CallCostBreakdown {
     tts: 0,
     transport: 0,
     total: costo,
+    ttsCharacters: caracteres,
+    llmPromptTokens: 0,
+    llmCompletionTokens: 0,
   };
 }
 
 // Respaldo para el demo sin llave: llamadas representativas de un dia.
 const SEED_CALLS: CallRecord[] = [
-  { id: "demo-1", direccion: "inbound", numeroCliente: "+50375391721", creada: "2026-06-24T14:02:03Z", inicio: "2026-06-24T14:02:11Z", fin: "2026-06-24T14:05:39Z", duracionSeg: 208, costo: 0.18, costoDesglose: desgloseDemo(0.18), estadoFinal: "customer-ended-call", nombreNumero: "BetMe Services", numeroPropio: "+50325054600", nombreAssistant: "Sofía - Banco BetMe" },
-  { id: "demo-2", direccion: "inbound", numeroCliente: "+50378204455", creada: "2026-06-24T13:39:55Z", inicio: "2026-06-24T13:40:02Z", fin: "2026-06-24T13:41:12Z", duracionSeg: 70, costo: 0.06, costoDesglose: desgloseDemo(0.06), estadoFinal: "assistant-forwarded-call", nombreNumero: "BetMe Services", numeroPropio: "+50325054600", nombreAssistant: "Sofía - Banco BetMe" },
-  { id: "demo-3", direccion: "outbound", numeroCliente: "+50370119088", creada: "2026-06-24T12:18:44Z", inicio: "2026-06-24T12:18:50Z", fin: "2026-06-24T12:22:30Z", duracionSeg: 220, costo: 0.2, costoDesglose: desgloseDemo(0.2), estadoFinal: "assistant-ended-call", nombreNumero: "BetMe Services", numeroPropio: "+50325054600", nombreAssistant: "Sofía - Banco BetMe" },
-  { id: "demo-4", direccion: "inbound", numeroCliente: "+50322503300", creada: "2026-06-24T11:04:52Z", inicio: "2026-06-24T11:05:00Z", fin: "2026-06-24T11:05:42Z", duracionSeg: 42, costo: 0.04, costoDesglose: desgloseDemo(0.04), estadoFinal: "assistant-forwarded-call", nombreNumero: "Hospital gineco", numeroPropio: "+50325054602", nombreAssistant: "Hospital" },
+  { id: "demo-1", direccion: "inbound", numeroCliente: "+50375391721", creada: "2026-06-24T14:02:03Z", inicio: "2026-06-24T14:02:11Z", fin: "2026-06-24T14:05:39Z", duracionSeg: 208, costo: 0.18, costoDesglose: desgloseDemo(0.18, 742), estadoFinal: "customer-ended-call", nombreNumero: "BetMe Services", numeroPropio: "+50325054600", nombreAssistant: "Sofía - Banco BetMe" },
+  { id: "demo-2", direccion: "inbound", numeroCliente: "+50378204455", creada: "2026-06-24T13:39:55Z", inicio: "2026-06-24T13:40:02Z", fin: "2026-06-24T13:41:12Z", duracionSeg: 70, costo: 0.06, costoDesglose: desgloseDemo(0.06, 268), estadoFinal: "assistant-forwarded-call", nombreNumero: "BetMe Services", numeroPropio: "+50325054600", nombreAssistant: "Sofía - Banco BetMe" },
+  { id: "demo-3", direccion: "outbound", numeroCliente: "+50370119088", creada: "2026-06-24T12:18:44Z", inicio: "2026-06-24T12:18:50Z", fin: "2026-06-24T12:22:30Z", duracionSeg: 220, costo: 0.2, costoDesglose: desgloseDemo(0.2, 810), estadoFinal: "assistant-ended-call", nombreNumero: "BetMe Services", numeroPropio: "+50325054600", nombreAssistant: "Sofía - Banco BetMe" },
+  { id: "demo-4", direccion: "inbound", numeroCliente: "+50322503300", creada: "2026-06-24T11:04:52Z", inicio: "2026-06-24T11:05:00Z", fin: "2026-06-24T11:05:42Z", duracionSeg: 42, costo: 0.04, costoDesglose: desgloseDemo(0.04, 195), estadoFinal: "assistant-forwarded-call", nombreNumero: "Hospital gineco", numeroPropio: "+50325054602", nombreAssistant: "Hospital" },
   { id: "demo-5", direccion: "outbound", numeroCliente: "+50361611519", creada: "2026-06-24T10:30:00Z", duracionSeg: 0, costo: 0, estadoFinal: "call.in-progress.error-providerfault-outbound-sip-480-temporarily-unavailable", nombreNumero: "BetMe Services", numeroPropio: "+50325054600", nombreAssistant: "Sofía - Banco BetMe" },
-  { id: "demo-6", direccion: "inbound", numeroCliente: "+50360557788", creada: "2026-06-24T09:11:52Z", inicio: "2026-06-24T09:12:00Z", fin: "2026-06-24T09:15:20Z", duracionSeg: 200, costo: 0.17, costoDesglose: desgloseDemo(0.17), estadoFinal: "customer-ended-call", nombreNumero: "Miagentia", numeroPropio: "+50325054601", nombreAssistant: "Sofia (Copy)" },
+  { id: "demo-6", direccion: "inbound", numeroCliente: "+50360557788", creada: "2026-06-24T09:11:52Z", inicio: "2026-06-24T09:12:00Z", fin: "2026-06-24T09:15:20Z", duracionSeg: 200, costo: 0.17, costoDesglose: desgloseDemo(0.17, 703), estadoFinal: "customer-ended-call", nombreNumero: "Miagentia", numeroPropio: "+50325054601", nombreAssistant: "Sofia (Copy)" },
 ];
 
 function direccionDe(type: unknown): CallDirection {
@@ -78,6 +81,9 @@ function desgloseDe(raw?: Partial<CallCostBreakdown>): CallCostBreakdown | undef
     tts: raw.tts ?? 0,
     vapi: raw.vapi ?? 0,
     total: raw.total ?? 0,
+    ttsCharacters: raw.ttsCharacters ?? 0,
+    llmPromptTokens: raw.llmPromptTokens ?? 0,
+    llmCompletionTokens: raw.llmCompletionTokens ?? 0,
   };
 }
 
