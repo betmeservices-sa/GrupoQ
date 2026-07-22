@@ -21,7 +21,10 @@ function tarifaCarrier(): number {
 async function armarRespuesta() {
   const tarifa = tarifaCarrier();
   let calls: CallRecord[] = [];
-  let error: string | undefined;
+  // Se separan a proposito: un fallo de la BASE no es un fallo de VAPI, y
+  // mezclarlos hace que el usuario persiga el problema equivocado.
+  let errorVapi: string | undefined;
+  let errorBase: string | undefined;
   let persistido = false;
 
   // 1) Traer de Vapi. Si falla, seguimos: puede haber historial en la base.
@@ -30,7 +33,7 @@ async function armarRespuesta() {
     frescas = await fetchVapiCalls();
     calls = frescas;
   } catch (err) {
-    error = err instanceof Error ? err.message : "Error desconocido";
+    errorVapi = err instanceof Error ? err.message : "Error desconocido";
   }
 
   // 2) Persistir y leer el historial. Si la base falla (tipico: la migracion
@@ -42,8 +45,7 @@ async function armarRespuesta() {
       calls = await leerLlamadas();
       persistido = true;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error desconocido";
-      error = error ? `${error}. ${msg}` : msg;
+      errorBase = err instanceof Error ? err.message : "Error desconocido";
       calls = frescas;
     }
   }
@@ -55,18 +57,19 @@ async function armarRespuesta() {
     metrics: resumirLlamadas(calls, tarifa),
     calls,
     sincronizadaEn: new Date().toISOString(),
-    ...(error ? { error } : {}),
+    ...(errorVapi ? { errorVapi } : {}),
+    ...(errorBase ? { errorBase } : {}),
   };
 }
 
 export async function GET() {
   const body = await armarRespuesta();
-  return NextResponse.json(body, { status: body.error && body.calls.length === 0 ? 502 : 200 });
+  return NextResponse.json(body, { status: body.errorVapi && body.calls.length === 0 ? 502 : 200 });
 }
 
 // Mismo trabajo que GET. Existe para que el boton "Sincronizar" exprese
 // intencion de escritura y no quede cacheado por ningun intermediario.
 export async function POST() {
   const body = await armarRespuesta();
-  return NextResponse.json(body, { status: body.error && body.calls.length === 0 ? 502 : 200 });
+  return NextResponse.json(body, { status: body.errorVapi && body.calls.length === 0 ? 502 : 200 });
 }

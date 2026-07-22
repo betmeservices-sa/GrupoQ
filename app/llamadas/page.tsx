@@ -17,7 +17,8 @@ interface Respuesta {
   metrics: CallMetrics;
   calls: CallRecord[];
   sincronizadaEn: string;
-  error?: string;
+  errorVapi?: string;
+  errorBase?: string;
 }
 
 type FiltroDir = "todas" | "inbound" | "outbound";
@@ -88,9 +89,33 @@ export default function LlamadasPage() {
         </button>
       </header>
 
-      {data?.error && (
+      {data?.errorVapi && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+          <strong>No se pudo conectar con Vapi:</strong> {data.errorVapi}
+          {data.calls.length > 0 && " Se muestra el último historial guardado."}
+        </div>
+      )}
+
+      {data?.errorBase && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          No se pudo sincronizar con Vapi ({data.error}). Se muestra el último historial guardado.
+          <strong>Las llamadas no se están guardando.</strong> Los datos de abajo son correctos y
+          están en vivo, pero no queda historial.
+          {data.errorBase.includes("public.calls") ? (
+            <>
+              {" "}
+              Falta correr la migración <code>supabase/migrations/20260721000000_calls.sql</code> en
+              este Supabase.
+            </>
+          ) : (
+            <> Detalle: {data.errorBase}</>
+          )}
+        </div>
+      )}
+
+      {data && data.source === "demo" && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900">
+          <strong>Estás viendo datos de ejemplo, no llamadas reales.</strong> Falta la variable{" "}
+          <code>VAPI_PRIVATE_KEY</code> en este entorno.
         </div>
       )}
 
