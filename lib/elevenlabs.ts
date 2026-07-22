@@ -24,12 +24,31 @@ interface SubscriptionResp {
   next_character_count_reset_unix?: number | null;
 }
 
+// Acepta los nombres mas comunes por si la variable se nombro distinto en Vercel.
+// El nombre canonico es ELEVENLABS_API_KEY.
+export function claveEleven(): string | undefined {
+  return (
+    process.env.ELEVENLABS_API_KEY ||
+    process.env.ELEVEN_LABS_API_KEY ||
+    process.env.ELEVENLABS_KEY ||
+    process.env.ELEVEN_API_KEY ||
+    process.env.XI_API_KEY ||
+    undefined
+  );
+}
+
+// Nombres de variables de entorno que PARECEN relacionadas (para diagnosticar
+// cuando la clave no se encuentra). Devuelve solo los NOMBRES, nunca valores.
+export function nombresRelacionados(): string[] {
+  return Object.keys(process.env).filter((k) => /eleven|^xi_|xi.?api|11labs/i.test(k));
+}
+
 export function hayLlaveEleven(): boolean {
-  return Boolean(process.env.ELEVENLABS_API_KEY);
+  return Boolean(claveEleven());
 }
 
 export async function fetchCuotaEleven(): Promise<CuotaEleven | null> {
-  const key = process.env.ELEVENLABS_API_KEY;
+  const key = claveEleven();
   if (!key) return null;
 
   const ac = new AbortController();

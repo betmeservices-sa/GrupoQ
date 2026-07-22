@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchCuotaEleven, hayLlaveEleven } from "@/lib/elevenlabs";
+import { fetchCuotaEleven, hayLlaveEleven, nombresRelacionados } from "@/lib/elevenlabs";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +7,13 @@ export const dynamic = "force-dynamic";
 // la carga del dashboard. Queda detras del middleware: exige sesion.
 export async function GET() {
   if (!hayLlaveEleven()) {
-    return NextResponse.json({ configurado: false, cuota: null });
+    // Diagnostico: que nombres de variables relacionadas ve el servidor (solo
+    // nombres, sin valores). Ayuda a detectar un nombre mal escrito.
+    return NextResponse.json({
+      configurado: false,
+      cuota: null,
+      nombresVistos: nombresRelacionados(),
+    });
   }
   try {
     const cuota = await fetchCuotaEleven();
