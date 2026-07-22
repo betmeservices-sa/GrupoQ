@@ -34,6 +34,13 @@ export function costoPorMinuto(c: CallRecord): number | null {
   return c.costo / (seg / 60);
 }
 
+// Costo REAL de la llamada: lo que cobra Vapi mas lo que cobra el carrier por
+// los minutos hablados. Con tarifaCarrier en 0, es igual al costo de Vapi.
+export function costoRealLlamada(c: CallRecord, tarifaCarrier = 0): number {
+  const carrier = (hablaSeg(c) / 60) * tarifaCarrier;
+  return Math.round((c.costo + carrier) * 10000) / 10000;
+}
+
 // Agrupa los endedReason de Vapi en categorias legibles. El caso por defecto
 // existe a proposito: Vapi agrega motivos nuevos y no queremos romper la UI.
 export function categoriaOutcome(motivo?: string): CallOutcome {

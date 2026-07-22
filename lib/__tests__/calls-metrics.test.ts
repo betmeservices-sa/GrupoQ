@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   categoriaOutcome,
   costoPorMinuto,
+  costoRealLlamada,
   derivar,
   hablaSeg,
   prefijoSV,
@@ -90,6 +91,21 @@ describe("costoPorMinuto", () => {
 
   it("devuelve null cuando no hubo habla, sin dividir por cero", () => {
     expect(costoPorMinuto(carrier)).toBeNull();
+  });
+});
+
+describe("costoRealLlamada", () => {
+  it("sin tarifa de carrier, el costo real es igual al de Vapi", () => {
+    expect(costoRealLlamada(transferida)).toBeCloseTo(0.0339, 4);
+  });
+
+  it("con tarifa, suma el costo del carrier por los minutos hablados", () => {
+    // 26s = 0.4333 min. A 0.03 USD/min = 0.013. 0.0339 + 0.013 = 0.0469
+    expect(costoRealLlamada(transferida, 0.03)).toBeCloseTo(0.0469, 3);
+  });
+
+  it("una llamada rechazada (sin habla) no acumula costo de carrier", () => {
+    expect(costoRealLlamada(carrier, 0.03)).toBe(0);
   });
 });
 

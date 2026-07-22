@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { CallsKpis } from "@/components/calls/CallsKpis";
 import { CostBreakdown } from "@/components/calls/CostBreakdown";
 import { OutcomePanel } from "@/components/calls/OutcomePanel";
+import { ElevenLabsPanel } from "@/components/calls/ElevenLabsPanel";
 import { CallsTable } from "@/components/calls/CallsTable";
 import { categoriaOutcome } from "@/lib/calls-metrics";
 import { ETIQUETA_OUTCOME } from "@/lib/calls-format";
@@ -127,9 +128,10 @@ export default function LlamadasPage() {
         <>
           <CallsKpis metrics={data.metrics} />
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <CostBreakdown metrics={data.metrics} tarifaCarrier={data.tarifaCarrier} />
             <OutcomePanel metrics={data.metrics} />
+            <ElevenLabsPanel />
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -169,7 +171,7 @@ export default function LlamadasPage() {
             </span>
           </div>
 
-          <CallsTable calls={visibles} />
+          <CallsTable calls={visibles} tarifaCarrier={data.tarifaCarrier} />
           </>
         )}
       </div>

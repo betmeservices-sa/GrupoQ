@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight, PhoneOff } from "lucide-react";
-import { derivar } from "@/lib/calls-metrics";
+import { costoRealLlamada, derivar } from "@/lib/calls-metrics";
 import { COLOR_OUTCOME, ETIQUETA_OUTCOME, fmtDuracion, fmtUSD } from "@/lib/calls-format";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { CallRecord } from "@/lib/data/types";
@@ -18,7 +18,13 @@ function fmtFecha(iso?: string): string {
   });
 }
 
-export function CallsTable({ calls }: { calls: CallRecord[] }) {
+export function CallsTable({
+  calls,
+  tarifaCarrier = 0,
+}: {
+  calls: CallRecord[];
+  tarifaCarrier?: number;
+}) {
   const [abierta, setAbierta] = useState<string | null>(null);
 
   if (calls.length === 0) {
@@ -44,7 +50,7 @@ export function CallsTable({ calls }: { calls: CallRecord[] }) {
             <th className="px-3 py-3 font-medium">Ring</th>
             <th className="px-3 py-3 font-medium">Habla</th>
             <th className="px-3 py-3 font-medium">Resultado</th>
-            <th className="px-3 py-3 text-right font-medium">Costo</th>
+            <th className="px-3 py-3 text-right font-medium">Costo real</th>
             <th className="px-3 py-3 text-right font-medium">USD/min</th>
           </tr>
         </thead>
@@ -76,7 +82,9 @@ export function CallsTable({ calls }: { calls: CallRecord[] }) {
                       {ETIQUETA_OUTCOME[d.outcome]}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-right">{fmtUSD(c.costo)}</td>
+                  <td className="px-3 py-3 text-right">
+                    {fmtUSD(costoRealLlamada(c, tarifaCarrier))}
+                  </td>
                   <td className="px-3 py-3 text-right">{fmtUSD(d.costoPorMinuto)}</td>
                 </tr>
                 {exp && (

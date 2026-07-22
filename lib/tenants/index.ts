@@ -45,6 +45,10 @@ export const DEMO_LOGINS: DemoLogin[] = [
   { usuario: "demoagentia", password: "demoi", tenant: "grupoq" },
   { usuario: "demoagentia", password: "demoj", tenant: "excel" },
   { usuario: "demoagentia", password: "demok", tenant: "miagentia" },
+  // Acceso directo al dashboard de llamadas (tenant miagentia).
+  // OJO: esta clave queda visible mientras el repo sea publico. Para cerrarla,
+  // hacer el repo privado o mover las credenciales a la env LOGIN_PASSWORDS.
+  { usuario: "dashboard", password: "Dashboard123*", tenant: "miagentia" },
 
   // Aliases previos (siguen funcionando).
   { usuario: "hospital@demo.com", password: "demo1234", tenant: "hospital" },
