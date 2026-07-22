@@ -7,7 +7,7 @@ const ENV_ORIGINAL = { ...process.env };
 
 beforeEach(() => {
   process.env.SESSION_SECRET = "un-secreto-de-prueba-suficientemente-largo";
-  process.env.NODE_ENV = "test";
+  (process.env as Record<string, string>).NODE_ENV = "test";
 });
 
 afterEach(() => {
@@ -65,7 +65,7 @@ describe("sesion firmada", () => {
 describe("fail-closed sin SESSION_SECRET en produccion", () => {
   beforeEach(() => {
     delete process.env.SESSION_SECRET;
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string>).NODE_ENV = "production";
   });
 
   it("NO emite sesion (crearSesion devuelve null)", async () => {

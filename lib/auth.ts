@@ -16,11 +16,31 @@ const SESION_KEY = "ccg.sesion";
 const ROL_KEY = "ccg.rol";
 
 export function useAuth() {
-  // null = todavía no se leyó localStorage (evita parpadeo e hidratación).
+  // null = todavía verificando. El SERVIDOR decide si hay sesión, no localStorage:
+  // un estado viejo del navegador (sin cookie válida) ya no muestra un dashboard
+  // roto que dispara 401 en cada request.
   const [sesion, setSesion] = useState<boolean | null>(null);
 
   useEffect(() => {
-    setSesion(Boolean(window.localStorage.getItem(SESION_KEY)));
+    let cancelado = false;
+    fetch("/api/auth/me")
+      .then((r) => {
+        if (cancelado) return;
+        if (r.ok) {
+          setSesion(true);
+        } else {
+          // Sesión del servidor inválida o expirada: limpiar el estado stale del
+          // cliente y mandar al login.
+          window.localStorage.removeItem(SESION_KEY);
+          setSesion(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelado) setSesion(false);
+      });
+    return () => {
+      cancelado = true;
+    };
   }, []);
 
   async function login(usuario: string, password: string): Promise<boolean> {
