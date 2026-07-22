@@ -9,7 +9,6 @@ export function CarrierPanel({ metrics }: { metrics: CallMetrics }) {
   const pct =
     b.bucketMin > 0 ? Math.min(100, (Math.min(b.minutosTotales, b.bucketMin) / b.bucketMin) * 100) : 0;
   const totalConTigo = Math.round((metrics.costoTotal + b.costoCarrier) * 10000) / 10000;
-  const faltan = Math.max(0, Math.round((b.bucketMin - b.minutosTotales) * 10) / 10);
 
   return (
     <div className="rounded-2xl border border-line bg-card p-5 shadow-sm">
@@ -33,11 +32,11 @@ export function CarrierPanel({ metrics }: { metrics: CallMetrics }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <p className="mt-2 text-xs text-[#94a3b4]">
-        {b.minutosFueraBucket > 0
-          ? `${b.minutosFueraBucket} min fuera del bucket (se cobran)`
-          : `Faltan ${faltan} min para empezar a cobrar`}
-      </p>
+      {b.minutosFueraBucket > 0 && (
+        <p className="mt-2 text-xs text-[#94a3b4]">
+          {b.minutosFueraBucket} min fuera del bucket (se cobran)
+        </p>
+      )}
 
       <div className="mt-4 space-y-2 text-xs">
         <div className="flex items-center justify-between">
