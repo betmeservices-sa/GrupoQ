@@ -64,11 +64,13 @@ export default function LlamadasPage() {
   }, [data, dir, out, dias]);
 
   return (
-    <div className="space-y-5 p-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    // El <main> del AppShell es overflow-hidden: cada pagina scrollea por su
+    // cuenta. Mismo patron que /dashboard: header fijo + cuerpo con overflow.
+    <div className="flex h-full flex-col">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-card px-5 py-3">
         <div>
-          <h1 className="text-lg font-bold text-[#0f1b2d]">Llamadas</h1>
-          <p className="text-xs text-[#94a3b4]">
+          <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Llamadas</h1>
+          <p className="text-[12.5px] text-[#94a3b4]">
             {data
               ? `${data.source === "demo" ? "Datos de demostración" : "Datos reales de Vapi"}${
                   data.persistido
@@ -88,6 +90,8 @@ export default function LlamadasPage() {
           Sincronizar
         </button>
       </header>
+
+      <div className="flex-1 space-y-5 overflow-y-auto p-5">
 
       {data?.errorVapi && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
@@ -166,8 +170,9 @@ export default function LlamadasPage() {
           </div>
 
           <CallsTable calls={visibles} />
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
