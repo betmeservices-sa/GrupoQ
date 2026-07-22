@@ -23,8 +23,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
   }
 
-  const { valor, maxAge } = await crearSesion(tenant);
+  const sesion = await crearSesion(tenant);
+  if (!sesion) {
+    // Fail-closed: falta SESSION_SECRET en el servidor. No emitimos una sesion
+    // insegura; el operador debe configurar la variable.
+    return NextResponse.json(
+      { ok: false, error: "Login no disponible: el servidor no está configurado." },
+      { status: 503 },
+    );
+  }
   const res = NextResponse.json({ ok: true, tenant });
-  res.headers.set("Set-Cookie", cookieDeSesion(valor, maxAge));
+  res.headers.set("Set-Cookie", cookieDeSesion(sesion.valor, sesion.maxAge));
   return res;
 }

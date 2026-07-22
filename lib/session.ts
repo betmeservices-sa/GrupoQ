@@ -17,17 +17,23 @@ export const SESSION_COOKIE = "ccg_sesion";
 // Duracion de la sesion. Corta a proposito: es un panel con datos de clientes.
 const MAX_AGE_SEG = 60 * 60 * 12; // 12 horas
 
-function secreto(): string {
+// Devuelve el secreto, o null si no hay uno valido.
+// FALLA CERRADA en produccion: sin SESSION_SECRET NO caemos a un default, porque
+// cualquier default estaria en el repo (publico) y volveria las sesiones
+// falsificables. En su lugar devolvemos null y todo el sistema deja de
+// autenticar: nadie entra, pero nadie falsifica. El login se rompe visiblemente
+// hasta configurar la variable, que es el modo de fallo seguro.
+function secreto(): string | null {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 16) return s;
-  // Sin secreto configurado la sesion NO es segura. Se usa un valor fijo para
-  // que el dev local funcione, pero avisamos fuerte en produccion.
   if (process.env.NODE_ENV === "production") {
     console.error(
-      "[session] SESSION_SECRET no esta configurado. Las sesiones son falsificables.",
+      "[session] SESSION_SECRET no configurado. Login DESACTIVADO (fail-closed) hasta ponerlo.",
     );
+    return null;
   }
-  return "dev-inseguro-cambiar-en-produccion";
+  // Solo en dev local usamos un valor fijo para poder trabajar.
+  return "dev-secret-solo-local-nunca-produccion";
 }
 
 function b64url(bytes: ArrayBuffer | Uint8Array): string {
@@ -37,10 +43,13 @@ function b64url(bytes: ArrayBuffer | Uint8Array): string {
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-async function firmar(payload: string): Promise<string> {
+// Devuelve la firma, o null si no hay secreto (fail-closed).
+async function firmar(payload: string): Promise<string | null> {
+  const sec = secreto();
+  if (!sec) return null;
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(secreto()),
+    new TextEncoder().encode(sec),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -57,11 +66,18 @@ function igualesEnTiempoConstante(a: string, b: string): boolean {
   return dif === 0;
 }
 
-/** Crea el valor de la cookie: `<tenant>.<expiracionUnix>.<firma>` */
-export async function crearSesion(tenant: TenantId): Promise<{ valor: string; maxAge: number }> {
+/**
+ * Crea el valor de la cookie: `<tenant>.<expiracionUnix>.<firma>`.
+ * Devuelve null si no hay secreto configurado (fail-closed): el login debe
+ * responder error en vez de emitir una sesion insegura.
+ */
+export async function crearSesion(
+  tenant: TenantId,
+): Promise<{ valor: string; maxAge: number } | null> {
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SEG;
   const payload = `${tenant}.${exp}`;
   const sig = await firmar(payload);
+  if (!sig) return null;
   return { valor: `${payload}.${sig}`, maxAge: MAX_AGE_SEG };
 }
 
@@ -78,6 +94,8 @@ export async function verificarSesion(valor: string | undefined | null): Promise
   if (!Number.isFinite(exp) || exp * 1000 < Date.now()) return null;
 
   const esperada = await firmar(`${tenant}.${expStr}`);
+  // Sin secreto (fail-closed) no hay firma con que comparar: nadie valida.
+  if (!esperada) return null;
   if (!igualesEnTiempoConstante(sig, esperada)) return null;
 
   return tenant;
