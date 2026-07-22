@@ -1,8 +1,8 @@
 "use client";
 
-import { Clock, DollarSign, PhoneForwarded, PhoneIncoming, PhoneOutgoing, Timer } from "lucide-react";
+import { DollarSign, PhoneForwarded, PhoneIncoming, PhoneOutgoing, Timer } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
-import { fmtDuracion, fmtPorcentaje, fmtUSD } from "@/lib/calls-format";
+import { fmtPorcentaje, fmtUSD } from "@/lib/calls-format";
 import type { CallMetrics } from "@/lib/data/types";
 
 export function CallsKpis({ metrics }: { metrics: CallMetrics }) {
@@ -10,7 +10,7 @@ export function CallsKpis({ metrics }: { metrics: CallMetrics }) {
   // carrier); si no, es solo el de Vapi. La etiqueta lo refleja.
   const hayCarrier = metrics.costoCarrier > 0;
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
       <MetricCard label="Entrantes" valor={metrics.entrantes} Icon={PhoneIncoming} />
       <MetricCard label="Salientes" valor={metrics.salientes} Icon={PhoneOutgoing} />
       <MetricCard
@@ -24,7 +24,6 @@ export function CallsKpis({ metrics }: { metrics: CallMetrics }) {
         valor={fmtUSD(hayCarrier ? metrics.costoReal : metrics.costoTotal)}
         Icon={DollarSign}
       />
-      <MetricCard label="Ring promedio" valor={fmtDuracion(metrics.ringPromedioSeg)} Icon={Clock} />
     </div>
   );
 }

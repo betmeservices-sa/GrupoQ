@@ -47,7 +47,6 @@ export function CallsTable({
             <th className="px-3 py-3 font-medium">Desde</th>
             <th className="px-3 py-3 font-medium">Hacia</th>
             <th className="px-3 py-3 font-medium">Agente</th>
-            <th className="px-3 py-3 font-medium">Ring</th>
             <th className="px-3 py-3 font-medium">Habla</th>
             <th className="px-3 py-3 font-medium">Resultado</th>
             <th className="px-3 py-3 text-right font-medium">Costo real</th>
@@ -73,7 +72,6 @@ export function CallsTable({
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">{c.numeroCliente ?? "—"}</td>
                   <td className="px-3 py-3">{c.nombreAssistant || c.assistantId || "—"}</td>
-                  <td className="px-3 py-3">{fmtDuracion(d.ringSeg)}</td>
                   <td className="px-3 py-3">{fmtDuracion(d.hablaSeg)}</td>
                   <td className="px-3 py-3">
                     <span
@@ -89,7 +87,7 @@ export function CallsTable({
                 </tr>
                 {exp && (
                   <tr className="border-b border-line/60 bg-surface">
-                    <td colSpan={10} className="px-6 py-4">
+                    <td colSpan={9} className="px-6 py-4">
                       <div className="mb-2 text-[11px] text-[#94a3b4]">
                         Motivo técnico: <code>{c.estadoFinal ?? "—"}</code>
                       </div>
