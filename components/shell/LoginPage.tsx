@@ -8,17 +8,25 @@ import { Eye, EyeOff, Lock, User, MessagesSquare } from "lucide-react";
 export function LoginPage({
   onLogin,
 }: {
-  onLogin: (email: string, password: string) => boolean;
+  // Ahora es async: la contraseña se valida contra el servidor, no en el navegador.
+  onLogin: (email: string, password: string) => Promise<boolean>;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verPass, setVerPass] = useState(false);
   const [error, setError] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const ok = onLogin(email, password);
-    if (!ok) setError(true);
+    setError(false);
+    setEnviando(true);
+    try {
+      const ok = await onLogin(email, password);
+      if (!ok) setError(true);
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -109,9 +117,10 @@ export function LoginPage({
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-brand py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-dark"
+                disabled={enviando}
+                className="w-full rounded-xl bg-brand py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-dark disabled:opacity-60"
               >
-                Iniciar sesión
+                {enviando ? "Entrando..." : "Iniciar sesión"}
               </button>
             </form>
           </div>
