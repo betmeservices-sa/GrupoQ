@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Contact, Inbox, LogOut, Megaphone, MessagesSquare, Settings, X, type LucideIcon } from "lucide-react";
+import { BarChart3, Contact, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
+import { activeTenantId } from "@/lib/tenants/active";
 import { staff, ME } from "@/lib/data/seed";
 import { Avatar } from "@/components/ui/Avatar";
 import { Brand } from "./Brand";
@@ -24,6 +25,7 @@ const NAV: NavItem[] = [
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },
+  { id: "llamadas", href: "/llamadas", label: "Llamadas", Icon: PhoneCall },
   { id: "settings", href: "/settings", label: "Configuración", Icon: Settings },
 ];
 
@@ -40,7 +42,13 @@ export function Sidebar({
   const { def } = useRole();
   const yo = staff.find((s) => s.id === ME)!;
 
-  const visibles = NAV.filter((item) => def.ve.includes(item.id));
+  // "llamadas" es un modulo de la agencia: muestra TODA la cuenta de Vapi, que
+  // incluye llamadas de varios clientes. Por eso solo se expone en el tenant
+  // miagentia y no en los dashboards de los clientes.
+  const esAgencia = activeTenantId() === "miagentia";
+  const visibles = NAV.filter(
+    (item) => def.ve.includes(item.id) && (item.id !== "llamadas" || esAgencia),
+  );
 
   return (
     <aside

@@ -173,16 +173,59 @@ export interface WaTemplate {
 // Modelo de lectura, equivalente a lo que devuelve la API de Vapi (GET /call).
 export type CallDirection = "inbound" | "outbound" | "web";
 
+export type CallOutcome =
+  | "exitosa"
+  | "transferida"
+  | "falla_carrier"
+  | "falla_plataforma"
+  | "sin_audio"
+  | "sin_respuesta"
+  | "otro";
+
+export interface CallCostBreakdown {
+  transport: number;
+  stt: number;
+  llm: number;
+  tts: number;
+  vapi: number;
+  total: number;
+}
+
 export interface CallRecord {
   id: string;
   direccion: CallDirection;
   numeroCliente?: string; // customer.number
-  inicio?: string; // startedAt, ISO 8601
+  inicio?: string; // startedAt, ISO 8601. Momento en que CONTESTARON.
   fin?: string; // endedAt, ISO 8601
-  duracionSeg: number; // derivado de inicio/fin
-  costo: number; // USD
+  duracionSeg: number; // tiempo de habla, derivado de inicio/fin
+  costo: number; // USD, lo que cobra Vapi
   estadoFinal?: string; // endedReason de Vapi
   assistantId?: string;
+  // --- campos agregados para el dashboard de llamadas ---
+  creada?: string; // createdAt, ISO 8601. Momento en que se origino la llamada.
+  phoneNumberId?: string;
+  numeroPropio?: string; // resuelto contra GET /phone-number
+  nombreNumero?: string; // nombre del numero en Vapi, ej. "BetMe Services"
+  nombreAssistant?: string; // resuelto contra GET /assistant
+  estado?: string; // status de Vapi (queued, ringing, in-progress, ended)
+  costoDesglose?: CallCostBreakdown;
+  transcript?: string;
+  grabacionUrl?: string;
+}
+
+// Metricas por llamada, derivadas de los tres timestamps.
+export interface CallDerived {
+  ringSeg: number | null; // null = nunca contestaron
+  hablaSeg: number;
+  costoPorMinuto: number | null; // null = no hubo habla
+  outcome: CallOutcome;
+}
+
+export interface PrefijoStats {
+  prefijo: string;
+  total: number;
+  conectadas: number;
+  tasa: number; // 0..1
 }
 
 export interface CallMetrics {
@@ -193,4 +236,13 @@ export interface CallMetrics {
   minutosTotales: number;
   duracionPromedioSeg: number;
   costoTotal: number;
+  // --- agregados nuevos ---
+  tasaConexion: number; // 0..1
+  costoPorMinutoPromedio: number | null;
+  ringPromedioSeg: number | null;
+  desglose: CallCostBreakdown;
+  porOutcome: Record<CallOutcome, number>;
+  porPrefijo: PrefijoStats[];
+  costoCarrier: number; // minutos hablados * tarifa configurada
+  costoReal: number; // costoTotal + costoCarrier
 }
