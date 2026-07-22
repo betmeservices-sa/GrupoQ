@@ -234,6 +234,20 @@ export interface PrefijoStats {
   tasa: number; // 0..1
 }
 
+// Costo de telefonia del carrier (Tigo SV), con bucket de minutos incluidos.
+// Pasado el bucket, se cobra por minuto segun el destino.
+export interface CarrierBucket {
+  bucketMin: number; // minutos incluidos (50)
+  minutosTotales: number;
+  minutosEnBucket: number; // min(total, bucket)
+  minutosFueraBucket: number; // los que se cobran
+  costoCarrier: number; // costo de los minutos fuera del bucket
+  fijaMin: number; // minutos fuera del bucket a numeros que empiezan en 2
+  fijaCosto: number; // a 2 centavos/min
+  celularMin: number; // minutos fuera del bucket a numeros que empiezan en 6/7
+  celularCosto: number; // a 8 centavos/min
+}
+
 export interface CallMetrics {
   total: number;
   entrantes: number;
@@ -255,4 +269,5 @@ export interface CallMetrics {
   // llamadas antes (pipeline-error-eleven-labs-voice-failed).
   caracteresTTS: number;
   caracteresPorLlamada: number;
+  carrierBucket: CarrierBucket;
 }

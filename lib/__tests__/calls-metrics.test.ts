@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calcularCarrierBucket,
   categoriaOutcome,
   costoPorMinuto,
   costoRealLlamada,
@@ -8,6 +9,7 @@ import {
   prefijoSV,
   resumirLlamadas,
   ringSeg,
+  tarifaCarrierSV,
 } from "../calls-metrics";
 import type { CallRecord } from "../data/types";
 
@@ -106,6 +108,69 @@ describe("costoRealLlamada", () => {
 
   it("una llamada rechazada (sin habla) no acumula costo de carrier", () => {
     expect(costoRealLlamada(carrier, 0.03)).toBe(0);
+  });
+});
+
+describe("tarifaCarrierSV", () => {
+  it("cobra 2 centavos a numeros fijos (empiezan en 2)", () => {
+    expect(tarifaCarrierSV("+50322520218")).toBe(0.02);
+  });
+  it("cobra 8 centavos a celulares (empiezan en 6 o 7)", () => {
+    expect(tarifaCarrierSV("+50375391721")).toBe(0.08);
+    expect(tarifaCarrierSV("+50361611519")).toBe(0.08);
+  });
+  it("no cobra a numeros no salvadorenos ni vacios", () => {
+    expect(tarifaCarrierSV("+12025550123")).toBe(0);
+    expect(tarifaCarrierSV(undefined)).toBe(0);
+  });
+});
+
+describe("calcularCarrierBucket", () => {
+  const llamada = (id: string, ts: string, seg: number, numero: string): CallRecord => ({
+    id,
+    direccion: "outbound",
+    numeroCliente: numero,
+    creada: ts,
+    inicio: ts,
+    fin: new Date(new Date(ts).getTime() + seg * 1000).toISOString(),
+    duracionSeg: seg,
+    costo: 0.05,
+    estadoFinal: "customer-ended-call",
+  });
+
+  it("no cobra nada si el total no supera el bucket", () => {
+    const b = calcularCarrierBucket([llamada("a", "2026-07-20T10:00:00Z", 60, "+50375391721")], 50);
+    expect(b.minutosFueraBucket).toBe(0);
+    expect(b.costoCarrier).toBe(0);
+  });
+
+  it("cobra solo los minutos que pasan el bucket, segun el destino", () => {
+    // bucket de 1 min. c1 (celular) llena el bucket; c2 (celular) 1 min a 8c;
+    // c3 (fijo) 1 min a 2c.
+    const calls = [
+      llamada("c1", "2026-07-20T10:00:00Z", 60, "+50375391721"),
+      llamada("c2", "2026-07-20T11:00:00Z", 60, "+50372222222"),
+      llamada("c3", "2026-07-20T12:00:00Z", 60, "+50322520218"),
+    ];
+    const b = calcularCarrierBucket(calls, 1);
+    expect(b.minutosTotales).toBe(3);
+    expect(b.minutosEnBucket).toBe(1);
+    expect(b.minutosFueraBucket).toBe(2);
+    expect(b.celularMin).toBe(1);
+    expect(b.celularCosto).toBeCloseTo(0.08, 4);
+    expect(b.fijaMin).toBe(1);
+    expect(b.fijaCosto).toBeCloseTo(0.02, 4);
+    expect(b.costoCarrier).toBeCloseTo(0.1, 4);
+  });
+
+  it("cobra bien una llamada que cruza el limite del bucket", () => {
+    // bucket 1 min, una sola llamada de 2 min a celular: 1 min dentro, 1 fuera.
+    const b = calcularCarrierBucket(
+      [llamada("x", "2026-07-20T10:00:00Z", 120, "+50375391721")],
+      1,
+    );
+    expect(b.minutosFueraBucket).toBe(1);
+    expect(b.celularCosto).toBeCloseTo(0.08, 4);
   });
 });
 

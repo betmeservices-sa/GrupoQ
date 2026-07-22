@@ -7,6 +7,7 @@ import type {
   CallMetrics,
   CallOutcome,
   CallRecord,
+  CarrierBucket,
   PrefijoStats,
 } from "./data/types";
 
@@ -39,6 +40,77 @@ export function costoPorMinuto(c: CallRecord): number | null {
 export function costoRealLlamada(c: CallRecord, tarifaCarrier = 0): number {
   const carrier = (hablaSeg(c) / 60) * tarifaCarrier;
   return Math.round((c.costo + carrier) * 10000) / 10000;
+}
+
+// --- Costo de telefonia del carrier (Tigo SV) ---
+// Hay un bucket de minutos incluidos; pasado el bucket, cada minuto extra se
+// cobra segun el destino. Tarifas dadas por el usuario (2026-07-22):
+//   numeros que empiezan en 2 (fijos):       2 centavos/min
+//   numeros que empiezan en 6 o 7 (moviles): 8 centavos/min
+// La fija on-net es gratis y el movil de otra compania podria variar, pero no se
+// puede saber on/off-net por el numero (portabilidad), asi que se cobra plano
+// por rango.
+export const BUCKET_MINUTOS = 50;
+const TARIFA_FIJA = 0.02;
+const TARIFA_CELULAR = 0.08;
+
+export function tarifaCarrierSV(numero?: string): number {
+  const p = prefijoSV(numero);
+  if (p === "2") return TARIFA_FIJA;
+  if (p === "6" || p === "7") return TARIFA_CELULAR;
+  return 0;
+}
+
+export function calcularCarrierBucket(
+  calls: CallRecord[],
+  bucketMin = BUCKET_MINUTOS,
+): CarrierBucket {
+  // Se ordenan por tiempo para asignar el bucket cronologicamente: los primeros
+  // `bucketMin` minutos hablados van incluidos, el resto se cobra.
+  const conHabla = calls
+    .filter((c) => hablaSeg(c) > 0)
+    .map((c) => ({ c, min: hablaSeg(c) / 60, ts: new Date(c.creada ?? c.inicio ?? 0).getTime() }))
+    .sort((a, b) => a.ts - b.ts);
+
+  let acumulado = 0;
+  let costoCarrier = 0;
+  let fijaMin = 0;
+  let fijaCosto = 0;
+  let celularMin = 0;
+  let celularCosto = 0;
+
+  for (const { c, min } of conHabla) {
+    const inicio = acumulado;
+    const fin = acumulado + min;
+    acumulado = fin;
+    // Minutos de esta llamada que caen FUERA del bucket (maneja la llamada que
+    // cruza el limite de los 50 min).
+    const overage = Math.max(0, fin - bucketMin) - Math.max(0, inicio - bucketMin);
+    if (overage <= 0) continue;
+    const tarifa = tarifaCarrierSV(c.numeroCliente);
+    if (tarifa === 0) continue;
+    const costo = overage * tarifa;
+    costoCarrier += costo;
+    if (tarifa === TARIFA_FIJA) {
+      fijaMin += overage;
+      fijaCosto += costo;
+    } else {
+      celularMin += overage;
+      celularCosto += costo;
+    }
+  }
+
+  return {
+    bucketMin,
+    minutosTotales: redondear(acumulado, 1),
+    minutosEnBucket: redondear(Math.min(acumulado, bucketMin), 1),
+    minutosFueraBucket: redondear(Math.max(0, acumulado - bucketMin), 1),
+    costoCarrier: redondear(costoCarrier, 4),
+    fijaMin: redondear(fijaMin, 1),
+    fijaCosto: redondear(fijaCosto, 4),
+    celularMin: redondear(celularMin, 1),
+    celularCosto: redondear(celularCosto, 4),
+  };
 }
 
 // Agrupa los endedReason de Vapi en categorias legibles. El caso por defecto
@@ -199,5 +271,6 @@ export function resumirLlamadas(calls: CallRecord[], tarifaCarrier = 0): CallMet
       const suma = conVoz.reduce((s, c) => s + (c.costoDesglose?.ttsCharacters ?? 0), 0);
       return Math.round(suma / conVoz.length);
     })(),
+    carrierBucket: calcularCarrierBucket(calls),
   };
 }
