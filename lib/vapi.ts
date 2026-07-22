@@ -115,13 +115,55 @@ export function hayLlaveVapi(): boolean {
   return Boolean(process.env.VAPI_PRIVATE_KEY);
 }
 
+interface ErrorConEstado extends Error {
+  status?: number;
+}
+
+async function pedirUnaVez<T>(ruta: string, key: string): Promise<T> {
+  // Timeout duro: en Vercel un fetch colgado se lleva toda la funcion. Preferimos
+  // cortar a los 15s y reintentar antes que quedar esperando indefinido.
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 15000);
+  try {
+    const res = await fetch(`${VAPI_BASE}${ruta}`, {
+      headers: { Authorization: `Bearer ${key}` },
+      cache: "no-store",
+      signal: ac.signal,
+    });
+    if (!res.ok) {
+      const e: ErrorConEstado = new Error(`Vapi respondio ${res.status} en ${ruta}`);
+      e.status = res.status;
+      throw e;
+    }
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Un corte de socket ("terminated"), un abort por timeout o un 5xx/429 son
+// transitorios: reintentar casi siempre funciona. Un 401/404 no lo es.
+function esTransitorio(err: unknown): boolean {
+  const status = (err as ErrorConEstado)?.status;
+  if (status && [429, 500, 502, 503, 504].includes(status)) return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /terminated|aborted|abort|timeout|fetch failed|ECONNRESET|network|socket/i.test(msg);
+}
+
 async function pedir<T>(ruta: string, key: string): Promise<T> {
-  const res = await fetch(`${VAPI_BASE}${ruta}`, {
-    headers: { Authorization: `Bearer ${key}` },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Vapi respondio ${res.status} en ${ruta}`);
-  return (await res.json()) as T;
+  const intentos = 3;
+  let ultimoError: unknown;
+  for (let i = 0; i < intentos; i++) {
+    try {
+      return await pedirUnaVez<T>(ruta, key);
+    } catch (err) {
+      ultimoError = err;
+      if (i === intentos - 1 || !esTransitorio(err)) throw err;
+      // Backoff corto antes de reintentar (300ms, 600ms).
+      await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+    }
+  }
+  throw ultimoError;
 }
 
 // Trae los catalogos de numeros y assistants. Si fallan, se devuelve un
