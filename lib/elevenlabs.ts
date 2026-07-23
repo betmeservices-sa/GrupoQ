@@ -59,29 +59,6 @@ export function hayLlaveEleven(): boolean {
 // poniendo los agentes en eleven_turbo_v2_5, y la voz termino de entrenarse ahi.
 // El endpoint de sondeo /v1/voices/{id} se quito tras diagnosticar.
 
-// Estado de fine-tuning de una voz por modelo (diagnostico de acento/modelo).
-export async function fetchVozEstado(voiceId: string): Promise<{
-  name: string;
-  fineTuningState: Record<string, string> | null;
-} | null> {
-  const key = claveEleven();
-  if (!key) return null;
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 12000);
-  try {
-    const res = await fetch(`${EL_BASE}/v1/voices/${voiceId}`, {
-      headers: { "xi-api-key": key },
-      cache: "no-store",
-      signal: ac.signal,
-    });
-    if (!res.ok) throw new Error(`ElevenLabs voz respondio ${res.status}`);
-    const d = (await res.json()) as { name?: string; fine_tuning?: { state?: Record<string, string> } };
-    return { name: d.name ?? "", fineTuningState: d.fine_tuning?.state ?? null };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 export async function fetchCuotaEleven(): Promise<CuotaEleven | null> {
   const key = claveEleven();
   if (!key) return null;
