@@ -54,44 +54,10 @@ export function hayLlaveEleven(): boolean {
 // Vapi por llamada (ttsCharacters). Cruzar aportaria solo una verificacion
 // contable de nicho, asi que se dejo en la cuota a nivel cuenta.
 
-// Estado de una voz: para que modelos esta entrenada (fine-tuned). Diagnostico
-// del error "voice not fine-tuned and cannot be used".
-export async function fetchVozEstado(voiceId: string): Promise<{
-  name: string;
-  category: string;
-  fineTuningState: Record<string, string> | null;
-  highQualityModels: string[];
-  verifiedLanguages: unknown[];
-} | null> {
-  const key = claveEleven();
-  if (!key) return null;
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 12000);
-  try {
-    const res = await fetch(`${EL_BASE}/v1/voices/${voiceId}`, {
-      headers: { "xi-api-key": key },
-      cache: "no-store",
-      signal: ac.signal,
-    });
-    if (!res.ok) throw new Error(`ElevenLabs voz respondio ${res.status}`);
-    const d = (await res.json()) as {
-      name?: string;
-      category?: string;
-      fine_tuning?: { state?: Record<string, string> };
-      high_quality_base_model_ids?: string[];
-      verified_languages?: unknown[];
-    };
-    return {
-      name: d.name ?? "",
-      category: d.category ?? "",
-      fineTuningState: d.fine_tuning?.state ?? null,
-      highQualityModels: d.high_quality_base_model_ids ?? [],
-      verifiedLanguages: d.verified_languages ?? [],
-    };
-  } finally {
-    clearTimeout(timer);
-  }
-}
+// Nota (2026-07-22): el error "voice not fine-tuned and cannot be used" venia de
+// usar el modelo eleven_v3 con la voz "Eli" (clon profesional). Se corrigio
+// poniendo los agentes en eleven_turbo_v2_5, y la voz termino de entrenarse ahi.
+// El endpoint de sondeo /v1/voices/{id} se quito tras diagnosticar.
 
 export async function fetchCuotaEleven(): Promise<CuotaEleven | null> {
   const key = claveEleven();
