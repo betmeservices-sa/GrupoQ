@@ -108,14 +108,28 @@ export default function SettingsPage() {
 
   // Estado PERMANENTE de la conexión (qué páginas tiene conectadas el tenant),
   // independiente del banner de resultado que solo aparece al volver de Meta.
+  // null = todavía no sabemos (cargando). Así el botón no parpadea a "Conectar"
+  // cuando en realidad la cuenta ya está conectada.
   const [conexiones, setConexiones] = useState<
-    { pageId: string; nombre: string; instagram: boolean }[]
-  >([]);
+    { pageId: string; nombre: string; instagram: boolean }[] | null
+  >(null);
   useEffect(() => {
+    const tenant = window.localStorage.getItem("ccg.tenant") || "x";
+    const cacheKey = `ccg.meta.conexiones.${tenant}`;
+    // Hidratar del cache al instante para mostrar el estado conectado sin flash.
+    try {
+      const cached = window.localStorage.getItem(cacheKey);
+      if (cached) setConexiones(JSON.parse(cached));
+    } catch {}
     fetch("/api/meta/connections", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (d.ok) setConexiones(d.conexiones);
+        if (d.ok) {
+          setConexiones(d.conexiones);
+          try {
+            window.localStorage.setItem(cacheKey, JSON.stringify(d.conexiones));
+          } catch {}
+        }
       })
       .catch(() => {});
   }, [metaEstado]);
@@ -254,11 +268,15 @@ export default function SettingsPage() {
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-brand/25 transition hover:brightness-105"
             >
               <Facebook size={16} />
-              {conexiones.length ? "Reconectar / agregar cuentas" : "Conectar Facebook e Instagram"}
+              {conexiones === null
+                ? "Cargando conexiones..."
+                : conexiones.length
+                  ? "Reconectar / agregar cuentas"
+                  : "Conectar Facebook e Instagram"}
             </a>
           </div>
 
-          {conexiones.length > 0 && (
+          {conexiones && conexiones.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {conexiones.map((c) => (
                 <span

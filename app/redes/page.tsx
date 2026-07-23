@@ -14,10 +14,29 @@ export default function RedesPage() {
   // página). demo:true = sin conexión, se queda el seed del tenant.
   const [reales, setReales] = useState<SocialStatsT[] | null>(null);
   useEffect(() => {
+    const tenant = window.localStorage.getItem("ccg.tenant") || "x";
+    const cacheKey = `ccg.meta.stats.${tenant}`;
+    // Mostrar al instante las últimas stats reales guardadas (si la cuenta está
+    // conectada), para no parpadear del placeholder a lo real en cada carga.
+    try {
+      const cached = window.localStorage.getItem(cacheKey);
+      if (cached) setReales(JSON.parse(cached));
+    } catch {}
     fetch("/api/meta/stats", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (d.ok && !d.demo && d.stats?.length) setReales(d.stats);
+        if (d.ok && !d.demo && d.stats?.length) {
+          setReales(d.stats);
+          try {
+            window.localStorage.setItem(cacheKey, JSON.stringify(d.stats));
+          } catch {}
+        } else if (d.ok && d.demo) {
+          // Cuenta no conectada: limpiar cache viejo y quedarse con el seed.
+          try {
+            window.localStorage.removeItem(cacheKey);
+          } catch {}
+          setReales(null);
+        }
       })
       .catch(() => {});
   }, []);
