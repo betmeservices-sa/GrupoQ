@@ -15,6 +15,19 @@ import { isTenantId } from "./tenants";
 const SESION_KEY = "ccg.sesion";
 const ROL_KEY = "ccg.rol";
 
+// Resultado del intento de login. "necesita2fa" = la contraseña es correcta pero
+// falta (o falló) el código del segundo factor; la UI muestra el paso del código.
+// Si trae `enrolar`, es la PRIMERA vez del usuario: la UI muestra el QR para que
+// configure su app de autenticación antes de ingresar el código.
+export interface Enrolamiento2FA {
+  qr: string; // data URL de la imagen del QR
+  secret: string; // clave Base32, por si no puede escanear
+}
+export type LoginResult =
+  | { tipo: "ok" }
+  | { tipo: "necesita2fa"; enrolar?: Enrolamiento2FA; codigoInvalido?: boolean }
+  | { tipo: "error" };
+
 export function useAuth() {
   // null = todavía verificando. El SERVIDOR decide si hay sesión, no localStorage:
   // un estado viejo del navegador (sin cookie válida) ya no muestra un dashboard
@@ -43,23 +56,42 @@ export function useAuth() {
     };
   }, []);
 
-  async function login(usuario: string, password: string): Promise<boolean> {
+  // token: código del segundo factor (2FA). Se manda solo cuando el servidor ya
+  // pidió el código; en el primer intento va vacío.
+  async function login(
+    usuario: string,
+    password: string,
+    token?: string,
+  ): Promise<LoginResult> {
     let tenant: string | undefined;
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usuario, password }),
+        body: JSON.stringify({ usuario, password, token }),
       });
-      if (!res.ok) return false;
-      const data = (await res.json()) as { ok?: boolean; tenant?: string };
-      if (!data.ok || !data.tenant) return false;
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        tenant?: string;
+        need2fa?: boolean;
+        error?: string;
+        enrolar?: { qr: string; secret: string };
+      };
+      // Contraseña correcta pero falta el segundo factor (o falló el código).
+      if (data.need2fa) {
+        return {
+          tipo: "necesita2fa",
+          enrolar: data.enrolar,
+          codigoInvalido: Boolean(data.error),
+        };
+      }
+      if (!res.ok || !data.ok || !data.tenant) return { tipo: "error" };
       tenant = data.tenant;
     } catch {
-      return false;
+      return { tipo: "error" };
     }
 
-    if (!isTenantId(tenant)) return false;
+    if (!isTenantId(tenant)) return { tipo: "error" };
 
     window.localStorage.setItem(SESION_KEY, usuario.trim().toLowerCase());
     // El demo abre como Gerente de Marketing (acceso total).
@@ -67,7 +99,7 @@ export function useAuth() {
     setActiveTenant(tenant);
     // Recarga para que el tenant activo aplique en toda la app.
     window.location.assign("/");
-    return true;
+    return { tipo: "ok" };
   }
 
   async function logout() {

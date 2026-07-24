@@ -3,9 +3,9 @@ import "./globals.css";
 import { AppShell } from "@/components/shell/AppShell";
 
 export const metadata: Metadata = {
-  title: "Centro de Comunicación",
+  title: "MiAgentIA · Centro de Comunicación",
   description:
-    "Plataforma omnicanal interna: WhatsApp, redes sociales y chat entre áreas.",
+    "Centro de Comunicación de MiAgentIA: bandeja omnicanal (WhatsApp, redes y chat interno) para tu negocio.",
 };
 
 export default function RootLayout({
