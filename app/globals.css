@@ -72,6 +72,18 @@
   --font-app: 'Barlow', Arial, system-ui, sans-serif;
 }
 
+/* Marca unificada MiAgentIA: TODOS los dashboards del demo usan el mismo color
+   de marca (violeta + cian). Va despues de los bloques por tenant, con la misma
+   especificidad, asi que gana. El contenido/datos sigue siendo por tenant. */
+[data-tenant] {
+  --brand-blue: #7c3aed;
+  --brand-blue-dark: #6d28d9;
+  --brand-green: #2e9e5b;
+  --brand-red: #d64545;
+  --brand-accent: #0e7490;
+  --brand-accent-soft: #ecfeff;
+}
+
 @theme inline {
   --font-sans: var(--font-app);
   --color-brand: var(--brand-blue);

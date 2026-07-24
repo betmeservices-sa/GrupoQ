@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { validarCredenciales } from "@/lib/auth-server";
-import { cookieDeSesion, crearSesion } from "@/lib/session";
+import {
+  cookieDeSesion,
+  crearSesion,
+  crear2faRecordado,
+  verificar2faRecordado,
+  cookie2faRecordado,
+  leer2faRecordadoDeCookies,
+} from "@/lib/session";
 import { dosFactorHabilitado, verificarTotp, otpauthUri } from "@/lib/totp";
 import { obtenerOCrear2FA, marcarEnrolado2FA } from "@/lib/totp-store";
 
@@ -38,38 +45,52 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
   }
 
+  // Segundo factor con "recordar 24h": tras verificar el codigo se emite una
+  // cookie firmada de 24h; mientras dure, el login salta el paso del codigo para
+  // ese usuario. A las 24h expira y se vuelve a pedir el codigo (NO re-escanear:
+  // el secreto del usuario es permanente, una sola app enrolada para siempre).
+  let abrirVentana2fa = false;
   if (dosFactorHabilitado()) {
     const reg = obtenerOCrear2FA(usuario);
+    const recordado =
+      reg.enrolado &&
+      (await verificar2faRecordado(
+        leer2faRecordadoDeCookies(req.headers.get("cookie")),
+        usuario,
+      ));
 
-    if (!token) {
-      if (!reg.enrolado) {
-        // Primera vez: mostrar el QR para que el usuario enrole su app.
-        return NextResponse.json({
+    if (!recordado) {
+      if (!token) {
+        if (!reg.enrolado) {
+          // Primera vez: mostrar el QR para que el usuario enrole su app (una sola vez).
+          return NextResponse.json({
+            ok: false,
+            need2fa: true,
+            enrolar: { qr: await qrDataUrl(usuario, reg.secret), secret: reg.secret },
+          });
+        }
+        // Enrolado pero sin ventana vigente: pedir solo el codigo (sin QR).
+        return NextResponse.json({ ok: false, need2fa: true });
+      }
+
+      const codigoValido = await verificarTotp(reg.secret, token);
+      if (!codigoValido) {
+        const cuerpo: Record<string, unknown> = {
           ok: false,
           need2fa: true,
-          enrolar: { qr: await qrDataUrl(usuario, reg.secret), secret: reg.secret },
-        });
+          error: "Código de verificación inválido",
+        };
+        // Si todavia estaba enrolando, seguir mostrando el QR.
+        if (!reg.enrolado) {
+          cuerpo.enrolar = { qr: await qrDataUrl(usuario, reg.secret), secret: reg.secret };
+        }
+        return NextResponse.json(cuerpo, { status: 401 });
       }
-      // Ya enrolado: solo pedir el codigo.
-      return NextResponse.json({ ok: false, need2fa: true });
-    }
 
-    const codigoValido = await verificarTotp(reg.secret, token);
-    if (!codigoValido) {
-      const cuerpo: Record<string, unknown> = {
-        ok: false,
-        need2fa: true,
-        error: "Código de verificación inválido",
-      };
-      // Si todavia estaba enrolando, seguir mostrando el QR.
-      if (!reg.enrolado) {
-        cuerpo.enrolar = { qr: await qrDataUrl(usuario, reg.secret), secret: reg.secret };
-      }
-      return NextResponse.json(cuerpo, { status: 401 });
+      // Codigo correcto: si era la primera vez, queda enrolado.
+      if (!reg.enrolado) marcarEnrolado2FA(usuario);
+      abrirVentana2fa = true; // recien verifico el codigo: abrir ventana de 24h
     }
-
-    // Codigo correcto: si era la primera vez, queda enrolado.
-    if (!reg.enrolado) marcarEnrolado2FA(usuario);
   }
 
   const sesion = await crearSesion(tenant);
@@ -82,6 +103,11 @@ export async function POST(req: Request) {
     );
   }
   const res = NextResponse.json({ ok: true, tenant });
-  res.headers.set("Set-Cookie", cookieDeSesion(sesion.valor, sesion.maxAge));
+  res.headers.append("Set-Cookie", cookieDeSesion(sesion.valor, sesion.maxAge));
+  // Abrir/renovar la ventana de 24h solo cuando se acaba de verificar el codigo.
+  if (abrirVentana2fa) {
+    const rem = await crear2faRecordado(usuario);
+    if (rem) res.headers.append("Set-Cookie", cookie2faRecordado(rem.valor, rem.maxAge));
+  }
   return res;
 }

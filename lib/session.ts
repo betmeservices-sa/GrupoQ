@@ -116,3 +116,49 @@ export function sesionDeCookieHeader(cookieHeader: string | null): string | null
   const m = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
   return m ? m[1] : null;
 }
+
+// ── "Recordar 2FA por 24h" ──
+// Tras verificar el código del segundo factor, se emite esta cookie firmada.
+// Mientras sea válida (24h), el login salta el paso del código para ESE usuario.
+// A las 24h expira y se vuelve a pedir el código (NO re-escanear: el secreto del
+// usuario es permanente). Va ligada al usuario por la firma, no se puede reusar
+// para otro. Sin SESSION_SECRET (fail-closed) no valida.
+const REMEMBER_2FA_COOKIE = "ccg_2fa";
+const MAX_AGE_2FA_SEG = 60 * 60 * 24; // 24 horas
+
+export async function crear2faRecordado(
+  usuario: string,
+): Promise<{ valor: string; maxAge: number } | null> {
+  const u = usuario.trim().toLowerCase();
+  const exp = Math.floor(Date.now() / 1000) + MAX_AGE_2FA_SEG;
+  const sig = await firmar(`2fa.${u}.${exp}`);
+  if (!sig) return null;
+  return { valor: `${exp}.${sig}`, maxAge: MAX_AGE_2FA_SEG };
+}
+
+export async function verificar2faRecordado(
+  valor: string | undefined | null,
+  usuario: string,
+): Promise<boolean> {
+  if (!valor) return false;
+  const partes = valor.split(".");
+  if (partes.length !== 2) return false;
+  const [expStr, sig] = partes;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || exp * 1000 < Date.now()) return false;
+  const u = usuario.trim().toLowerCase();
+  const esperada = await firmar(`2fa.${u}.${expStr}`);
+  if (!esperada) return false;
+  return igualesEnTiempoConstante(sig, esperada);
+}
+
+export function cookie2faRecordado(valor: string, maxAge: number): string {
+  const seguro = process.env.NODE_ENV === "production" ? " Secure;" : "";
+  return `${REMEMBER_2FA_COOKIE}=${valor}; Path=/; HttpOnly;${seguro} SameSite=Lax; Max-Age=${maxAge}`;
+}
+
+export function leer2faRecordadoDeCookies(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const m = cookieHeader.match(new RegExp(`(?:^|;\\s*)${REMEMBER_2FA_COOKIE}=([^;]+)`));
+  return m ? m[1] : null;
+}
