@@ -33,7 +33,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && (
         <div className="leading-tight">
-          <p className="text-[15px] font-extrabold tracking-tight text-[#0f1b2d]">{titulo}</p>
+          <p className="text-[15px] font-extrabold tracking-tight text-[var(--text)]">{titulo}</p>
           <p className="text-[11px] font-medium text-brand">{subtitulo}</p>
         </div>
       )}

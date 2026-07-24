@@ -75,11 +75,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setNavOpen(true)}
                 aria-label="Abrir menú"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-[#5b6b80] transition hover:bg-surface"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-2)] transition hover:bg-surface"
               >
                 <Menu size={22} />
               </button>
-              <span className="text-sm font-extrabold tracking-tight text-[#0f1b2d]">
+              <span className="text-sm font-extrabold tracking-tight text-[var(--text)]">
                 {activeTenant().brand.nombreCorto}
               </span>
             </div>
@@ -97,11 +97,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 function SinAcceso() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-[#94a3b4]">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-[var(--text-3)]">
         <Lock size={26} />
       </div>
-      <p className="text-base font-bold text-[#0f1b2d]">Sección restringida</p>
-      <p className="max-w-xs text-sm text-[#5b6b80]">
+      <p className="text-base font-bold text-[var(--text)]">Sección restringida</p>
+      <p className="max-w-xs text-sm text-[var(--text-2)]">
         Tu perfil no tiene acceso a esta sección. Te llevamos a tu vista.
       </p>
     </div>

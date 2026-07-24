@@ -38,8 +38,8 @@ const STATUS_TONE: Record<string, string> = {
   APPROVED: "bg-emerald-50 text-[#2f9e2f] ring-1 ring-[#00c040]/30",
   PENDING: "bg-amber-50 text-amber-700 ring-1 ring-amber-300/50",
   REJECTED: "bg-red-50 text-red-600 ring-1 ring-red-300/50",
-  PAUSED: "bg-slate-100 text-slate-600 ring-1 ring-slate-300/50",
-  DISABLED: "bg-slate-100 text-slate-600 ring-1 ring-slate-300/50",
+  PAUSED: "bg-surface-2 text-slate-600 ring-1 ring-slate-300/50",
+  DISABLED: "bg-surface-2 text-slate-600 ring-1 ring-slate-300/50",
 };
 const STATUS_LABEL: Record<string, string> = {
   APPROVED: "Aprobada",
@@ -55,7 +55,7 @@ const CAT_LABEL: Record<TemplateCategory, string> = {
 };
 
 const INPUT =
-  "w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-[#0f1b2d] outline-none transition focus:border-brand focus:bg-card";
+  "w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-brand focus:bg-card";
 
 // Índice más alto de {{n}} usado en el texto (mismo criterio que el backend).
 function contarVariables(texto: string): number {
@@ -241,7 +241,7 @@ export default function SettingsPage() {
         <h1 className="text-[17px] font-extrabold tracking-tight text-brand">
           Configuración
         </h1>
-        <p className="text-[12.5px] text-[#94a3b4]">
+        <p className="text-[12.5px] text-[var(--text-3)]">
           Conexiones con Meta y plantillas de WhatsApp
         </p>
       </header>
@@ -252,12 +252,12 @@ export default function SettingsPage() {
         <div className="mb-4 rounded-2xl border border-line bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-sm font-bold text-[#0f1b2d]">
+              <div className="flex items-center gap-2 text-sm font-bold text-[var(--text)]">
                 <Facebook size={16} className="text-brand" />
                 <Instagram size={16} className="text-brand" />
                 Conexiones · Facebook e Instagram
               </div>
-              <p className="mt-1 max-w-xl text-[12.5px] text-[#5b6b80]">
+              <p className="mt-1 max-w-xl text-[12.5px] text-[var(--text-2)]">
                 Conecta la página de Facebook y la cuenta de Instagram del negocio para
                 recibir y responder mensajes, publicar y ver estadísticas desde esta
                 bandeja. Se abre la pantalla oficial de Meta para autorizar los permisos.
@@ -286,7 +286,7 @@ export default function SettingsPage() {
                   <CheckCircle2 size={13} />
                   {c.nombre}
                   {c.instagram && (
-                    <span className="flex items-center gap-0.5 text-[#94a3b4]">
+                    <span className="flex items-center gap-0.5 text-[var(--text-3)]">
                       · <Instagram size={11} /> vinculado
                     </span>
                   )}
@@ -366,10 +366,10 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-line bg-surface/60 px-3.5 py-2.5 text-[12.5px] text-[#5b6b80]">
+        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-line bg-surface/60 px-3.5 py-2.5 text-[12.5px] text-[var(--text-2)]">
           <Info size={16} className="mt-0.5 shrink-0 text-brand" />
           <p>
-            <span className="font-semibold text-[#0f1b2d]">Cómo funciona:</span> completa el
+            <span className="font-semibold text-[var(--text)]">Cómo funciona:</span> completa el
             formulario y crea la plantilla. Se envía a Meta y queda{" "}
             <span className="font-semibold">En revisión</span>. Cuando Meta la aprueba, el estado
             cambia a <span className="font-semibold text-[#2f9e2f]">Aprobada</span> y recién ahí se
@@ -383,13 +383,13 @@ export default function SettingsPage() {
             onSubmit={crear}
             className="space-y-3.5 rounded-2xl border border-line bg-card p-4"
           >
-            <div className="flex items-center gap-2 text-sm font-bold text-[#0f1b2d]">
+            <div className="flex items-center gap-2 text-sm font-bold text-[var(--text)]">
               <Plus size={16} className="text-brand" />
               Nueva plantilla
             </div>
 
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[#5b6b80]">
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--text-2)]">
                 Nombre
               </label>
               <input
@@ -401,14 +401,14 @@ export default function SettingsPage() {
                 className={INPUT}
                 required
               />
-              <p className="mt-1 text-[11px] text-[#94a3b4]">
+              <p className="mt-1 text-[11px] text-[var(--text-3)]">
                 Solo minúsculas, números y guion bajo.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-[12px] font-semibold text-[#5b6b80]">
+                <label className="mb-1 block text-[12px] font-semibold text-[var(--text-2)]">
                   Categoría
                 </label>
                 <select
@@ -422,7 +422,7 @@ export default function SettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[12px] font-semibold text-[#5b6b80]">
+                <label className="mb-1 block text-[12px] font-semibold text-[var(--text-2)]">
                   Idioma
                 </label>
                 <select
@@ -438,8 +438,8 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[#5b6b80]">
-                Encabezado <span className="font-normal text-[#94a3b4]">(opcional)</span>
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--text-2)]">
+                Encabezado <span className="font-normal text-[var(--text-3)]">(opcional)</span>
               </label>
               <input
                 value={header}
@@ -450,7 +450,7 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[#5b6b80]">
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--text-2)]">
                 Cuerpo del mensaje
               </label>
               <textarea
@@ -461,7 +461,7 @@ export default function SettingsPage() {
                 className={cn(INPUT, "resize-y")}
                 required
               />
-              <p className="mt-1 text-[11px] text-[#94a3b4]">
+              <p className="mt-1 text-[11px] text-[var(--text-3)]">
                 Usa <code className="rounded bg-surface px-1">{"{{1}}"}</code>,{" "}
                 <code className="rounded bg-surface px-1">{"{{2}}"}</code> para datos variables.
               </p>
@@ -469,12 +469,12 @@ export default function SettingsPage() {
 
             {numVars > 0 && (
               <div className="space-y-2 rounded-xl border border-line bg-surface/60 p-2.5">
-                <p className="text-[12px] font-semibold text-[#5b6b80]">
+                <p className="text-[12px] font-semibold text-[var(--text-2)]">
                   Valores de ejemplo (los exige Meta)
                 </p>
                 {Array.from({ length: numVars }).map((_, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <span className="w-9 shrink-0 text-center text-[11px] font-bold text-[#94a3b4]">
+                    <span className="w-9 shrink-0 text-center text-[11px] font-bold text-[var(--text-3)]">
                       {`{{${i + 1}}}`}
                     </span>
                     <input
@@ -493,8 +493,8 @@ export default function SettingsPage() {
             )}
 
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[#5b6b80]">
-                Pie de página <span className="font-normal text-[#94a3b4]">(opcional)</span>
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--text-2)]">
+                Pie de página <span className="font-normal text-[var(--text-3)]">(opcional)</span>
               </label>
               <input
                 value={footer}
@@ -506,15 +506,15 @@ export default function SettingsPage() {
 
             {cuerpo.trim() && (
               <div className="rounded-xl border border-line bg-surface/60 p-2.5">
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#94a3b4]">
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
                   Vista previa
                 </p>
                 {header.trim() && (
-                  <p className="text-[13px] font-bold text-[#0f1b2d]">{header}</p>
+                  <p className="text-[13px] font-bold text-[var(--text)]">{header}</p>
                 )}
-                <p className="whitespace-pre-wrap text-[13px] text-[#0f1b2d]">{preview}</p>
+                <p className="whitespace-pre-wrap text-[13px] text-[var(--text)]">{preview}</p>
                 {footer.trim() && (
-                  <p className="mt-1 text-[11px] text-[#94a3b4]">{footer}</p>
+                  <p className="mt-1 text-[11px] text-[var(--text-3)]">{footer}</p>
                 )}
               </div>
             )}
@@ -543,8 +543,8 @@ export default function SettingsPage() {
           {/* Lista */}
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#0f1b2d]">
-                Plantillas <span className="text-[#94a3b4]">({templates.length})</span>
+              <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-[var(--text)]">
+                Plantillas <span className="text-[var(--text-3)]">({templates.length})</span>
                 {hayPendientes && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-300/50">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
@@ -556,7 +556,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={() => cargar()}
                 disabled={cargando}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[#5b6b80] transition hover:bg-surface disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
               >
                 <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
                 Actualizar
@@ -572,9 +572,9 @@ export default function SettingsPage() {
 
             {!cargando && !errorLista && templates.length === 0 && (
               <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line bg-card py-10 text-center">
-                <FileText size={26} className="text-[#94a3b4]" />
-                <p className="text-sm font-semibold text-[#0f1b2d]">Aún no hay plantillas</p>
-                <p className="max-w-xs text-[12.5px] text-[#94a3b4]">
+                <FileText size={26} className="text-[var(--text-3)]" />
+                <p className="text-sm font-semibold text-[var(--text)]">Aún no hay plantillas</p>
+                <p className="max-w-xs text-[12.5px] text-[var(--text-3)]">
                   Crea tu primera plantilla con el formulario de la izquierda.
                 </p>
               </div>
@@ -588,7 +588,7 @@ export default function SettingsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate text-sm font-bold text-[#0f1b2d]">
+                      <span className="truncate text-sm font-bold text-[var(--text)]">
                         {t.name}
                       </span>
                       <span
@@ -600,7 +600,7 @@ export default function SettingsPage() {
                         {STATUS_LABEL[t.status] ?? t.status}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-[11px] text-[#94a3b4]">
+                    <p className="mt-0.5 text-[11px] text-[var(--text-3)]">
                       {CAT_LABEL[t.category] ?? t.category} · {t.language}
                     </p>
                   </div>
@@ -608,12 +608,12 @@ export default function SettingsPage() {
                     type="button"
                     onClick={() => eliminar(t.name)}
                     aria-label={`Eliminar ${t.name}`}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#94a3b4] transition hover:bg-red-50 hover:text-red-600"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-3)] transition hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
-                <p className="mt-2 whitespace-pre-wrap rounded-lg bg-surface/70 px-3 py-2 text-[12.5px] text-[#5b6b80]">
+                <p className="mt-2 whitespace-pre-wrap rounded-lg bg-surface/70 px-3 py-2 text-[12.5px] text-[var(--text-2)]">
                   {bodyDe(t)}
                 </p>
               </div>

@@ -47,13 +47,13 @@ export function ElevenLabsPanel() {
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand/10 text-brand">
           <Mic size={16} />
         </span>
-        <h2 className="text-sm font-bold text-[#0f1b2d]">Voz (ElevenLabs)</h2>
+        <h2 className="text-sm font-bold text-[var(--text)]">Voz (ElevenLabs)</h2>
       </div>
 
-      {!data && <p className="text-xs text-[#94a3b4]">Cargando cuota de voz...</p>}
+      {!data && <p className="text-xs text-[var(--text-3)]">Cargando cuota de voz...</p>}
 
       {data && !data.configurado && (
-        <p className="text-xs text-[#94a3b4]">
+        <p className="text-xs text-[var(--text-3)]">
           Cuota no disponible: falta <code>ELEVENLABS_API_KEY</code> en este entorno.
         </p>
       )}
@@ -68,14 +68,14 @@ export function ElevenLabsPanel() {
         <>
           <div className="mb-2 flex items-end justify-between">
             <div>
-              <p className="text-[26px] font-extrabold leading-none tracking-tight text-[#0f1b2d]">
+              <p className="text-[26px] font-extrabold leading-none tracking-tight text-[var(--text)]">
                 {fmtNum(data.cuota.usados)}
               </p>
-              <p className="mt-1 text-xs text-[#94a3b4]">
+              <p className="mt-1 text-xs text-[var(--text-3)]">
                 de {fmtNum(data.cuota.limite)} caracteres usados
               </p>
             </div>
-            <span className="text-sm font-bold text-[#0f1b2d]">
+            <span className="text-sm font-bold text-[var(--text)]">
               {(data.cuota.porcentaje * 100).toFixed(1)}%
             </span>
           </div>
@@ -95,16 +95,16 @@ export function ElevenLabsPanel() {
 
           <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
             <div>
-              <p className="font-semibold text-[#0f1b2d]">{fmtNum(data.cuota.restantes)}</p>
-              <p className="text-[#94a3b4]">Caracteres restantes</p>
+              <p className="font-semibold text-[var(--text)]">{fmtNum(data.cuota.restantes)}</p>
+              <p className="text-[var(--text-3)]">Caracteres restantes</p>
             </div>
             <div>
-              <p className="font-semibold text-[#0f1b2d]">{fmtFecha(data.cuota.reinicioUnix)}</p>
-              <p className="text-[#94a3b4]">Reinicio de cuota</p>
+              <p className="font-semibold text-[var(--text)]">{fmtFecha(data.cuota.reinicioUnix)}</p>
+              <p className="text-[var(--text-3)]">Reinicio de cuota</p>
             </div>
           </div>
 
-          <p className="mt-3 rounded-xl bg-surface p-2 text-[11px] text-[#94a3b4]">
+          <p className="mt-3 rounded-xl bg-surface p-2 text-[11px] text-[var(--text-3)]">
             Plan {data.cuota.tier}. Si esta cuota se agota, las llamadas fallan con voz. Ya pasó el
             9 de julio.
           </p>

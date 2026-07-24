@@ -17,15 +17,16 @@
   --brand-accent-soft: #ecfeff;
   --font-app: 'Barlow', Arial, system-ui, sans-serif;
 
-  /* Compartidas por todos los tenants. */
-  --surface: #f4f7fb;
-  --surface-2: #eef2f8;
-  --card: #ffffff;
-  --border: #e4e9f1;
-  --border-2: #d6deea;
-  --text: #0f1b2d;
-  --text-2: #5b6b80;
-  --text-3: #94a3b4;
+  /* Compartidas por todos los tenants. Tema OSCURO (dark) estilo MiAgentIA:
+     todos los dashboards van sobre fondo negro. */
+  --surface: #05050a;
+  --surface-2: #12121c;
+  --card: #0d0d18;
+  --border: #23232f;
+  --border-2: #2e2e40;
+  --text: #f4f4f8;
+  --text-2: #a6a6ba;
+  --text-3: #71718a;
 }
 
 /* Grupo Q / Grupo Nissan — variables reales de grupoq.com. */

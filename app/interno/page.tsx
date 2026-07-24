@@ -33,7 +33,7 @@ export default function InternoPage() {
         )}
       >
         <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Chat interno</h1>
-        <p className="text-[12.5px] text-[#94a3b4]">
+        <p className="text-[12.5px] text-[var(--text-3)]">
           Comunicación entre áreas
         </p>
       </header>

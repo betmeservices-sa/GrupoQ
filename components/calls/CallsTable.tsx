@@ -40,7 +40,7 @@ export function CallsTable({
   return (
     <div className="overflow-x-auto rounded-2xl border border-line bg-card shadow-sm">
       <table className="w-full min-w-[900px] text-left text-xs">
-        <thead className="border-b border-line text-[#94a3b4]">
+        <thead className="border-b border-line text-[var(--text-3)]">
           <tr>
             <th className="px-3 py-3 font-medium" />
             <th className="px-3 py-3 font-medium">Fecha</th>
@@ -62,7 +62,7 @@ export function CallsTable({
                   onClick={() => setAbierta(exp ? null : c.id)}
                   className="cursor-pointer border-b border-line/60 hover:bg-surface"
                 >
-                  <td className="px-3 py-3 text-[#94a3b4]">
+                  <td className="px-3 py-3 text-[var(--text-3)]">
                     {exp ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">{fmtFecha(c.creada ?? c.inicio)}</td>
@@ -86,25 +86,25 @@ export function CallsTable({
                 {exp && (
                   <tr className="border-b border-line/60 bg-surface">
                     <td colSpan={8} className="px-6 py-4">
-                      <div className="mb-2 text-[11px] text-[#94a3b4]">
+                      <div className="mb-2 text-[11px] text-[var(--text-3)]">
                         Motivo técnico: <code>{c.estadoFinal ?? "—"}</code>
                       </div>
                       {c.costoDesglose && (
-                        <div className="mb-2 flex flex-wrap gap-4 text-[11px] text-[#475569]">
+                        <div className="mb-2 flex flex-wrap gap-4 text-[11px] text-[var(--text-2)]">
                           <span>
                             Voz:{" "}
-                            <strong className="text-[#0f1b2d]">
+                            <strong className="text-[var(--text)]">
                               {c.costoDesglose.ttsCharacters.toLocaleString("es-SV")}
                             </strong>{" "}
                             caracteres
                           </span>
                           <span>
                             LLM:{" "}
-                            <strong className="text-[#0f1b2d]">
+                            <strong className="text-[var(--text)]">
                               {c.costoDesglose.llmPromptTokens.toLocaleString("es-SV")}
                             </strong>{" "}
                             prompt /{" "}
-                            <strong className="text-[#0f1b2d]">
+                            <strong className="text-[var(--text)]">
                               {c.costoDesglose.llmCompletionTokens.toLocaleString("es-SV")}
                             </strong>{" "}
                             respuesta
@@ -126,7 +126,7 @@ export function CallsTable({
                           {c.transcript}
                         </pre>
                       ) : (
-                        <p className="text-[11px] text-[#94a3b4]">Sin transcript.</p>
+                        <p className="text-[11px] text-[var(--text-3)]">Sin transcript.</p>
                       )}
                     </td>
                   </tr>

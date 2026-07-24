@@ -12,7 +12,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-slate-400">
         <Icon size={26} strokeWidth={1.8} />
       </span>
       <p className="text-sm font-semibold text-slate-700">{titulo}</p>

@@ -72,7 +72,7 @@ export default function LlamadasPage() {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-card px-5 py-3">
         <div>
           <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Llamadas</h1>
-          <p className="text-[12.5px] text-[#94a3b4]">
+          <p className="text-[12.5px] text-[var(--text-3)]">
             {data
               ? `${data.source === "demo" ? "Datos de demostración" : "Datos reales de Vapi"}${
                   data.persistido
@@ -86,7 +86,7 @@ export default function LlamadasPage() {
           type="button"
           onClick={() => void sincronizar("POST")}
           disabled={cargando}
-          className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-xs font-medium text-[#0f1b2d] hover:bg-surface disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-xs font-medium text-[var(--text)] hover:bg-surface disabled:opacity-50"
         >
           <RefreshCw size={14} className={cargando ? "animate-spin" : ""} />
           Sincronizar
@@ -168,7 +168,7 @@ export default function LlamadasPage() {
               <option value={7}>Últimos 7 días</option>
               <option value={30}>Últimos 30 días</option>
             </select>
-            <span className="text-[#94a3b4]">
+            <span className="text-[var(--text-3)]">
               {visibles.length} de {data.calls.length}
             </span>
           </div>

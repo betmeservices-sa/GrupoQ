@@ -31,7 +31,7 @@ export function ChannelList({
               onClick={() => onSelect(c.id)}
               className={cn(
                 "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition",
-                activo ? "bg-brand text-white" : "text-[#5b6b80] hover:bg-surface",
+                activo ? "bg-brand text-white" : "text-[var(--text-2)] hover:bg-surface",
               )}
             >
               <Hash size={16} className={activo ? "opacity-90" : "opacity-50"} />
@@ -53,7 +53,7 @@ export function ChannelList({
               onClick={() => onSelect(c.id)}
               className={cn(
                 "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition",
-                activo ? "bg-brand text-white" : "text-[#5b6b80] hover:bg-surface",
+                activo ? "bg-brand text-white" : "text-[var(--text-2)] hover:bg-surface",
               )}
             >
               <Avatar iniciales={meta.iniciales} size={24} color={meta.color} />
@@ -69,7 +69,7 @@ export function ChannelList({
 function Group({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <div className="px-2.5 py-3">
-      <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-[#94a3b4]">
+      <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
         <AtSign size={11} className="opacity-0" />
         {titulo}
       </p>

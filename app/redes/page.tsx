@@ -47,7 +47,7 @@ export default function RedesPage() {
         <h1 className="text-[17px] font-extrabold tracking-tight text-brand">
           Redes sociales
         </h1>
-        <p className="text-[12.5px] text-[#94a3b4]">
+        <p className="text-[12.5px] text-[var(--text-3)]">
           Programa y administra las publicaciones de Facebook e Instagram
         </p>
       </header>

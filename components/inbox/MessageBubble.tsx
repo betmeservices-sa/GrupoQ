@@ -87,7 +87,7 @@ export function MessageBubble({
             "rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm",
             esStaff
               ? "rounded-br-sm bg-brand text-white"
-              : "rounded-bl-sm bg-white text-[#0f1b2d] ring-1 ring-line",
+              : "rounded-bl-sm bg-card text-[var(--text)] ring-1 ring-line",
             // Deja espacio inferior si hay una reaccion activa.
             reaccion && !esStaff && "mb-3",
           )}
@@ -101,7 +101,7 @@ export function MessageBubble({
             type="button"
             onClick={() => setAbierto((v) => !v)}
             aria-label="Reaccionar"
-            className="absolute -right-8 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-line bg-white text-[#94a3b4] opacity-0 shadow-sm transition hover:border-brand hover:text-brand group-hover/bubble:opacity-100"
+            className="absolute -right-8 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-line bg-card text-[var(--text-3)] opacity-0 shadow-sm transition hover:border-brand hover:text-brand group-hover/bubble:opacity-100"
           >
             <Smile size={13} />
           </button>
@@ -111,7 +111,7 @@ export function MessageBubble({
         {abierto && !esStaff && (
           <div
             ref={pickerRef}
-            className="absolute left-0 top-full z-20 mt-1.5 flex gap-0.5 rounded-xl border border-line bg-white p-1.5 shadow-lg"
+            className="absolute left-0 top-full z-20 mt-1.5 flex gap-0.5 rounded-xl border border-line bg-card p-1.5 shadow-lg"
           >
             {EMOJIS.map((e) => (
               <button
@@ -129,13 +129,13 @@ export function MessageBubble({
 
         {/* Reaccion activa pegada a la burbuja */}
         {reaccion && !esStaff && (
-          <span className="absolute -bottom-2.5 left-2 rounded-full border border-line bg-white px-1.5 py-0.5 text-[12px] leading-none shadow-sm">
+          <span className="absolute -bottom-2.5 left-2 rounded-full border border-line bg-card px-1.5 py-0.5 text-[12px] leading-none shadow-sm">
             {reaccion}
           </span>
         )}
       </div>
 
-      <span className="mt-1 px-1 text-[10.5px] text-[#94a3b4]">
+      <span className="mt-1 px-1 text-[10.5px] text-[var(--text-3)]">
         {esStaff ? `${message.staffId ? nombreStaff(message.staffId) : "Asistente IA"} · ` : ""}
         {horaDe(message.ts)}
       </span>

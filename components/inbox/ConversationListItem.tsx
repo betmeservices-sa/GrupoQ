@@ -37,13 +37,13 @@ export function ConversationListItem({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-semibold text-[#0f1b2d]">{contact.nombre}</p>
-          <span className="shrink-0 text-[11px] text-[#94a3b4]">
+          <p className="truncate text-sm font-semibold text-[var(--text)]">{contact.nombre}</p>
+          <span className="shrink-0 text-[11px] text-[var(--text-3)]">
             {diaRelativo(conversation.ultimoMensajeTs)}
           </span>
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className="truncate text-[13px] text-[#5b6b80]">
+          <p className="truncate text-[13px] text-[var(--text-2)]">
             {ultimo ? ultimo.texto : "Sin mensajes"}
           </p>
           {conversation.noLeidos > 0 && (
@@ -67,7 +67,7 @@ export function ConversationListItem({
           {conversation.asignadoA && (
             <span
               title={`Asignado a ${nombreStaff(conversation.asignadoA)}`}
-              className="ml-auto flex items-center gap-1 rounded-md bg-[#eef1f6] px-1.5 py-0.5 text-[10px] font-semibold text-[#5b6b80]"
+              className="ml-auto flex items-center gap-1 rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-2)]"
             >
               <UserCheck size={11} />
               {inicialesStaff(conversation.asignadoA)}

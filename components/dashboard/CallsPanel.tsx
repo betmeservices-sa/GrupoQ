@@ -55,7 +55,7 @@ const DIR_META: Record<
 > = {
   inbound: { Icon: PhoneIncoming, color: "var(--brand-green)", label: "Entrante" },
   outbound: { Icon: PhoneOutgoing, color: "var(--brand-blue)", label: "Saliente" },
-  web: { Icon: Phone, color: "#94a3b4", label: "Web" },
+  web: { Icon: Phone, color: "var(--text-3)", label: "Web" },
 };
 
 export function CallsPanel() {
@@ -88,7 +88,7 @@ export function CallsPanel() {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-sm font-bold text-[#0f1b2d]">Llamadas</h2>
+          <h2 className="text-sm font-bold text-[var(--text)]">Llamadas</h2>
           {estado === "listo" && data && (
             <span
               className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
@@ -102,7 +102,7 @@ export function CallsPanel() {
           )}
         </div>
         {estado === "listo" && data?.metrics && (
-          <span className="text-[12px] text-[#94a3b4]">
+          <span className="text-[12px] text-[var(--text-3)]">
             {data.metrics.entrantes} entrantes · {data.metrics.salientes} salientes
           </span>
         )}
@@ -120,7 +120,7 @@ export function CallsPanel() {
       )}
 
       {estado === "error" && (
-        <div className="rounded-2xl border border-line bg-card p-5 text-[13px] text-[#94a3b4]">
+        <div className="rounded-2xl border border-line bg-card p-5 text-[13px] text-[var(--text-3)]">
           No se pudieron cargar las llamadas{data?.error ? `: ${data.error}` : ""}.
         </div>
       )}
@@ -139,9 +139,9 @@ export function CallsPanel() {
           </div>
 
           <div className="rounded-2xl border border-line bg-card p-5 shadow-sm">
-            <h3 className="mb-3 text-sm font-bold text-[#0f1b2d]">Últimas llamadas</h3>
+            <h3 className="mb-3 text-sm font-bold text-[var(--text)]">Últimas llamadas</h3>
             {data.calls.length === 0 ? (
-              <p className="text-[13px] text-[#94a3b4]">Aún no hay llamadas registradas.</p>
+              <p className="text-[13px] text-[var(--text-3)]">Aún no hay llamadas registradas.</p>
             ) : (
               <ul className="divide-y divide-line">
                 {data.calls.map((c) => {
@@ -155,18 +155,18 @@ export function CallsPanel() {
                         <Icon size={16} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-semibold text-[#0f1b2d]">
+                        <p className="truncate text-[13px] font-semibold text-[var(--text)]">
                           {c.numeroCliente ?? "Desconocido"}
                         </p>
-                        <p className="text-[11.5px] text-[#94a3b4]">
+                        <p className="text-[11.5px] text-[var(--text-3)]">
                           {label} · {estadoLabel(c.estadoFinal)}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-[12.5px] font-bold text-[#0f1b2d]">
+                        <p className="text-[12.5px] font-bold text-[var(--text)]">
                           {fmtDuracion(c.duracionSeg)}
                         </p>
-                        <p className="text-[11px] text-[#94a3b4]">{fmtHora(c.inicio)}</p>
+                        <p className="text-[11px] text-[var(--text-3)]">{fmtHora(c.inicio)}</p>
                       </div>
                     </li>
                   );

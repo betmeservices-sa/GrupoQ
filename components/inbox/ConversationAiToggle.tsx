@@ -67,7 +67,7 @@ export function ConversationAiToggle({
         "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition",
         activa
           ? "border-emerald-200 bg-emerald-50 text-[#2f9e2f]"
-          : "border-line bg-white text-[#5b6b80] hover:border-[#cdd5df]",
+          : "border-line bg-card text-[var(--text-2)] hover:border-[var(--border-2)]",
       )}
     >
       <Bot size={13} />
@@ -75,12 +75,12 @@ export function ConversationAiToggle({
       <span
         className={cn(
           "relative inline-flex h-3.5 w-6 items-center rounded-full transition",
-          activa ? "bg-[#2f9e2f]" : "bg-[#cdd5df]",
+          activa ? "bg-[#2f9e2f]" : "bg-[var(--border-2)]",
         )}
       >
         <span
           className={cn(
-            "inline-block h-2.5 w-2.5 rounded-full bg-white shadow transition",
+            "inline-block h-2.5 w-2.5 rounded-full bg-card shadow transition",
             activa ? "translate-x-3" : "translate-x-0.5",
           )}
         />

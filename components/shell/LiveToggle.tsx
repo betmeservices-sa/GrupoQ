@@ -13,11 +13,11 @@ export function LiveToggle() {
         "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition",
         enabled
           ? "border-[#00c040]/30 bg-[#00c040]/10 text-[#2f9e2f]"
-          : "border-line bg-surface text-[#94a3b4]",
+          : "border-line bg-surface text-[var(--text-3)]",
       )}
       title={enabled ? "Mensajes entrando en tiempo real" : "Pausado"}
     >
-      <span className={cn("h-2 w-2 rounded-full", enabled ? "bg-[#00c040]" : "bg-[#94a3b4]")}>
+      <span className={cn("h-2 w-2 rounded-full", enabled ? "bg-[#00c040]" : "bg-[var(--text-3)]")}>
         {enabled && <span className="block h-2 w-2 animate-ping rounded-full bg-[#00c040]" />}
       </span>
       {enabled ? "En vivo" : "Pausado"}

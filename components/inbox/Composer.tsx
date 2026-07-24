@@ -178,12 +178,12 @@ export function Composer({
           <div className="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} aria-hidden />
           <div className="absolute bottom-full left-3 z-50 mb-2 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-line bg-card p-3 shadow-xl">
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-[#0f1b2d]">
+              <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-[var(--text)]">
                 {sel ? (
                   <button
                     type="button"
                     onClick={() => setSel(null)}
-                    className="flex items-center gap-1 text-[#5b6b80] hover:text-brand"
+                    className="flex items-center gap-1 text-[var(--text-2)] hover:text-brand"
                   >
                     <ChevronLeft size={15} /> {sel.name}
                   </button>
@@ -197,14 +197,14 @@ export function Composer({
                 type="button"
                 onClick={() => setPickerOpen(false)}
                 aria-label="Cerrar"
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-[#94a3b4] hover:bg-surface"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-3)] hover:bg-surface"
               >
                 <X size={15} />
               </button>
             </div>
 
             {cargandoTpls ? (
-              <div className="flex items-center justify-center gap-2 py-6 text-[12.5px] text-[#94a3b4]">
+              <div className="flex items-center justify-center gap-2 py-6 text-[12.5px] text-[var(--text-3)]">
                 <Loader2 size={15} className="animate-spin" /> Cargando…
               </div>
             ) : sel ? (
@@ -221,21 +221,21 @@ export function Composer({
                         setVars(next);
                       }}
                       placeholder={`Dato ${i + 1}`}
-                      className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-[#0f1b2d] outline-none focus:border-brand focus:bg-card"
+                      className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-brand focus:bg-card"
                     />
                   ))}
                 <div className="rounded-lg border border-line bg-surface/60 p-2.5">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#94a3b4]">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
                     Vista previa
                   </p>
                   {compTexto(sel, "HEADER") && (
-                    <p className="text-[13px] font-bold text-[#0f1b2d]">{compTexto(sel, "HEADER")}</p>
+                    <p className="text-[13px] font-bold text-[var(--text)]">{compTexto(sel, "HEADER")}</p>
                   )}
-                  <p className="whitespace-pre-wrap text-[13px] text-[#0f1b2d]">
+                  <p className="whitespace-pre-wrap text-[13px] text-[var(--text)]">
                     {render(compTexto(sel, "BODY"), vars)}
                   </p>
                   {compTexto(sel, "FOOTER") && (
-                    <p className="mt-1 text-[11px] text-[#94a3b4]">{compTexto(sel, "FOOTER")}</p>
+                    <p className="mt-1 text-[11px] text-[var(--text-3)]">{compTexto(sel, "FOOTER")}</p>
                   )}
                 </div>
                 {errTpl && <p className="text-[12px] font-medium text-red-600">{errTpl}</p>}
@@ -250,9 +250,9 @@ export function Composer({
                 </button>
               </div>
             ) : tpls.length === 0 ? (
-              <div className="px-2 py-5 text-center text-[12.5px] text-[#94a3b4]">
+              <div className="px-2 py-5 text-center text-[12.5px] text-[var(--text-3)]">
                 No hay plantillas aprobadas todavía. Crea y espera la aprobación de Meta en{" "}
-                <span className="font-semibold text-[#5b6b80]">Configuración</span>.
+                <span className="font-semibold text-[var(--text-2)]">Configuración</span>.
               </div>
             ) : (
               <div className="max-h-64 space-y-1 overflow-y-auto">
@@ -263,8 +263,8 @@ export function Composer({
                     onClick={() => elegir(t)}
                     className="w-full rounded-lg border border-line bg-surface/50 px-3 py-2 text-left transition hover:border-brand hover:bg-surface"
                   >
-                    <p className="text-[12.5px] font-bold text-[#0f1b2d]">{t.name}</p>
-                    <p className="line-clamp-2 text-[11.5px] text-[#5b6b80]">{compTexto(t, "BODY")}</p>
+                    <p className="text-[12.5px] font-bold text-[var(--text)]">{t.name}</p>
+                    <p className="line-clamp-2 text-[11.5px] text-[var(--text-2)]">{compTexto(t, "BODY")}</p>
                   </button>
                 ))}
               </div>
@@ -295,7 +295,7 @@ export function Composer({
               onClick={() => fileRef.current?.click()}
               disabled={adjuntando}
               aria-label="Adjuntar archivo"
-              className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-[#5b6b80] transition hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-[var(--text-2)] transition hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40"
             >
               {adjuntando ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
             </button>
@@ -313,7 +313,7 @@ export function Composer({
               "flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border transition",
               pickerOpen
                 ? "border-brand bg-brand/10 text-brand"
-                : "border-line bg-surface text-[#5b6b80] hover:border-brand hover:text-brand",
+                : "border-line bg-surface text-[var(--text-2)] hover:border-brand hover:text-brand",
             )}
           >
             <FileText size={18} />
@@ -326,7 +326,7 @@ export function Composer({
           onKeyDown={onKey}
           rows={1}
           placeholder={placeholder}
-          className="max-h-32 min-h-[42px] flex-1 resize-none rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-[#0f1b2d] outline-none transition placeholder:text-[#94a3b4] focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/15"
+          className="max-h-32 min-h-[42px] flex-1 resize-none rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition placeholder:text-[var(--text-3)] focus:border-brand focus:bg-card focus:ring-2 focus:ring-brand/15"
         />
         <button
           type="button"

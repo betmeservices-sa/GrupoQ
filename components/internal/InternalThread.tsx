@@ -34,13 +34,13 @@ export function InternalThread({
           type="button"
           onClick={onBack}
           aria-label="Volver"
-          className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#5b6b80] hover:bg-surface lg:hidden"
+          className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-surface lg:hidden"
         >
           <ChevronLeft size={22} />
         </button>
-        {channel.tipo === "canal" && <Hash size={18} className="text-[#94a3b4]" />}
-        <p className="text-sm font-bold text-[#0f1b2d]">{titulo}</p>
-        <span className="text-[12px] text-[#94a3b4]">· {channel.miembros.length} miembros</span>
+        {channel.tipo === "canal" && <Hash size={18} className="text-[var(--text-3)]" />}
+        <p className="text-sm font-bold text-[var(--text)]">{titulo}</p>
+        <span className="text-[12px] text-[var(--text-3)]">· {channel.miembros.length} miembros</span>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
@@ -52,12 +52,12 @@ export function InternalThread({
               <Avatar iniciales={meta.iniciales} size={34} color={meta.color} />
               <div className="min-w-0">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[13px] font-bold text-[#0f1b2d]">
+                  <span className="text-[13px] font-bold text-[var(--text)]">
                     {esYo ? "Tú" : meta.nombre}
                   </span>
-                  <span className="text-[11px] text-[#94a3b4]">{horaDe(m.ts)}</span>
+                  <span className="text-[11px] text-[var(--text-3)]">{horaDe(m.ts)}</span>
                 </div>
-                <p className="mt-0.5 text-sm leading-relaxed text-[#33425a]">{m.texto}</p>
+                <p className="mt-0.5 text-sm leading-relaxed text-[var(--text-2)]">{m.texto}</p>
               </div>
             </div>
           );

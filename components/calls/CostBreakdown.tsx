@@ -22,7 +22,7 @@ export function CostBreakdown({
 
   return (
     <div className="rounded-2xl border border-line bg-card p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-bold text-[#0f1b2d]">Desglose de costo</h2>
+      <h2 className="mb-4 text-sm font-bold text-[var(--text)]">Desglose de costo</h2>
       <ul className="space-y-3">
         {COMPONENTES.map(({ key, label }) => {
           const valor = metrics.desglose[key];
@@ -30,9 +30,9 @@ export function CostBreakdown({
           return (
             <li key={key}>
               <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="text-[#475569]">{label}</span>
-                <span className="font-semibold text-[#0f1b2d]">
-                  {fmtUSD(valor)} <span className="text-[#94a3b4]">({pct.toFixed(0)}%)</span>
+                <span className="text-[var(--text-2)]">{label}</span>
+                <span className="font-semibold text-[var(--text)]">
+                  {fmtUSD(valor)} <span className="text-[var(--text-3)]">({pct.toFixed(0)}%)</span>
                 </span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-surface">
@@ -45,24 +45,24 @@ export function CostBreakdown({
 
       <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-surface p-3 text-xs">
         <div>
-          <p className="font-semibold text-[#0f1b2d]">
+          <p className="font-semibold text-[var(--text)]">
             {metrics.caracteresTTS.toLocaleString("es-SV")}
           </p>
-          <p className="text-[#94a3b4]">Caracteres de voz (ElevenLabs)</p>
+          <p className="text-[var(--text-3)]">Caracteres de voz (ElevenLabs)</p>
         </div>
         <div>
-          <p className="font-semibold text-[#0f1b2d]">
+          <p className="font-semibold text-[var(--text)]">
             {metrics.caracteresPorLlamada.toLocaleString("es-SV")}
           </p>
-          <p className="text-[#94a3b4]">Promedio por llamada hablada</p>
+          <p className="text-[var(--text-3)]">Promedio por llamada hablada</p>
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl bg-surface p-3 text-xs leading-relaxed text-[#475569]">
+      <div className="mt-3 rounded-xl bg-surface p-3 text-xs leading-relaxed text-[var(--text-2)]">
         {tarifaCarrier > 0 ? (
           <>
             Costo real estimado:{" "}
-            <strong className="text-[#0f1b2d]">{fmtUSD(metrics.costoReal)}</strong> (Vapi{" "}
+            <strong className="text-[var(--text)]">{fmtUSD(metrics.costoReal)}</strong> (Vapi{" "}
             {fmtUSD(metrics.costoTotal)} + carrier {fmtUSD(metrics.costoCarrier)} a{" "}
             {fmtUSD(tarifaCarrier)}/min).
           </>

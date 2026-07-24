@@ -81,11 +81,11 @@ export function WaRoutingPanel() {
 
   return (
     <div className="mb-4 rounded-2xl border border-line bg-card p-4">
-      <div className="flex items-center gap-2 text-sm font-bold text-[#0f1b2d]">
+      <div className="flex items-center gap-2 text-sm font-bold text-[var(--text)]">
         <Radio size={16} className="text-brand" />
         Número de WhatsApp en vivo
       </div>
-      <p className="mt-0.5 text-[12.5px] text-[#94a3b4]">
+      <p className="mt-0.5 text-[12.5px] text-[var(--text-3)]">
         Actívalo para que los mensajes de este número entren aquí y la IA responda con el guion de {me.brand.nombreCorto}. Al apagarlo, el número queda libre para otro cliente.
       </p>
 
@@ -100,31 +100,31 @@ export function WaRoutingPanel() {
             "flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition disabled:opacity-50",
             on
               ? "border-emerald-200 bg-emerald-50 text-[#2f9e2f]"
-              : "border-line bg-white text-[#5b6b80] hover:border-[#cdd5df]",
+              : "border-line bg-card text-[var(--text-2)] hover:border-[var(--border-2)]",
           )}
         >
           <span>{on ? "Recibiendo aquí" : "En pausa"}</span>
           <span
             className={cn(
               "relative inline-flex h-4 w-7 items-center rounded-full transition",
-              on ? "bg-[#2f9e2f]" : "bg-[#cdd5df]",
+              on ? "bg-[#2f9e2f]" : "bg-[var(--border-2)]",
             )}
           >
             <span
               className={cn(
-                "inline-block h-3 w-3 rounded-full bg-white shadow transition",
+                "inline-block h-3 w-3 rounded-full bg-card shadow transition",
                 on ? "translate-x-3.5" : "translate-x-0.5",
               )}
             />
           </span>
         </button>
-        {guardando && <Loader2 size={15} className="animate-spin text-[#94a3b4]" />}
+        {guardando && <Loader2 size={15} className="animate-spin text-[var(--text-3)]" />}
 
         <button
           type="button"
           onClick={borrarHistorial}
           disabled={limpiando}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[#5b6b80] transition hover:border-red-200 hover:text-red-600 disabled:opacity-60"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:border-red-200 hover:text-red-600 disabled:opacity-60"
         >
           {limpiando ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
           Borrar historial

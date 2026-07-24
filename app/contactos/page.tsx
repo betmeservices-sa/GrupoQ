@@ -235,7 +235,7 @@ export default function ContactosPage() {
         <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
           <div>
             <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Contactos</h1>
-            <p className="text-[12.5px] text-[#94a3b4]">
+            <p className="text-[12.5px] text-[var(--text-3)]">
               {contactos.length} {contactos.length === 1 ? "contacto" : "contactos"}
             </p>
           </div>
@@ -279,12 +279,12 @@ export default function ContactosPage() {
 
         <div className="space-y-2.5 border-b border-line px-4 py-3">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94a3b4]" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-3)]" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar nombre, correo o teléfono"
-              className="w-full rounded-lg border border-line bg-surface py-2 pl-9 pr-3 text-sm text-[#0f1b2d] outline-none transition placeholder:text-[#94a3b4] focus:border-brand focus:ring-2 focus:ring-brand/15"
+              className="w-full rounded-lg border border-line bg-surface py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none transition placeholder:text-[var(--text-3)] focus:border-brand focus:ring-2 focus:ring-brand/15"
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -301,7 +301,7 @@ export default function ContactosPage() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {cargando ? (
-            <p className="px-5 py-8 text-sm text-[#94a3b4]">Cargando contactos...</p>
+            <p className="px-5 py-8 text-sm text-[var(--text-3)]">Cargando contactos...</p>
           ) : filtrados.length === 0 ? (
             <EmptyState
               Icon={ContactIcon}
@@ -328,8 +328,8 @@ export default function ContactosPage() {
                     >
                       <Avatar iniciales={inicialesDe(nombreDe(c))} size={38} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-[#0f1b2d]">{nombreDe(c)}</p>
-                        <p className="truncate text-[12px] text-[#94a3b4]">{telefonoBonito(c.telefono)}</p>
+                        <p className="truncate text-sm font-semibold text-[var(--text)]">{nombreDe(c)}</p>
+                        <p className="truncate text-[12px] text-[var(--text-3)]">{telefonoBonito(c.telefono)}</p>
                         {c.tags.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {c.tags.slice(0, 2).map((t) => (
@@ -411,7 +411,7 @@ function Ficha({
           type="button"
           onClick={onBack}
           aria-label="Volver"
-          className="-ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-[#5b6b80] hover:bg-surface lg:hidden"
+          className="-ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-surface lg:hidden"
         >
           <ChevronLeft size={22} />
         </button>
@@ -419,7 +419,7 @@ function Ficha({
         <button
           type="button"
           onClick={onEditar}
-          className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-[13px] font-semibold text-[#5b6b80] transition hover:border-brand hover:text-brand"
+          className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1.5 text-[13px] font-semibold text-[var(--text-2)] transition hover:border-brand hover:text-brand"
         >
           <Pencil size={15} />
           Editar
@@ -438,7 +438,7 @@ function Ficha({
         {/* Encabezado */}
         <div className="flex flex-col items-center gap-3 border-b border-line bg-card px-6 py-7 text-center">
           <Avatar iniciales={inicialesDe(nombreDe(contacto))} size={72} />
-          <h2 className="text-lg font-bold text-[#0f1b2d]">{nombreDe(contacto)}</h2>
+          <h2 className="text-lg font-bold text-[var(--text)]">{nombreDe(contacto)}</h2>
         </div>
 
         <div className="mx-auto max-w-lg space-y-5 px-5 py-6">
@@ -452,7 +452,7 @@ function Ficha({
           <Seccion titulo="Etiquetas">
             <div className="flex flex-wrap items-center gap-1.5 px-1">
               {contacto.tags.length === 0 && !pickerTags && (
-                <span className="text-[12.5px] text-[#94a3b4]">Sin etiquetas.</span>
+                <span className="text-[12.5px] text-[var(--text-3)]">Sin etiquetas.</span>
               )}
               {contacto.tags.map((t) => (
                 <TagBadge
@@ -466,7 +466,7 @@ function Ficha({
                 <button
                   type="button"
                   onClick={() => setPickerTags((v) => !v)}
-                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] font-semibold text-[#5b6b80] transition hover:border-brand hover:text-brand"
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] font-semibold text-[var(--text-2)] transition hover:border-brand hover:text-brand"
                 >
                   <Plus size={12} /> Etiqueta
                 </button>
@@ -502,14 +502,14 @@ function Ficha({
               onChange={(e) => setNota(e.target.value)}
               placeholder="Agrega notas internas sobre este contacto (preferencias, seguimiento, etc.)"
               rows={4}
-              className="w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm text-[#0f1b2d] outline-none transition placeholder:text-[#94a3b4] focus:border-brand focus:ring-2 focus:ring-brand/15"
+              className="w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm text-[var(--text)] outline-none transition placeholder:text-[var(--text-3)] focus:border-brand focus:ring-2 focus:ring-brand/15"
             />
             {notaSucia && (
               <div className="mt-2 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setNota(contacto.notas ?? "")}
-                  className="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-[#5b6b80] transition hover:bg-surface"
+                  className="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-[var(--text-2)] transition hover:bg-surface"
                 >
                   Cancelar
                 </button>
@@ -532,7 +532,7 @@ function Ficha({
 function Seccion({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <div>
-      <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-[#94a3b4]">{titulo}</p>
+      <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-[var(--text-3)]">{titulo}</p>
       <div className="rounded-xl border border-line bg-card p-2.5">{children}</div>
     </div>
   );
@@ -541,12 +541,12 @@ function Seccion({ titulo, children }: { titulo: string; children: ReactNode }) 
 function DatoFila({ Icon, label, valor }: { Icon: typeof Phone; label: string; valor: string }) {
   return (
     <div className="flex items-start gap-3 rounded-lg px-2 py-2">
-      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-[#5b6b80]">
+      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-[var(--text-2)]">
         <Icon size={17} />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b4]">{label}</p>
-        <p className="break-words text-sm font-medium text-[#0f1b2d]">{valor}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">{label}</p>
+        <p className="break-words text-sm font-medium text-[var(--text)]">{valor}</p>
       </div>
     </div>
   );
@@ -559,7 +559,7 @@ function IconBtn({ title, onClick, children }: { title: string; onClick: () => v
       onClick={onClick}
       title={title}
       aria-label={title}
-      className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-[#5b6b80] transition hover:border-brand hover:text-brand"
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-card text-[var(--text-2)] transition hover:border-brand hover:text-brand"
     >
       {children}
     </button>
@@ -574,7 +574,7 @@ function FiltroPill({ activo, onClick, children }: { activo: boolean; onClick: (
       className={
         activo
           ? "rounded-full bg-brand px-2.5 py-1 text-[12px] font-semibold text-white"
-          : "rounded-full border border-line bg-surface px-2.5 py-1 text-[12px] font-medium text-[#5b6b80] transition hover:border-brand hover:text-brand"
+          : "rounded-full border border-line bg-surface px-2.5 py-1 text-[12px] font-medium text-[var(--text-2)] transition hover:border-brand hover:text-brand"
       }
     >
       {children}
@@ -647,14 +647,14 @@ function ContactoModal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
       <div className="relative w-full max-w-md rounded-t-2xl bg-card p-5 shadow-xl sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-bold text-[#0f1b2d]">
+          <h2 className="text-base font-bold text-[var(--text)]">
             {editando ? "Editar contacto" : "Nuevo contacto"}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#94a3b4] hover:bg-surface"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-3)] hover:bg-surface"
           >
             <X size={18} />
           </button>
@@ -676,7 +676,7 @@ function ContactoModal({
             hint={editando ? "El teléfono identifica al contacto y no se cambia." : undefined}
           />
           <div>
-            <label className="mb-1.5 block text-[12.5px] font-semibold text-[#5b6b80]">Etiquetas</label>
+            <label className="mb-1.5 block text-[12.5px] font-semibold text-[var(--text-2)]">Etiquetas</label>
             <div className="flex flex-wrap gap-1.5">
               {tags.map((t) => {
                 const on = tagsSel.includes(t);
@@ -731,16 +731,16 @@ function Campo({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-[12.5px] font-semibold text-[#5b6b80]">{label}</label>
+      <label className="mb-1 block text-[12.5px] font-semibold text-[var(--text-2)]">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-[#0f1b2d] outline-none transition placeholder:text-[#94a3b4] focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-[var(--text)] outline-none transition placeholder:text-[var(--text-3)] focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60"
       />
-      {hint && <p className="mt-1 text-[11px] text-[#94a3b4]">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] text-[var(--text-3)]">{hint}</p>}
     </div>
   );
 }

@@ -7,7 +7,7 @@ export function SocialStats({ stats, live = false }: { stats: SocialStatsT[]; li
   return (
     <div className="shrink-0 border-b border-line bg-surface px-5 py-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-[13px] font-bold text-[#0f1b2d]">
+        <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--text)]">
           Estadísticas de cuentas
           {live && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-[#2f9e2f] ring-1 ring-[#00c040]/30">
@@ -16,7 +16,7 @@ export function SocialStats({ stats, live = false }: { stats: SocialStatsT[]; li
             </span>
           )}
         </h2>
-        <span className="text-[11px] font-medium text-[#94a3b4]">
+        <span className="text-[11px] font-medium text-[var(--text-3)]">
           Meta Graph API · últimos 30 días
         </span>
       </div>
@@ -26,7 +26,7 @@ export function SocialStats({ stats, live = false }: { stats: SocialStatsT[]; li
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ChannelBadge channel={s.red} showLabel />
-                <span className="text-[12px] text-[#94a3b4]">{s.handle}</span>
+                <span className="text-[12px] text-[var(--text-3)]">{s.handle}</span>
               </div>
               <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11.5px] font-bold text-[#2f9e2f]">
                 <TrendingUp size={12} />
@@ -35,10 +35,10 @@ export function SocialStats({ stats, live = false }: { stats: SocialStatsT[]; li
             </div>
 
             <div className="mb-3 flex items-end gap-2">
-              <p className="text-[28px] font-extrabold leading-none tracking-tight text-[#0f1b2d]">
+              <p className="text-[28px] font-extrabold leading-none tracking-tight text-[var(--text)]">
                 {compacto(s.seguidores)}
               </p>
-              <p className="mb-0.5 text-[12px] font-medium text-[#94a3b4]">
+              <p className="mb-0.5 text-[12px] font-medium text-[var(--text-3)]">
                 seguidores · +{s.nuevosSeguidores} este mes
               </p>
             </div>
@@ -66,11 +66,11 @@ function Mini({
 }) {
   return (
     <div className="rounded-xl bg-surface px-2.5 py-2">
-      <p className="flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b4]">
+      <p className="flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
         <Icon size={11} />
         {label}
       </p>
-      <p className="mt-0.5 text-[15px] font-bold text-[#0f1b2d]">{valor}</p>
+      <p className="mt-0.5 text-[15px] font-bold text-[var(--text)]">{valor}</p>
     </div>
   );
 }

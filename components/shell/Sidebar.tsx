@@ -63,7 +63,7 @@ export function Sidebar({
           type="button"
           onClick={onClose}
           aria-label="Cerrar menú"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#94a3b4] hover:bg-surface lg:hidden"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-3)] hover:bg-surface lg:hidden"
         >
           <X size={18} />
         </button>
@@ -85,7 +85,7 @@ export function Sidebar({
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
                 active
                   ? "bg-brand text-white shadow-sm shadow-brand/25"
-                  : "text-[#5b6b80] hover:bg-surface hover:text-[#0f1b2d]",
+                  : "text-[var(--text-2)] hover:bg-surface hover:text-[var(--text)]",
               )}
             >
               <Icon size={18} strokeWidth={2.1} />
@@ -100,8 +100,8 @@ export function Sidebar({
         <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
           <Avatar iniciales={yo.iniciales} size={34} />
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-sm font-semibold text-[#0f1b2d]">{yo.nombre}</p>
-            <p className="truncate text-[11px] text-[#94a3b4]">En línea</p>
+            <p className="truncate text-sm font-semibold text-[var(--text)]">{yo.nombre}</p>
+            <p className="truncate text-[11px] text-[var(--text-3)]">En línea</p>
           </div>
           {onLogout && (
             <button
@@ -109,7 +109,7 @@ export function Sidebar({
               onClick={onLogout}
               title="Cerrar sesión"
               aria-label="Cerrar sesión"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#94a3b4] transition hover:bg-red-50 hover:text-[#a32923]"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-3)] transition hover:bg-red-50 hover:text-[#a32923]"
             >
               <LogOut size={16} />
             </button>

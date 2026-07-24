@@ -41,8 +41,8 @@ export function Reloj() {
     <div className="flex items-center gap-2.5 rounded-xl bg-surface/60 px-3 py-2">
       <Clock size={15} className="shrink-0 text-brand" />
       <div className="min-w-0 leading-tight">
-        <p className="text-[13px] font-bold text-[#0f1b2d]">{t.hora}</p>
-        <p className="truncate text-[11px] text-[#94a3b4]">{t.fecha}</p>
+        <p className="text-[13px] font-bold text-[var(--text)]">{t.hora}</p>
+        <p className="truncate text-[11px] text-[var(--text-3)]">{t.fecha}</p>
       </div>
     </div>
   );

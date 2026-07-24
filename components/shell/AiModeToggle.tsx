@@ -40,7 +40,7 @@ export function AiModeToggle() {
         "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition disabled:opacity-50",
         on
           ? "border-emerald-200 bg-emerald-50 text-[#2f9e2f]"
-          : "border-line bg-white text-[#5b6b80] hover:border-[#cdd5df]",
+          : "border-line bg-card text-[var(--text-2)] hover:border-[var(--border-2)]",
       )}
     >
       <Bot size={15} />
@@ -48,12 +48,12 @@ export function AiModeToggle() {
       <span
         className={cn(
           "relative inline-flex h-4 w-7 items-center rounded-full transition",
-          on ? "bg-[#2f9e2f]" : "bg-[#cdd5df]",
+          on ? "bg-[#2f9e2f]" : "bg-[var(--border-2)]",
         )}
       >
         <span
           className={cn(
-            "inline-block h-3 w-3 rounded-full bg-white shadow transition",
+            "inline-block h-3 w-3 rounded-full bg-card shadow transition",
             on ? "translate-x-3.5" : "translate-x-0.5",
           )}
         />

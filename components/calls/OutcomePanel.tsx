@@ -11,7 +11,7 @@ export function OutcomePanel({ metrics }: { metrics: CallMetrics }) {
 
   return (
     <div className="rounded-2xl border border-line bg-card p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-bold text-[#0f1b2d]">Resultado de las llamadas</h2>
+      <h2 className="mb-4 text-sm font-bold text-[var(--text)]">Resultado de las llamadas</h2>
 
       <ul className="mb-5 space-y-2">
         {entradas.map(({ outcome, total }) => (
@@ -19,9 +19,9 @@ export function OutcomePanel({ metrics }: { metrics: CallMetrics }) {
             <span className={`rounded-full px-2 py-1 font-medium ${COLOR_OUTCOME[outcome]}`}>
               {ETIQUETA_OUTCOME[outcome]}
             </span>
-            <span className="font-semibold text-[#0f1b2d]">
+            <span className="font-semibold text-[var(--text)]">
               {total}{" "}
-              <span className="text-[#94a3b4]">
+              <span className="text-[var(--text-3)]">
                 ({fmtPorcentaje(total / (metrics.total || 1))})
               </span>
             </span>
@@ -31,15 +31,15 @@ export function OutcomePanel({ metrics }: { metrics: CallMetrics }) {
 
       {metrics.porPrefijo.length > 0 && (
         <>
-          <h3 className="mb-2 text-xs font-bold text-[#0f1b2d]">Conexión por rango de número</h3>
+          <h3 className="mb-2 text-xs font-bold text-[var(--text)]">Conexión por rango de número</h3>
           <ul className="space-y-1.5">
             {metrics.porPrefijo.map((p) => (
               <li key={p.prefijo} className="flex items-center justify-between text-xs">
-                <span className="text-[#475569]">
+                <span className="text-[var(--text-2)]">
                   Empieza en {p.prefijo}
                   {p.prefijo === "2" ? " (fijo)" : " (móvil)"}
                 </span>
-                <span className={p.tasa === 0 ? "font-semibold text-red-700" : "text-[#0f1b2d]"}>
+                <span className={p.tasa === 0 ? "font-semibold text-red-700" : "text-[var(--text)]"}>
                   {p.conectadas}/{p.total} ({fmtPorcentaje(p.tasa)})
                 </span>
               </li>

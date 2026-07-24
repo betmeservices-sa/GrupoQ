@@ -55,7 +55,7 @@ export function InboxFilters({
               "rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold transition",
               filtros.canal === c.id
                 ? "bg-brand text-white"
-                : "bg-surface text-[#5b6b80] hover:bg-surface-2",
+                : "bg-surface text-[var(--text-2)] hover:bg-surface-2",
             )}
           >
             {c.label}
@@ -100,7 +100,7 @@ function Select<T extends string>({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as T)}
-      className="cursor-pointer rounded-lg border border-line bg-surface px-2 py-1.5 text-[12.5px] font-medium text-[#5b6b80] outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15"
+      className="cursor-pointer rounded-lg border border-line bg-surface px-2 py-1.5 text-[12.5px] font-medium text-[var(--text-2)] outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15"
     >
       {options.map((o) => (
         <option key={o.id} value={o.id}>

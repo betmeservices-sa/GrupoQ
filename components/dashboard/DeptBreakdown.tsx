@@ -14,11 +14,11 @@ export function DeptBreakdown({ conversations }: { conversations: Conversation[]
 
   return (
     <div className="rounded-2xl border border-line bg-card p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-bold text-[#0f1b2d]">Conversaciones por departamento</h2>
+      <h2 className="mb-4 text-sm font-bold text-[var(--text)]">Conversaciones por departamento</h2>
       <div className="space-y-3">
         {filas.map((f) => (
           <div key={f.id} className="flex items-center gap-3">
-            <span className="w-32 shrink-0 text-[12.5px] font-medium text-[#5b6b80]">
+            <span className="w-32 shrink-0 text-[12.5px] font-medium text-[var(--text-2)]">
               {f.nombre}
             </span>
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface">
@@ -27,7 +27,7 @@ export function DeptBreakdown({ conversations }: { conversations: Conversation[]
                 style={{ width: `${(f.total / max) * 100}%`, backgroundColor: f.color }}
               />
             </div>
-            <span className="w-6 shrink-0 text-right text-[12.5px] font-bold text-[#0f1b2d]">
+            <span className="w-6 shrink-0 text-right text-[12.5px] font-bold text-[var(--text)]">
               {f.total}
             </span>
           </div>

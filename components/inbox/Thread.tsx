@@ -62,16 +62,16 @@ export function Thread({
             type="button"
             onClick={onBack}
             aria-label="Volver"
-            className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#5b6b80] hover:bg-surface lg:hidden"
+            className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-surface lg:hidden"
           >
             <ChevronLeft size={22} />
           </button>
           <Avatar iniciales={inicialesDe(contact.nombre)} size={40} color={d.color} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-[#0f1b2d]">{contact.nombre}</p>
+            <p className="truncate text-sm font-bold text-[var(--text)]">{contact.nombre}</p>
             <div className="mt-0.5 flex items-center gap-1.5">
               <ChannelBadge channel={conversation.canal} showLabel />
-              <span className="text-[11px] text-[#94a3b4]">·</span>
+              <span className="text-[11px] text-[var(--text-3)]">·</span>
               <span className="text-[11px] font-medium" style={{ color: d.color }}>
                 {d.nombre}
               </span>
@@ -90,7 +90,7 @@ export function Thread({
               type="button"
               onClick={onAsignarme}
               aria-label="Asignarme"
-              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-2 py-1.5 text-[12.5px] font-semibold text-[#5b6b80] transition hover:border-brand hover:text-brand sm:px-2.5"
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-2 py-1.5 text-[12.5px] font-semibold text-[var(--text-2)] transition hover:border-brand hover:text-brand sm:px-2.5"
             >
               <UserPlus size={15} />
               <span className="hidden sm:inline">Asignarme</span>
@@ -118,7 +118,7 @@ export function Thread({
               onClick={onBloquear}
               aria-label="Borrar y bloquear"
               title="Borrar y bloquear esta conversación"
-              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-2 py-1.5 text-[12.5px] font-semibold text-[#5b6b80] transition hover:border-[#a32923] hover:bg-red-50 hover:text-[#a32923] sm:px-2.5"
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-2 py-1.5 text-[12.5px] font-semibold text-[var(--text-2)] transition hover:border-[#a32923] hover:bg-red-50 hover:text-[#a32923] sm:px-2.5"
             >
               <Ban size={15} />
               <span className="hidden sm:inline">Bloquear</span>
@@ -128,7 +128,7 @@ export function Thread({
             type="button"
             onClick={onInfo}
             aria-label="Informacion del cliente"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#5b6b80] hover:bg-surface lg:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-2)] hover:bg-surface lg:hidden"
           >
             <Info size={18} />
           </button>

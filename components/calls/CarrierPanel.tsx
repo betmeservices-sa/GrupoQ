@@ -16,15 +16,15 @@ export function CarrierPanel({ metrics }: { metrics: CallMetrics }) {
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand/10 text-brand">
           <PhoneCall size={16} />
         </span>
-        <h2 className="text-sm font-bold text-[#0f1b2d]">Telefonía (Tigo)</h2>
+        <h2 className="text-sm font-bold text-[var(--text)]">Telefonía (Tigo)</h2>
       </div>
 
       <div className="mb-1 flex items-end justify-between">
-        <p className="text-[26px] font-extrabold leading-none text-[#0f1b2d]">
+        <p className="text-[26px] font-extrabold leading-none text-[var(--text)]">
           {b.minutosTotales}
-          <span className="text-sm font-medium text-[#94a3b4]"> / {b.bucketMin} min</span>
+          <span className="text-sm font-medium text-[var(--text-3)]"> / {b.bucketMin} min</span>
         </p>
-        <span className="text-xs text-[#94a3b4]">bucket incluido</span>
+        <span className="text-xs text-[var(--text-3)]">bucket incluido</span>
       </div>
       <div className="h-2 w-full rounded-full bg-surface">
         <div
@@ -33,21 +33,21 @@ export function CarrierPanel({ metrics }: { metrics: CallMetrics }) {
         />
       </div>
       {b.minutosFueraBucket > 0 && (
-        <p className="mt-2 text-xs text-[#94a3b4]">
+        <p className="mt-2 text-xs text-[var(--text-3)]">
           {b.minutosFueraBucket} min fuera del bucket (se cobran)
         </p>
       )}
 
       <div className="mt-4 space-y-2 text-xs">
         <div className="flex items-center justify-between">
-          <span className="text-[#475569]">Red fija (empieza en 2) · 2¢/min</span>
-          <span className="font-semibold text-[#0f1b2d]">
+          <span className="text-[var(--text-2)]">Red fija (empieza en 2) · 2¢/min</span>
+          <span className="font-semibold text-[var(--text)]">
             {b.fijaMin} min · {fmtUSD(b.fijaCosto)}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[#475569]">Celulares (empieza en 6/7) · 8¢/min</span>
-          <span className="font-semibold text-[#0f1b2d]">
+          <span className="text-[var(--text-2)]">Celulares (empieza en 6/7) · 8¢/min</span>
+          <span className="font-semibold text-[var(--text)]">
             {b.celularMin} min · {fmtUSD(b.celularCosto)}
           </span>
         </div>
@@ -55,16 +55,16 @@ export function CarrierPanel({ metrics }: { metrics: CallMetrics }) {
 
       <div className="mt-4 rounded-xl bg-surface p-3 text-xs">
         <div className="flex items-center justify-between">
-          <span className="text-[#475569]">Costo Tigo (fuera del bucket)</span>
-          <span className="font-bold text-[#0f1b2d]">{fmtUSD(b.costoCarrier)}</span>
+          <span className="text-[var(--text-2)]">Costo Tigo (fuera del bucket)</span>
+          <span className="font-bold text-[var(--text)]">{fmtUSD(b.costoCarrier)}</span>
         </div>
         <div className="mt-1 flex items-center justify-between">
-          <span className="text-[#475569]">Total con Tigo (Vapi + telefonía)</span>
-          <span className="font-bold text-[#0f1b2d]">{fmtUSD(totalConTigo)}</span>
+          <span className="text-[var(--text-2)]">Total con Tigo (Vapi + telefonía)</span>
+          <span className="font-bold text-[var(--text)]">{fmtUSD(totalConTigo)}</span>
         </div>
       </div>
 
-      <p className="mt-3 text-[11px] leading-relaxed text-[#94a3b4]">
+      <p className="mt-3 text-[11px] leading-relaxed text-[var(--text-3)]">
         Los primeros {b.bucketMin} min van incluidos. Pasado eso: fija a 2¢, celular a 8¢ por
         minuto, según el número. La fija on-net es gratis, pero no se puede distinguir por el
         número, así que se cobra plano.

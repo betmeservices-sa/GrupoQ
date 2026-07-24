@@ -9,7 +9,7 @@ const MAP: Record<
   whatsapp: { label: "WhatsApp", Icon: MessageCircle, className: "bg-[#25D366]/12 text-[#1ba34d]" },
   instagram: { label: "Instagram", Icon: Instagram, className: "bg-[#E1306C]/12 text-[#c1275b]" },
   facebook: { label: "Facebook", Icon: Facebook, className: "bg-[#1877F2]/12 text-[#1877F2]" },
-  internal: { label: "Interno", Icon: Users, className: "bg-slate-200 text-slate-600" },
+  internal: { label: "Interno", Icon: Users, className: "bg-surface-2 text-slate-600" },
 };
 
 export function ChannelBadge({

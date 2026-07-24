@@ -31,10 +31,10 @@ export function MetricCard({
           </span>
         )}
       </div>
-      <p className="mt-3 text-[26px] font-extrabold leading-none tracking-tight text-[#0f1b2d]">
+      <p className="mt-3 text-[26px] font-extrabold leading-none tracking-tight text-[var(--text)]">
         {valor}
       </p>
-      <p className="mt-1.5 text-[12.5px] font-medium text-[#94a3b4]">{label}</p>
+      <p className="mt-1.5 text-[12.5px] font-medium text-[var(--text-3)]">{label}</p>
     </div>
   );
 }

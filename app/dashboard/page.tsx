@@ -54,7 +54,7 @@ export default function DashboardPage() {
     <div className="flex h-full flex-col">
       <header className="border-b border-line bg-card px-5 py-3">
         <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Dashboard</h1>
-        <p className="text-[12.5px] text-[#94a3b4]">Resumen de la actividad de comunicación</p>
+        <p className="text-[12.5px] text-[var(--text-3)]">Resumen de la actividad de comunicación</p>
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-5">
@@ -85,7 +85,7 @@ export default function DashboardPage() {
           <DeptBreakdown conversations={state.conversations} />
 
           <div className="rounded-2xl border border-line bg-card p-5 shadow-sm">
-            <h2 className="mb-4 text-sm font-bold text-[#0f1b2d]">Estado de las conversaciones</h2>
+            <h2 className="mb-4 text-sm font-bold text-[var(--text)]">Estado de las conversaciones</h2>
             <div className="space-y-3">
               {ESTADOS.map((e) => {
                 const n = state.conversations.filter((c) => c.estado === e.id).length;
@@ -93,15 +93,15 @@ export default function DashboardPage() {
                 return (
                   <div key={e.id}>
                     <div className="mb-1 flex items-center justify-between text-[12.5px]">
-                      <span className="flex items-center gap-2 font-medium text-[#5b6b80]">
+                      <span className="flex items-center gap-2 font-medium text-[var(--text-2)]">
                         <span
                           className="h-2.5 w-2.5 rounded-full"
                           style={{ backgroundColor: e.color }}
                         />
                         {e.label}
                       </span>
-                      <span className="font-bold text-[#0f1b2d]">
-                        {n} <span className="text-[#94a3b4]">({pct}%)</span>
+                      <span className="font-bold text-[var(--text)]">
+                        {n} <span className="text-[var(--text-3)]">({pct}%)</span>
                       </span>
                     </div>
                     <div className="h-2.5 overflow-hidden rounded-full bg-surface">

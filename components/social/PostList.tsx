@@ -24,7 +24,7 @@ function fechaPost(iso: string): string {
 const GRUPOS = [
   { estado: "programado", titulo: "Programadas", Icon: CalendarClock, tone: "text-brand" },
   { estado: "publicado", titulo: "Publicadas", Icon: CheckCircle2, tone: "text-[#2f9e2f]" },
-  { estado: "borrador", titulo: "Borradores", Icon: FileText, tone: "text-[#94a3b4]" },
+  { estado: "borrador", titulo: "Borradores", Icon: FileText, tone: "text-[var(--text-3)]" },
 ] as const;
 
 export function PostList({ posts }: { posts: SocialPost[] }) {
@@ -38,7 +38,7 @@ export function PostList({ posts }: { posts: SocialPost[] }) {
             <h2 className={`mb-2.5 flex items-center gap-1.5 text-[12.5px] font-bold uppercase tracking-wide ${tone}`}>
               <Icon size={15} />
               {titulo}
-              <span className="text-[#94a3b4]">({grupo.length})</span>
+              <span className="text-[var(--text-3)]">({grupo.length})</span>
             </h2>
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {grupo.map((p) => (
@@ -48,9 +48,9 @@ export function PostList({ posts }: { posts: SocialPost[] }) {
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <ChannelBadge channel={p.red} showLabel />
-                    <span className="text-[11.5px] text-[#94a3b4]">{fechaPost(p.fecha)}</span>
+                    <span className="text-[11.5px] text-[var(--text-3)]">{fechaPost(p.fecha)}</span>
                   </div>
-                  <p className="text-[13.5px] leading-relaxed text-[#33425a]">{p.texto}</p>
+                  <p className="text-[13.5px] leading-relaxed text-[var(--text-2)]">{p.texto}</p>
                   {p.engagement && <Engagement e={p.engagement} />}
                 </article>
               ))}
@@ -64,7 +64,7 @@ export function PostList({ posts }: { posts: SocialPost[] }) {
 
 function Engagement({ e }: { e: PostEngagement }) {
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 border-t border-line pt-2.5 text-[12px] text-[#5b6b80]">
+    <div className="mt-3 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 border-t border-line pt-2.5 text-[12px] text-[var(--text-2)]">
       <Stat Icon={Radar} valor={compacto(e.alcance)} titulo="Alcance" />
       <Stat Icon={Heart} valor={compacto(e.meGusta)} titulo="Me gusta / reacciones" />
       <Stat Icon={MessageCircle} valor={compacto(e.comentarios)} titulo="Comentarios" />
@@ -87,8 +87,8 @@ function Stat({
 }) {
   return (
     <span className="flex items-center gap-1" title={titulo}>
-      <Icon size={13} className="text-[#94a3b4]" />
-      <span className="font-semibold text-[#33425a]">{valor}</span>
+      <Icon size={13} className="text-[var(--text-3)]" />
+      <span className="font-semibold text-[var(--text-2)]">{valor}</span>
     </span>
   );
 }
