@@ -9,7 +9,7 @@ import { ElevenLabsPanel } from "@/components/calls/ElevenLabsPanel";
 import { CarrierPanel } from "@/components/calls/CarrierPanel";
 import { CallsTable } from "@/components/calls/CallsTable";
 import { PlanBucket } from "@/components/calls/PlanBucket";
-import { categoriaOutcome } from "@/lib/calls-metrics";
+import { categoriaOutcome, resumirLlamadas } from "@/lib/calls-metrics";
 import { ETIQUETA_OUTCOME } from "@/lib/calls-format";
 import { activeTenantId } from "@/lib/tenants/active";
 import type { CallMetrics, CallOutcome, CallRecord } from "@/lib/data/types";
@@ -56,10 +56,36 @@ export default function LlamadasPage() {
     void sincronizar("GET");
   }, [sincronizar]);
 
+  // Base de llamadas para el REPORTE. La agencia ve todo crudo. El cliente (ej.
+  // hospital) ve solo las que conectaron (sin fallas de plataforma ni carrier) y
+  // con el remitente y el agente normalizados a la marca para el demo.
+  const baseCalls = useMemo(() => {
+    if (!data) return [];
+    if (esAgencia) return data.calls;
+    return data.calls
+      .filter((c) => {
+        const o = categoriaOutcome(c.estadoFinal);
+        return o !== "falla_carrier" && o !== "falla_plataforma";
+      })
+      .map((c) => ({
+        ...c,
+        nombreNumero: "MiAgentIA",
+        numeroPropio: "MiAgentIA",
+        phoneNumberId: undefined,
+        nombreAssistant: "Sofia",
+      }));
+  }, [data, esAgencia]);
+
+  // Metricas recalculadas sobre las llamadas ya filtradas (para la vista cliente).
+  const metricsView = useMemo(() => {
+    if (!data) return null;
+    return esAgencia ? data.metrics : resumirLlamadas(baseCalls, data.tarifaCarrier);
+  }, [data, esAgencia, baseCalls]);
+
   const visibles = useMemo(() => {
     if (!data) return [];
     const desde = dias > 0 ? Date.now() - dias * 24 * 60 * 60 * 1000 : null;
-    return data.calls.filter((c) => {
+    return baseCalls.filter((c) => {
       if (dir !== "todas" && c.direccion !== dir) return false;
       if (out !== "todos" && categoriaOutcome(c.estadoFinal) !== out) return false;
       if (desde !== null) {
@@ -69,7 +95,7 @@ export default function LlamadasPage() {
       }
       return true;
     });
-  }, [data, dir, out, dias]);
+  }, [data, baseCalls, dir, out, dias]);
 
   return (
     // El <main> del AppShell es overflow-hidden: cada pagina scrollea por su
@@ -146,7 +172,7 @@ export default function LlamadasPage() {
               </div>
             </>
           ) : (
-            <PlanBucket metrics={data.metrics} />
+            <PlanBucket metrics={metricsView ?? data.metrics} />
           )}
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -165,11 +191,13 @@ export default function LlamadasPage() {
               className="rounded-lg border border-line bg-card px-2 py-1.5"
             >
               <option value="todos">Todos los resultados</option>
-              {(Object.keys(ETIQUETA_OUTCOME) as CallOutcome[]).map((o) => (
-                <option key={o} value={o}>
-                  {ETIQUETA_OUTCOME[o]}
-                </option>
-              ))}
+              {(Object.keys(ETIQUETA_OUTCOME) as CallOutcome[])
+                .filter((o) => esAgencia || (o !== "falla_carrier" && o !== "falla_plataforma"))
+                .map((o) => (
+                  <option key={o} value={o}>
+                    {ETIQUETA_OUTCOME[o]}
+                  </option>
+                ))}
             </select>
             <select
               value={dias}
@@ -182,7 +210,7 @@ export default function LlamadasPage() {
               <option value={30}>Últimos 30 días</option>
             </select>
             <span className="text-[var(--text-3)]">
-              {visibles.length} de {data.calls.length}
+              {visibles.length} de {baseCalls.length}
             </span>
           </div>
 
