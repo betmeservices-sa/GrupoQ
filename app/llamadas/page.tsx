@@ -8,8 +8,10 @@ import { OutcomePanel } from "@/components/calls/OutcomePanel";
 import { ElevenLabsPanel } from "@/components/calls/ElevenLabsPanel";
 import { CarrierPanel } from "@/components/calls/CarrierPanel";
 import { CallsTable } from "@/components/calls/CallsTable";
+import { PlanBucket } from "@/components/calls/PlanBucket";
 import { categoriaOutcome } from "@/lib/calls-metrics";
 import { ETIQUETA_OUTCOME } from "@/lib/calls-format";
+import { activeTenantId } from "@/lib/tenants/active";
 import type { CallMetrics, CallOutcome, CallRecord } from "@/lib/data/types";
 
 interface Respuesta {
@@ -35,6 +37,10 @@ export default function LlamadasPage() {
   const [dir, setDir] = useState<FiltroDir>("todas");
   const [out, setOut] = useState<FiltroOut>("todos");
   const [dias, setDias] = useState<FiltroDias>(0);
+  // La agencia (miagentia) ve la vista completa con costos y desglose. Los
+  // clientes (ej. hospital) ven una vista por PLAN: sin precios, sin carrier,
+  // sin ElevenLabs, solo minutos del plan y el registro sin costo.
+  const esAgencia = activeTenantId() === "miagentia";
 
   const sincronizar = useCallback(async (metodo: "GET" | "POST") => {
     setCargando(true);
@@ -73,13 +79,15 @@ export default function LlamadasPage() {
         <div>
           <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Llamadas</h1>
           <p className="text-[12.5px] text-[var(--text-3)]">
-            {data
-              ? `${data.source === "demo" ? "Datos de demostración" : "Datos reales de Vapi"}${
-                  data.persistido
-                    ? " con historial en base"
-                    : " sin historial (Supabase no configurado)"
-                }`
-              : "Cargando..."}
+            {!data
+              ? "Cargando..."
+              : esAgencia
+                ? `${data.source === "demo" ? "Datos de demostración" : "Datos reales de Vapi"}${
+                    data.persistido
+                      ? " con historial en base"
+                      : " sin historial (Supabase no configurado)"
+                  }`
+                : "Registro de llamadas de tu línea de atención"}
           </p>
         </div>
         <button
@@ -95,14 +103,14 @@ export default function LlamadasPage() {
 
       <div className="flex-1 space-y-5 overflow-y-auto p-5">
 
-      {data?.errorVapi && (
+      {esAgencia && data?.errorVapi && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
           <strong>No se pudo conectar con Vapi:</strong> {data.errorVapi}
           {data.calls.length > 0 && " Se muestra el último historial guardado."}
         </div>
       )}
 
-      {data?.errorBase && (
+      {esAgencia && data?.errorBase && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <strong>Las llamadas no se están guardando.</strong> Los datos de abajo son correctos y
           están en vivo, pero no queda historial.
@@ -118,7 +126,7 @@ export default function LlamadasPage() {
         </div>
       )}
 
-      {data && data.source === "demo" && (
+      {esAgencia && data && data.source === "demo" && (
         <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900">
           <strong>Estás viendo datos de ejemplo, no llamadas reales.</strong> Falta la variable{" "}
           <code>VAPI_PRIVATE_KEY</code> en este entorno.
@@ -127,14 +135,19 @@ export default function LlamadasPage() {
 
       {data && (
         <>
-          <CallsKpis metrics={data.metrics} />
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <CostBreakdown metrics={data.metrics} tarifaCarrier={data.tarifaCarrier} />
-            <OutcomePanel metrics={data.metrics} />
-            <CarrierPanel metrics={data.metrics} />
-            <ElevenLabsPanel />
-          </div>
+          {esAgencia ? (
+            <>
+              <CallsKpis metrics={data.metrics} />
+              <div className="grid gap-4 lg:grid-cols-2">
+                <CostBreakdown metrics={data.metrics} tarifaCarrier={data.tarifaCarrier} />
+                <OutcomePanel metrics={data.metrics} />
+                <CarrierPanel metrics={data.metrics} />
+                <ElevenLabsPanel />
+              </div>
+            </>
+          ) : (
+            <PlanBucket metrics={data.metrics} />
+          )}
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <select
@@ -173,7 +186,7 @@ export default function LlamadasPage() {
             </span>
           </div>
 
-          <CallsTable calls={visibles} tarifaCarrier={data.tarifaCarrier} />
+          <CallsTable calls={visibles} tarifaCarrier={data.tarifaCarrier} sinCosto={!esAgencia} />
           </>
         )}
       </div>

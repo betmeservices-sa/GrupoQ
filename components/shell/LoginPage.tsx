@@ -70,7 +70,7 @@ export function LoginPage({
   }
 
   const inputWrap =
-    "flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 transition focus-within:border-[#8b5cf6]";
+    "flex items-center gap-2 rounded-xl border border-white/10 bg-[#12121c] px-3.5 py-3 transition focus-within:border-[#8b5cf6] focus-within:bg-[#16161f] focus-within:shadow-[0_0_0_4px_rgba(139,92,246,0.12)]";
   const inputBase =
     "w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30";
 

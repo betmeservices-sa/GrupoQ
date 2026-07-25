@@ -42,12 +42,13 @@ export function Sidebar({
   const { def } = useRole();
   const yo = staff.find((s) => s.id === ME)!;
 
-  // "llamadas" es un modulo de la agencia: muestra TODA la cuenta de Vapi, que
-  // incluye llamadas de varios clientes. Por eso solo se expone en el tenant
-  // miagentia y no en los dashboards de los clientes.
-  const esAgencia = activeTenantId() === "miagentia";
+  // "llamadas": la agencia (miagentia) ve la cuenta completa con costos; el
+  // hospital ve una version simplificada por PLAN (sin precios ni infra). En los
+  // demas clientes queda oculta.
+  const tenant = activeTenantId();
+  const veLlamadas = tenant === "miagentia" || tenant === "hospital";
   const visibles = NAV.filter(
-    (item) => def.ve.includes(item.id) && (item.id !== "llamadas" || esAgencia),
+    (item) => def.ve.includes(item.id) && (item.id !== "llamadas" || veLlamadas),
   );
 
   return (

@@ -21,9 +21,12 @@ function fmtFecha(iso?: string): string {
 export function CallsTable({
   calls,
   tarifaCarrier = 0,
+  sinCosto = false,
 }: {
   calls: CallRecord[];
   tarifaCarrier?: number;
+  // sinCosto oculta la columna y el desglose de costo (vista de cliente por plan).
+  sinCosto?: boolean;
 }) {
   const [abierta, setAbierta] = useState<string | null>(null);
 
@@ -49,7 +52,7 @@ export function CallsTable({
             <th className="px-3 py-3 font-medium">Agente</th>
             <th className="px-3 py-3 font-medium">Habla</th>
             <th className="px-3 py-3 font-medium">Resultado</th>
-            <th className="px-3 py-3 text-right font-medium">Costo real</th>
+            {!sinCosto && <th className="px-3 py-3 text-right font-medium">Costo real</th>}
           </tr>
         </thead>
         <tbody>
@@ -79,17 +82,19 @@ export function CallsTable({
                       {ETIQUETA_OUTCOME[d.outcome]}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-right">
-                    {fmtUSD(costoRealLlamada(c, tarifaCarrier))}
-                  </td>
+                  {!sinCosto && (
+                    <td className="px-3 py-3 text-right">
+                      {fmtUSD(costoRealLlamada(c, tarifaCarrier))}
+                    </td>
+                  )}
                 </tr>
                 {exp && (
                   <tr className="border-b border-line/60 bg-surface">
-                    <td colSpan={8} className="px-6 py-4">
+                    <td colSpan={sinCosto ? 7 : 8} className="px-6 py-4">
                       <div className="mb-2 text-[11px] text-[var(--text-3)]">
                         Motivo técnico: <code>{c.estadoFinal ?? "—"}</code>
                       </div>
-                      {c.costoDesglose && (
+                      {c.costoDesglose && !sinCosto && (
                         <div className="mb-2 flex flex-wrap gap-4 text-[11px] text-[var(--text-2)]">
                           <span>
                             Voz:{" "}
