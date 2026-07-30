@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { CallsKpis } from "@/components/calls/CallsKpis";
 import { CostBreakdown } from "@/components/calls/CostBreakdown";
+import { LlamadasEnVivo } from "@/components/calls/LlamadasEnVivo";
 import { OutcomePanel } from "@/components/calls/OutcomePanel";
 import { ElevenLabsPanel } from "@/components/calls/ElevenLabsPanel";
 import { CarrierPanel } from "@/components/calls/CarrierPanel";
@@ -25,6 +26,11 @@ interface Respuesta {
   errorBase?: string;
 }
 
+// La vista se parte en dos: "Estadísticas" (historial, costos, tabla) y
+// "En vivo" (lo que esta pasando ahora). Separarlas evita que la pagina de
+// analisis se llene de informacion que cambia cada 6 segundos.
+type Tab = "estadisticas" | "vivo";
+
 type FiltroDir = "todas" | "inbound" | "outbound";
 type FiltroOut = "todos" | CallOutcome;
 // 0 = sin limite. Un selector de dias cubre el caso real (ver lo reciente) sin
@@ -34,6 +40,7 @@ type FiltroDias = 0 | 1 | 7 | 30;
 export default function LlamadasPage() {
   const [data, setData] = useState<Respuesta | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [tab, setTab] = useState<Tab>("estadisticas");
   const [dir, setDir] = useState<FiltroDir>("todas");
   const [out, setOut] = useState<FiltroOut>("todos");
   const [dias, setDias] = useState<FiltroDias>(0);
@@ -116,18 +123,50 @@ export default function LlamadasPage() {
                 : "Registro de llamadas de tu línea de atención"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void sincronizar("POST")}
-          disabled={cargando}
-          className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-xs font-medium text-[var(--text)] hover:bg-surface disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={cargando ? "animate-spin" : ""} />
-          Sincronizar
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Las pestanas viven en el header para que el cuerpo scrollee limpio */}
+          <div className="flex rounded-xl border border-line bg-surface p-0.5">
+            {(
+              [
+                ["estadisticas", "Estadísticas"],
+                ["vivo", "En vivo"],
+              ] as Array<[Tab, string]>
+            ).map(([id, texto]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={
+                  tab === id
+                    ? "rounded-[10px] bg-card px-3 py-1.5 text-xs font-semibold text-brand shadow-sm"
+                    : "rounded-[10px] px-3 py-1.5 text-xs font-medium text-[var(--text-3)] hover:text-[var(--text)]"
+                }
+              >
+                {texto}
+              </button>
+            ))}
+          </div>
+
+          {tab === "estadisticas" && (
+            <button
+              type="button"
+              onClick={() => void sincronizar("POST")}
+              disabled={cargando}
+              className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-xs font-medium text-[var(--text)] hover:bg-surface disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={cargando ? "animate-spin" : ""} />
+              Sincronizar
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-5">
+
+      {tab === "vivo" && <LlamadasEnVivo />}
+
+      {tab === "estadisticas" && (
+      <div className="space-y-5">
 
       {esAgencia && data?.errorVapi && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
@@ -217,6 +256,8 @@ export default function LlamadasPage() {
           <CallsTable calls={visibles} tarifaCarrier={data.tarifaCarrier} sinCosto={!esAgencia} />
           </>
         )}
+      </div>
+      )}
       </div>
     </div>
   );

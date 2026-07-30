@@ -27,3 +27,28 @@ export function telefonoBonito(waId: string): string {
   }
   return local;
 }
+
+/**
+ * Normaliza un destino salvadoreno a E.164 (+503XXXXXXXX).
+ * Acepta "7539 1721", "7539-1721", "50375391721", "+503 7539 1721".
+ * Devuelve null si no queda un numero SV marcable de 8 digitos.
+ * Vive aca (y no en lib/vapi) para que la UI pueda validar sin importar el
+ * modulo que lee VAPI_PRIVATE_KEY.
+ */
+export function normalizarDestinoSV(entrada: string): string | null {
+  const d = (entrada || "").replace(/\D/g, "");
+  const local = d.startsWith("503") && d.length === 11 ? d.slice(3) : d;
+  if (local.length !== 8) return null;
+  // SV: moviles 6 y 7, fijos 2. Otro prefijo no es marcable.
+  if (!/^[267]/.test(local)) return null;
+  return `+503${local}`;
+}
+
+/**
+ * El rango 6 no termina por el trunk de Tigo: auditado 13 de 13 fallidas
+ * (SIP 480/503, que Vapi marca como providerfault, o sea lado carrier).
+ * No se bloquea, pero se avisa antes de gastar el intento.
+ */
+export function destinoRiesgoso(e164: string): boolean {
+  return /^\+5036/.test(e164);
+}

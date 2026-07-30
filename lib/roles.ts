@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import type { RoleId } from "./data/types";
 import { activeTenant } from "./tenants/active";
 
-export type ModuleId = "bandeja" | "contactos" | "interno" | "redes" | "dashboard" | "llamadas" | "settings";
+export type ModuleId = "bandeja" | "contactos" | "interno" | "redes" | "dashboard" | "llamadas" | "agentes" | "settings";
 
 export interface RoleDef {
   id: RoleId;
@@ -18,7 +18,7 @@ export interface RoleDef {
 //   Dirección       -> todo
 //   Gerente de Mkt. -> todo
 // Médico/Asesor y Jefe mantienen su acceso operativo (bandeja/interno/dashboard).
-const TODO: ModuleId[] = ["bandeja", "contactos", "interno", "redes", "dashboard", "llamadas", "settings"];
+const TODO: ModuleId[] = ["bandeja", "contactos", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
   recepcion: ["bandeja", "contactos", "interno"],
   marketing: ["bandeja", "contactos", "redes"],
@@ -49,6 +49,7 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   redes: "/redes",
   dashboard: "/dashboard",
   llamadas: "/llamadas",
+  agentes: "/agentes",
   settings: "/settings",
 };
 
@@ -60,6 +61,7 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname.startsWith("/redes")) return "redes";
   if (pathname.startsWith("/dashboard")) return "dashboard";
   if (pathname.startsWith("/llamadas")) return "llamadas";
+  if (pathname.startsWith("/agentes")) return "agentes";
   if (pathname.startsWith("/settings")) return "settings";
   return null;
 }

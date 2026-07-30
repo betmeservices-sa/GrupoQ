@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Contact, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, X, type LucideIcon } from "lucide-react";
+import { BarChart3, Bot, Contact, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -26,6 +26,7 @@ const NAV: NavItem[] = [
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },
   { id: "llamadas", href: "/llamadas", label: "Llamadas", Icon: PhoneCall },
+  { id: "agentes", href: "/agentes", label: "Agentes", Icon: Bot },
   { id: "settings", href: "/settings", label: "Configuración", Icon: Settings },
 ];
 
@@ -45,10 +46,16 @@ export function Sidebar({
   // "llamadas": la agencia (miagentia) ve la cuenta completa con costos; el
   // hospital ve una version simplificada por PLAN (sin precios ni infra). En los
   // demas clientes queda oculta.
+  // "agentes" expone el script (prompt) y el boton de marcar: es propiedad de la
+  // agencia, asi que solo lo ve miagentia, nunca un cliente.
   const tenant = activeTenantId();
   const veLlamadas = tenant === "miagentia" || tenant === "hospital";
+  const veAgentes = tenant === "miagentia";
   const visibles = NAV.filter(
-    (item) => def.ve.includes(item.id) && (item.id !== "llamadas" || veLlamadas),
+    (item) =>
+      def.ve.includes(item.id) &&
+      (item.id !== "llamadas" || veLlamadas) &&
+      (item.id !== "agentes" || veAgentes),
   );
 
   return (
