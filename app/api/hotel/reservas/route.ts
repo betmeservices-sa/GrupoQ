@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { reservarHabitacionSimulada } from "@/lib/hotel-agente";
 import { borrarReservasSimuladas } from "@/lib/hotel-reservas";
-import { invalidarCachePanel } from "@/lib/hotel-panel";
 import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";
@@ -40,7 +39,8 @@ export async function DELETE(req: Request) {
   if (tenant !== "hotel") {
     return NextResponse.json({ ok: false, error: "No disponible" }, { status: 403 });
   }
+  // Las cachés solo guardan lecturas del sistema del hotel, no las reservas del
+  // demo, así que no hay nada que invalidar.
   borrarReservasSimuladas();
-  invalidarCachePanel();
   return NextResponse.json({ ok: true });
 }

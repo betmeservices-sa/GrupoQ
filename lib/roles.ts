@@ -8,6 +8,7 @@ export type ModuleId =
   | "bandeja"
   | "contactos"
   | "habitaciones"
+  | "calendario"
   | "interno"
   | "redes"
   | "dashboard"
@@ -27,15 +28,15 @@ export interface RoleDef {
 //   Dirección       -> todo
 //   Gerente de Mkt. -> todo
 // Médico/Asesor y Jefe mantienen su acceso operativo (bandeja/interno/dashboard).
-// "habitaciones" solo existe en el tenant del hotel (el Sidebar lo filtra); los
-// roles que atienden al huésped lo ven, marketing no.
-const TODO: ModuleId[] = ["bandeja", "contactos", "habitaciones", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
+// "habitaciones" y "calendario" solo existen en el tenant del hotel (el Sidebar
+// los filtra); los roles que atienden al huésped los ven, marketing no.
+const TODO: ModuleId[] = ["bandeja", "contactos", "habitaciones", "calendario", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
-  recepcion: ["bandeja", "contactos", "habitaciones", "interno"],
+  recepcion: ["bandeja", "contactos", "habitaciones", "calendario", "interno"],
   marketing: ["bandeja", "contactos", "redes"],
   gerente_marketing: TODO,
-  medico: ["bandeja", "contactos", "habitaciones", "interno"],
-  jefe: ["bandeja", "contactos", "habitaciones", "interno", "dashboard"],
+  medico: ["bandeja", "contactos", "habitaciones", "calendario", "interno"],
+  jefe: ["bandeja", "contactos", "habitaciones", "calendario", "interno", "dashboard"],
   admin: TODO,
 };
 
@@ -57,6 +58,7 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   bandeja: "/",
   contactos: "/contactos",
   habitaciones: "/habitaciones",
+  calendario: "/calendario",
   interno: "/interno",
   redes: "/redes",
   dashboard: "/dashboard",
@@ -70,6 +72,7 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname === "/") return "bandeja";
   if (pathname.startsWith("/contactos")) return "contactos";
   if (pathname.startsWith("/habitaciones")) return "habitaciones";
+  if (pathname.startsWith("/calendario")) return "calendario";
   if (pathname.startsWith("/interno")) return "interno";
   if (pathname.startsWith("/redes")) return "redes";
   if (pathname.startsWith("/dashboard")) return "dashboard";

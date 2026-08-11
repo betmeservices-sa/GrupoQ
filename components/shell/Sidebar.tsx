@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BedDouble, Bot, Contact, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, X, type LucideIcon } from "lucide-react";
+import { BarChart3, BedDouble, Bot, CalendarDays, Contact, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { id: "bandeja", href: "/", label: "Bandeja", Icon: Inbox },
   { id: "contactos", href: "/contactos", label: "Contactos", Icon: Contact },
   { id: "habitaciones", href: "/habitaciones", label: "Habitaciones", Icon: BedDouble },
+  { id: "calendario", href: "/calendario", label: "Calendario", Icon: CalendarDays },
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },
@@ -49,17 +50,19 @@ export function Sidebar({
   // demas clientes queda oculta.
   // "agentes" expone el script (prompt) y el boton de marcar: es propiedad de la
   // agencia, asi que solo lo ve miagentia, nunca un cliente.
-  // "habitaciones" se apoya en el sistema de reservas del hotel: solo el hotel.
+  // "habitaciones" y "calendario" se apoyan en el sistema de reservas del hotel:
+  // solo el hotel.
   const tenant = activeTenantId();
   const veLlamadas = tenant === "miagentia" || tenant === "hospital";
   const veAgentes = tenant === "miagentia";
-  const veHabitaciones = tenant === "hotel";
+  const veHotel = tenant === "hotel";
   const visibles = NAV.filter(
     (item) =>
       def.ve.includes(item.id) &&
       (item.id !== "llamadas" || veLlamadas) &&
       (item.id !== "agentes" || veAgentes) &&
-      (item.id !== "habitaciones" || veHabitaciones),
+      (item.id !== "habitaciones" || veHotel) &&
+      (item.id !== "calendario" || veHotel),
   );
 
   return (

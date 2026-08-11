@@ -214,7 +214,7 @@ export default function HabitacionesPage() {
         </div>
 
         {error && (
-          <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[12.5px] text-amber-200">
+          <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-4 py-3 text-[12.5px] text-[var(--text-2)]">
             <AlertCircle size={16} className="mt-0.5 shrink-0" />
             <p>{error}</p>
           </div>
@@ -420,7 +420,7 @@ function TarjetaHabitacion({
           <p
             className={cn(
               "mt-2.5 text-[12px] font-semibold",
-              falla ? "text-rose-400" : "text-brand",
+              falla ? "text-[var(--brand-red)]" : "text-brand",
             )}
           >
             {msg}

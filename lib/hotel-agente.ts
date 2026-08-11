@@ -17,7 +17,7 @@ import {
   hayPms,
 } from "./cloudbeds";
 import { crearReservaSimulada, solapeSimulado } from "./hotel-reservas";
-import { invalidarCachePanel, tiposConTarifa } from "./hotel-panel";
+import { tiposConTarifa } from "./hotel-panel";
 
 const ZONA_HOTEL = "America/Guatemala";
 
@@ -259,7 +259,9 @@ export async function reservarHabitacionSimulada(input: InputReservaHotel): Prom
     tarifaTotal: tarifa,
     origen: input.origen ?? "agente",
   });
-  invalidarCachePanel();
+  // Las cachés guardan SOLO lo que devolvió el sistema del hotel; las reservas
+  // del demo se superponen en cada lectura. Por eso tomar una no obliga a barrer
+  // otra vez el sistema y el panel se actualiza al instante.
 
   return {
     ok: true,

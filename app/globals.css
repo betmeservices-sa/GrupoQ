@@ -62,17 +62,6 @@
   --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-/* El Descanso Antigua: jade del hotel + ámbar para ocupación */
-[data-tenant="hotel"] {
-  --brand-blue: #0e8062;
-  --brand-blue-dark: #0a5c47;
-  --brand-green: #2e9e5b;
-  --brand-red: #d64545;
-  --brand-accent: #c7772e;
-  --brand-accent-soft: #f7e8d8;
-  --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
-}
-
 /* Excel Automotriz: rojo/granate de marca + grafito como acento */
 [data-tenant="excel"] {
   --brand-blue: #c8102e; /* rojo Excel = color principal de marca */
@@ -94,6 +83,39 @@
   --brand-red: #d64545;
   --brand-accent: #0e7490;
   --brand-accent-soft: #ecfeff;
+}
+
+/* El Descanso Antigua va en CLARO: hueso y jade, con aire de hotel. Es el único
+   tenant que se sale del tema oscuro, y por eso este bloque va DESPUÉS del de
+   marca unificada, para ganarle con la misma especificidad. Los otros cuatro
+   dashboards no se tocan.
+   Contraste medido sobre el fondo hueso #F5F3EE: tinta #22302B 12.4:1,
+   secundario #4A5852 6.7:1, terciario #5F6C66 5.0:1, jade oscuro #0A5C47 7.2:1
+   y ámbar #8F5314 5.5:1. Todos por encima del 4.5:1 que pide WCAG AA para texto
+   normal, y lo mismo sobre la tarjeta #FCFCFB. Lo cubre hotel-tema.test.ts. */
+[data-tenant="hotel"] {
+  --brand-blue: #0e8062;
+  --brand-blue-dark: #0a5c47;
+  --brand-green: #0e8062;
+  --brand-red: #a93226;
+  --brand-accent: #8f5314;
+  --brand-accent-soft: #f7e8d8;
+
+  --surface: #f5f3ee;
+  --surface-2: #eceae2;
+  --card: #fcfcfb;
+  --border: #e3e1d9;
+  --border-2: #cfccc1;
+  --text: #22302b;
+  --text-2: #4a5852;
+  --text-3: #5f6c66;
+
+  --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* La barra de scroll clara del hotel (la del tema oscuro se aclara al pasar). */
+[data-tenant="hotel"] ::-webkit-scrollbar-thumb:hover {
+  background: #b3afa1;
 }
 
 @theme inline {

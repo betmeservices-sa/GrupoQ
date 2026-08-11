@@ -463,3 +463,86 @@ describe("navegación de la sección Habitaciones", () => {
     expect(ROLES.marketing.ve).not.toContain("habitaciones");
   });
 });
+
+describe("el script de Lucía apunta a cerrar reservas", () => {
+  const p = TENANTS.hotel.ai.systemPrompt;
+
+  it("declara cerrar la reserva como su trabajo, no solo informar", () => {
+    expect(p).toContain("Cerrar la reserva");
+    expect(p).toMatch(/No eres un folleto/i);
+  });
+
+  it("enumera los datos que hacen falta para reservar", () => {
+    for (const dato of [
+      "fecha de entrada",
+      "fecha de salida",
+      "cuántos huéspedes",
+      "qué habitación elige",
+      "nombre completo",
+    ]) {
+      expect(p).toContain(dato);
+    }
+  });
+
+  it("manda pedirlos de a poco, no como formulario", () => {
+    expect(p).toContain("DE A POCO");
+    expect(p).toMatch(/NUNCA los pidas todos juntos/);
+    expect(p).toMatch(/lista o formulario/);
+  });
+
+  it("obliga a consultar el sistema antes de ofrecer y prohíbe inventar", () => {
+    expect(p).toMatch(/NUNCA inventes habitaciones, tarifas ni fechas libres/);
+    expect(p).toMatch(/Consulta ANTES de hablar de precios/);
+    expect(p).toMatch(/Sin consulta no se ofrece nada/);
+  });
+
+  it("pide alternativas reales cuando no hay disponibilidad", () => {
+    expect(p).toMatch(/alternativas REALES/);
+    expect(p).toMatch(/corriendo las fechas/);
+    expect(p).toMatch(/segunda consulta/);
+  });
+
+  it("no deja prometer lo que el sistema no hace", () => {
+    expect(p).toContain("LO QUE NO PROMETES");
+    expect(p).toMatch(/NUNCA digas que la reserva quedó lista si la herramienta no/);
+    expect(p).toMatch(/No confirmes pagos/);
+  });
+
+  it("nombra las herramientas exactamente como están cableadas", () => {
+    const cableadas = ["consultar_disponibilidad_hotel", "reservar_habitacion", "guardar_datos_contacto", "reaccionar"];
+    for (const t of cableadas) expect(p).toContain(t);
+    // Las de citas son de otros clientes: aquí no van.
+    expect(p).not.toContain("confirmar_cita");
+    expect(p).not.toContain("consultar_disponibilidad,");
+  });
+
+  it("no usa agendamiento como sustantivo ni guiones largos", () => {
+    expect(p.toLowerCase()).not.toContain("agendamiento");
+    expect(p).not.toContain("—");
+  });
+});
+
+describe("navegación de la sección Calendario", () => {
+  it("tiene ruta propia y se resuelve desde el pathname", () => {
+    expect(MODULO_RUTA.calendario).toBe("/calendario");
+    expect(moduloDeRuta("/calendario")).toBe("calendario");
+  });
+
+  it("va debajo de Habitaciones para los roles que la ven", () => {
+    for (const rol of ["recepcion", "medico", "jefe", "gerente_marketing", "admin"] as const) {
+      const ve = ROLES[rol].ve;
+      expect(ve).toContain("calendario");
+      expect(ve.indexOf("calendario")).toBeGreaterThan(ve.indexOf("habitaciones"));
+    }
+    expect(ROLES.marketing.ve).not.toContain("calendario");
+  });
+
+  it("las rutas de los demás módulos no se movieron", () => {
+    expect(MODULO_RUTA.bandeja).toBe("/");
+    expect(MODULO_RUTA.contactos).toBe("/contactos");
+    expect(MODULO_RUTA.dashboard).toBe("/dashboard");
+    expect(moduloDeRuta("/")).toBe("bandeja");
+    expect(moduloDeRuta("/settings")).toBe("settings");
+    expect(moduloDeRuta("/privacy")).toBeNull();
+  });
+});

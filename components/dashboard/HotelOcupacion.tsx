@@ -153,7 +153,7 @@ export function HotelOcupacion() {
 
   if (!panel) {
     return (
-      <div className="flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-[12.5px] text-amber-200">
+      <div className="flex items-start gap-2.5 rounded-2xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 p-4 text-[12.5px] text-[var(--text-2)]">
         <AlertCircle size={16} className="mt-0.5 shrink-0" />
         <p>{error ?? "Sin datos de ocupación."}</p>
       </div>
@@ -544,7 +544,7 @@ function Simuladas({
         <p
           className={cn(
             "mt-2.5 text-[12px] font-semibold",
-            falla ? "text-rose-400" : "text-brand",
+            falla ? "text-[var(--brand-red)]" : "text-brand",
           )}
         >
           {msg}
@@ -574,7 +574,7 @@ function Simuladas({
           <button
             type="button"
             onClick={limpiar}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:border-rose-400/50 hover:text-rose-400"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:border-[var(--brand-red)]/50 hover:text-[var(--brand-red)]"
           >
             <Trash2 size={13} />
             Vaciar
