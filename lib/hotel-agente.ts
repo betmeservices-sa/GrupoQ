@@ -16,8 +16,8 @@ import {
   obtenerPropiedad,
   hayPms,
 } from "./cloudbeds";
-import { crearReservaSimulada } from "./hotel-reservas";
-import { invalidarCachePanel } from "./hotel-panel";
+import { crearReservaSimulada, solapeSimulado } from "./hotel-reservas";
+import { invalidarCachePanel, tiposConTarifa } from "./hotel-panel";
 
 const ZONA_HOTEL = "America/Guatemala";
 
@@ -137,6 +137,22 @@ function normalizar(s: string): string {
     .trim();
 }
 
+// Busca el tipo por nombre entre los candidatos dados (exacto, sin acentos o por
+// contenido). Devuelve null si no calza: nunca se adivina una habitación.
+export function emparejarTipo<T extends { nombre: string }>(
+  candidatos: T[],
+  pedida: string,
+): T | null {
+  const p = normalizar(pedida);
+  if (!p) return null;
+  return (
+    candidatos.find((t) => normalizar(t.nombre) === p) ??
+    candidatos.find((t) => normalizar(t.nombre).includes(p) && p.length > 2) ??
+    candidatos.find((t) => p.includes(normalizar(t.nombre))) ??
+    null
+  );
+}
+
 export async function reservarHabitacionSimulada(input: InputReservaHotel): Promise<{
   ok: boolean;
   reserva?: string;
@@ -147,43 +163,86 @@ export async function reservarHabitacionSimulada(input: InputReservaHotel): Prom
   total?: number;
   moneda?: string;
   error?: string;
+  // Por qué no se pudo, para que la pantalla no tenga que adivinarlo del texto.
+  motivo?:
+    | "sin_tarifa"
+    | "ocupada"
+    | "simulada"
+    | "capacidad"
+    | "sin_dato"
+    | "desconocida"
+    | "datos";
 }> {
   const nombre = (input.nombre ?? "").trim();
-  if (!nombre) return { ok: false, error: "Falta el nombre completo del huésped." };
+  if (!nombre) {
+    return { ok: false, motivo: "datos", error: "Falta el nombre completo del huésped." };
+  }
 
   const propiedad = await obtenerPropiedad();
   const hoy = hoyEnZona(propiedad?.zonaHoraria ?? ZONA_HOTEL);
   const rango = rangoValido(input, hoy);
-  if (!rango.ok) return { ok: false, error: rango.error };
+  if (!rango.ok) return { ok: false, motivo: "datos", error: rango.error };
 
   const adultos = Math.max(1, Number(input.adultos) || 1);
   const ninos = Math.max(0, Number(input.ninos) || 0);
 
   // Se vuelve a consultar el PMS para no confirmar algo que ya no está libre ni
   // con una tarifa inventada: la que se guarda es la que devuelve el sistema.
-  const [tipos, libres] = await Promise.all([
+  const [tipos, libres, conTarifa] = await Promise.all([
     listarTiposHabitacion(),
     disponibilidadRango({ desde: rango.desde, hasta: rango.hasta, adultos, ninos }),
+    tiposConTarifa(),
   ]);
   if (libres === null) {
-    return { ok: false, error: "No se pudo confirmar la disponibilidad en este momento." };
-  }
-
-  const pedida = normalizar(input.habitacion ?? "");
-  const candidatos = tipos.filter((t) => libres.some((l) => l.id === t.id && l.disponibles > 0));
-  const tipo =
-    candidatos.find((t) => normalizar(t.nombre) === pedida) ??
-    candidatos.find((t) => normalizar(t.nombre).includes(pedida) && pedida.length > 2) ??
-    candidatos.find((t) => pedida.includes(normalizar(t.nombre)));
-
-  if (!tipo) {
     return {
       ok: false,
-      error: "Esa habitación ya no está disponible para esas fechas. Vuelve a consultar disponibilidad.",
+      motivo: "sin_dato",
+      error: "No se pudo leer la disponibilidad de esas fechas. Vuelve a intentar en un momento.",
     };
   }
 
-  const tarifa = libres.find((l) => l.id === tipo.id)?.tarifa ?? 0;
+  // Primero se identifica la habitación contra TODAS las del hotel: así se puede
+  // decir por qué no se puede reservar en vez de un "no está disponible" que
+  // tapa tres problemas distintos.
+  const tipo = emparejarTipo(tipos, input.habitacion ?? "");
+  if (!tipo) {
+    return { ok: false, motivo: "desconocida", error: "No encontramos esa habitación." };
+  }
+
+  if (conTarifa && !conTarifa.has(tipo.id)) {
+    return {
+      ok: false,
+      motivo: "sin_tarifa",
+      error: `${tipo.nombre} no tiene tarifa cargada, así que no se puede reservar. Se activa cargando su tarifa.`,
+    };
+  }
+
+  const choque = solapeSimulado(tipo.id, rango.desde, rango.hasta);
+  if (choque) {
+    return {
+      ok: false,
+      motivo: "simulada",
+      error: `${tipo.nombre} ya está tomada del ${choque.desde} al ${choque.hasta} en el demo.`,
+    };
+  }
+
+  // Una habitación que no admite a ese grupo tampoco la devuelve el sistema en
+  // disponibilidad; se distingue para no decir "ocupada" cuando el problema es
+  // el tamaño del grupo.
+  if (tipo.maxHuespedes > 0 && tipo.maxHuespedes < adultos + ninos) {
+    return {
+      ok: false,
+      motivo: "capacidad",
+      error: `${tipo.nombre} admite hasta ${tipo.maxHuespedes} ${tipo.maxHuespedes === 1 ? "huésped" : "huéspedes"}.`,
+    };
+  }
+
+  const libre = libres.find((l) => l.id === tipo.id && l.disponibles > 0);
+  if (!libre) {
+    return { ok: false, motivo: "ocupada", error: `${tipo.nombre} está ocupada en esas fechas.` };
+  }
+
+  const tarifa = libre.tarifa;
 
   // ── AQUÍ TERMINA LO REAL ──
   // No se llama a postReservation ni a ningún endpoint de escritura del PMS.

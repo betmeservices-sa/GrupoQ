@@ -63,3 +63,14 @@ export function nochesDe(r: ReservaSimulada): string[] {
 export function borrarReservasSimuladas(): void {
   store.length = 0;
 }
+
+// ¿Ya hay una reserva del demo en esa habitación que pise alguna de estas
+// noches? Dos estadías que se tocan solo en el día de salida NO se solapan: esa
+// noche ya la liberó quien se va. Se valida en el servidor, no en la pantalla.
+export function solapeSimulado(
+  tipoId: string,
+  desde: string,
+  hasta: string,
+): ReservaSimulada | null {
+  return store.find((r) => r.tipoId === tipoId && r.desde < hasta && desde < r.hasta) ?? null;
+}

@@ -4,7 +4,16 @@ import { useEffect, useSyncExternalStore } from "react";
 import type { RoleId } from "./data/types";
 import { activeTenant } from "./tenants/active";
 
-export type ModuleId = "bandeja" | "contactos" | "interno" | "redes" | "dashboard" | "llamadas" | "agentes" | "settings";
+export type ModuleId =
+  | "bandeja"
+  | "contactos"
+  | "habitaciones"
+  | "interno"
+  | "redes"
+  | "dashboard"
+  | "llamadas"
+  | "agentes"
+  | "settings";
 
 export interface RoleDef {
   id: RoleId;
@@ -18,13 +27,15 @@ export interface RoleDef {
 //   Dirección       -> todo
 //   Gerente de Mkt. -> todo
 // Médico/Asesor y Jefe mantienen su acceso operativo (bandeja/interno/dashboard).
-const TODO: ModuleId[] = ["bandeja", "contactos", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
+// "habitaciones" solo existe en el tenant del hotel (el Sidebar lo filtra); los
+// roles que atienden al huésped lo ven, marketing no.
+const TODO: ModuleId[] = ["bandeja", "contactos", "habitaciones", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
-  recepcion: ["bandeja", "contactos", "interno"],
+  recepcion: ["bandeja", "contactos", "habitaciones", "interno"],
   marketing: ["bandeja", "contactos", "redes"],
   gerente_marketing: TODO,
-  medico: ["bandeja", "contactos", "interno"],
-  jefe: ["bandeja", "contactos", "interno", "dashboard"],
+  medico: ["bandeja", "contactos", "habitaciones", "interno"],
+  jefe: ["bandeja", "contactos", "habitaciones", "interno", "dashboard"],
   admin: TODO,
 };
 
@@ -45,6 +56,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
 export const MODULO_RUTA: Record<ModuleId, string> = {
   bandeja: "/",
   contactos: "/contactos",
+  habitaciones: "/habitaciones",
   interno: "/interno",
   redes: "/redes",
   dashboard: "/dashboard",
@@ -57,6 +69,7 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
 export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname === "/") return "bandeja";
   if (pathname.startsWith("/contactos")) return "contactos";
+  if (pathname.startsWith("/habitaciones")) return "habitaciones";
   if (pathname.startsWith("/interno")) return "interno";
   if (pathname.startsWith("/redes")) return "redes";
   if (pathname.startsWith("/dashboard")) return "dashboard";

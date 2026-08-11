@@ -7,7 +7,15 @@ import {
   crearReservaSimulada,
   listarReservasSimuladas,
   nochesDe,
+  solapeSimulado,
 } from "@/lib/hotel-reservas";
+import {
+  estadosDeHabitaciones,
+  resumirEstados,
+  type EntradaHabitaciones,
+} from "@/lib/hotel-habitaciones";
+import { MODULO_RUTA, moduloDeRuta, ROLES } from "@/lib/roles";
+import { emparejarTipo } from "@/lib/hotel-agente";
 
 describe("tenant hotel", () => {
   it("la contraseña miagentiahotel entra al hotel", () => {
@@ -130,6 +138,30 @@ describe("reservas simuladas", () => {
     });
     expect(r.id.startsWith("SIM-")).toBe(true);
     expect(listarReservasSimuladas()).toHaveLength(1);
+  });
+
+  it("detecta el solape con otra reserva del demo", () => {
+    crearReservaSimulada({
+      huesped: "Paula",
+      tipoId: "t1",
+      tipoNombre: "Habitación 1",
+      desde: "2026-08-14",
+      hasta: "2026-08-17",
+      adultos: 1,
+      ninos: 0,
+      tarifaTotal: 165,
+      origen: "agente",
+    });
+    // Se pisan
+    expect(solapeSimulado("t1", "2026-08-16", "2026-08-19")).not.toBeNull();
+    expect(solapeSimulado("t1", "2026-08-13", "2026-08-15")).not.toBeNull();
+    expect(solapeSimulado("t1", "2026-08-15", "2026-08-16")).not.toBeNull();
+    expect(solapeSimulado("t1", "2026-08-13", "2026-08-20")).not.toBeNull();
+    // El día de salida ya queda libre para el siguiente huésped
+    expect(solapeSimulado("t1", "2026-08-17", "2026-08-19")).toBeNull();
+    expect(solapeSimulado("t1", "2026-08-11", "2026-08-14")).toBeNull();
+    // Otra habitación no se ve afectada
+    expect(solapeSimulado("t2", "2026-08-15", "2026-08-16")).toBeNull();
   });
 
   it("ocupa una noche por cada día de la estadía, sin contar la salida", () => {
@@ -294,5 +326,140 @@ describe("panel de ocupación", () => {
     expect(p.kpis.nochesOcupadas).toBe(0);
     expect(p.kpis.nochesVendibles).toBe(0);
     expect(p.kpis.ocupacionHoyPct).toBe(0);
+  });
+});
+
+// ── Sección "Habitaciones" ──
+
+function habEntrada(over: Partial<EntradaHabitaciones> = {}): EntradaHabitaciones {
+  return {
+    tipos: [
+      { id: "t1", nombre: "Habitación 1", maxHuespedes: 4 },
+      { id: "t2", nombre: "Habitación 2", maxHuespedes: 4 },
+      { id: "t3", nombre: "Casa Divina", maxHuespedes: 16 },
+      { id: "t4", nombre: "Habitation 3", maxHuespedes: 1 },
+    ],
+    // El sistema devuelve solo lo que tiene tarifa y está libre TODO el rango.
+    libres: [
+      { id: "t1", tarifa: 110, disponibles: 1 },
+      { id: "t4", tarifa: 100, disponibles: 1 },
+    ],
+    conTarifa: new Set(["t1", "t2", "t4"]),
+    simuladas: [null, null, null, null],
+    huespedes: 1,
+    noches: 2,
+    ...over,
+  };
+}
+
+describe("estado de las habitaciones para un rango", () => {
+  it("una habitación libre trae su tarifa por noche y el total", () => {
+    const h = estadosDeHabitaciones(habEntrada()).find((x) => x.id === "t1")!;
+    expect(h.estado).toBe("libre");
+    expect(h.tarifaNoche).toBe(55);
+    expect(h.totalEstadia).toBe(110);
+  });
+
+  it("la que tiene tarifa pero no aparece en el rango está ocupada", () => {
+    const h = estadosDeHabitaciones(habEntrada()).find((x) => x.id === "t2")!;
+    expect(h.estado).toBe("ocupada");
+    expect(h.tarifaNoche).toBeUndefined();
+  });
+
+  it("la que no tiene tarifa se marca aparte, no como ocupada", () => {
+    const h = estadosDeHabitaciones(habEntrada()).find((x) => x.id === "t3")!;
+    expect(h.estado).toBe("sin_tarifa");
+  });
+
+  it("una reserva del demo gana sobre el estado del sistema", () => {
+    const estados = estadosDeHabitaciones(
+      habEntrada({
+        simuladas: [
+          {
+            id: "SIM-AAA111",
+            huesped: "Paula",
+            tipoId: "t1",
+            tipoNombre: "Habitación 1",
+            desde: "2026-08-14",
+            hasta: "2026-08-16",
+            adultos: 1,
+            ninos: 0,
+            tarifaTotal: 110,
+            creada: "2026-08-11T10:00:00.000Z",
+            origen: "panel",
+          },
+          null,
+          null,
+          null,
+        ],
+      }),
+    );
+    const h = estados.find((x) => x.id === "t1")!;
+    expect(h.estado).toBe("simulada");
+    expect(h.reservaSimulada?.id).toBe("SIM-AAA111");
+  });
+
+  it("la que no admite ese número de huéspedes no se ofrece como libre", () => {
+    const estados = estadosDeHabitaciones(habEntrada({ huespedes: 3 }));
+    expect(estados.find((x) => x.id === "t4")!.estado).toBe("capacidad");
+    expect(estados.find((x) => x.id === "t1")!.estado).toBe("libre");
+  });
+
+  // El 429 del sistema llega como null. Ninguna habitación puede quedar en
+  // libre ni en ocupada con eso: se reservaría a ciegas.
+  it("sin lectura del rango ninguna habitación queda libre ni ocupada", () => {
+    const estados = estadosDeHabitaciones(habEntrada({ libres: null }));
+    expect(estados.every((x) => x.estado === "sin_dato")).toBe(true);
+    const r = resumirEstados(estados);
+    expect(r.libre).toBe(0);
+    expect(r.ocupada).toBe(0);
+    expect(r.sin_dato).toBe(4);
+  });
+
+  it("sin saber qué tiene tarifa, la ausente queda sin dato en vez de ocupada", () => {
+    const estados = estadosDeHabitaciones(habEntrada({ conTarifa: null }));
+    expect(estados.find((x) => x.id === "t2")!.estado).toBe("sin_dato");
+    expect(estados.find((x) => x.id === "t3")!.estado).toBe("sin_dato");
+    expect(estados.find((x) => x.id === "t1")!.estado).toBe("libre");
+  });
+
+  it("el resumen cuenta cada estado una sola vez", () => {
+    const estados = estadosDeHabitaciones(habEntrada());
+    const r = resumirEstados(estados);
+    expect(r.libre + r.ocupada + r.simulada + r.sin_tarifa + r.capacidad + r.sin_dato).toBe(
+      estados.length,
+    );
+  });
+});
+
+describe("emparejar la habitación pedida", () => {
+  const tipos = [
+    { nombre: "Habitación 1" },
+    { nombre: "Habitación 10/Divina" },
+    { nombre: "El Descanso 8" },
+  ];
+
+  it("calza sin importar acentos ni mayúsculas", () => {
+    expect(emparejarTipo(tipos, "habitacion 1")?.nombre).toBe("Habitación 1");
+    expect(emparejarTipo(tipos, "EL DESCANSO 8")?.nombre).toBe("El Descanso 8");
+  });
+
+  it("no adivina una habitación que no existe", () => {
+    expect(emparejarTipo(tipos, "Suite presidencial")).toBeNull();
+    expect(emparejarTipo(tipos, "")).toBeNull();
+  });
+});
+
+describe("navegación de la sección Habitaciones", () => {
+  it("tiene ruta propia y se resuelve desde el pathname", () => {
+    expect(MODULO_RUTA.habitaciones).toBe("/habitaciones");
+    expect(moduloDeRuta("/habitaciones")).toBe("habitaciones");
+  });
+
+  it("la ven los roles que atienden al huésped, marketing no", () => {
+    for (const rol of ["recepcion", "medico", "jefe", "gerente_marketing", "admin"] as const) {
+      expect(ROLES[rol].ve).toContain("habitaciones");
+    }
+    expect(ROLES.marketing.ve).not.toContain("habitaciones");
   });
 });

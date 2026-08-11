@@ -215,3 +215,20 @@ export async function cargarPanel(dias = 14): Promise<PanelHotel> {
 export function invalidarCachePanel(): void {
   cache = null;
 }
+
+/**
+ * Ids de los tipos de habitación que SÍ tienen tarifa cargada, deducidos del
+ * barrido de las próximas noches: el sistema solo devuelve en disponibilidad lo
+ * que tiene tarifa activa. Sirve para distinguir "ocupada en esas fechas" de
+ * "no se puede vender", que son problemas distintos.
+ *
+ * Devuelve null si no se pudo leer ninguna noche: sin dato no se afirma nada.
+ */
+export async function tiposConTarifa(): Promise<Set<string> | null> {
+  const { noches } = await leerPms(14);
+  const leidas = noches.filter((n) => n.tipos !== null);
+  if (leidas.length === 0) return null;
+  const set = new Set<string>();
+  for (const n of leidas) for (const t of n.tipos ?? []) set.add(t.id);
+  return set;
+}
