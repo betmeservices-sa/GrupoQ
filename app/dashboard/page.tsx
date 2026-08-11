@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import {
   Bot,
+  CalendarSearch,
   CheckCircle2,
   Clock,
   Inbox,
@@ -13,10 +14,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { activeTenant } from "@/lib/tenants/active";
+import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
 import { CallsPanel } from "@/components/dashboard/CallsPanel";
+import { HotelOcupacion } from "@/components/dashboard/HotelOcupacion";
 
 // Íconos disponibles para las tarjetas del dashboard (referenciados por nombre
 // desde la config del tenant).
@@ -29,6 +31,7 @@ const ICONS: Record<string, LucideIcon> = {
   Smile,
   Bot,
   Inbox,
+  CalendarSearch,
 };
 
 // Estados de conversación. Colores por CSS var para que sigan la marca del tenant.
@@ -41,6 +44,9 @@ const ESTADOS = [
 export default function DashboardPage() {
   const { state } = useStore();
   const cards = activeTenant().dashboard;
+  // El hotel es el único tenant con sistema de reservas conectado: su dashboard
+  // suma la ocupación y las tarifas leídas en vivo.
+  const esHotel = activeTenantId() === "hotel";
 
   const stats = useMemo(() => {
     const total = state.conversations.length;
@@ -81,6 +87,8 @@ export default function DashboardPage() {
           })}
         </div>
 
+        {esHotel && <HotelOcupacion />}
+
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <DeptBreakdown conversations={state.conversations} />
 
@@ -117,7 +125,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <CallsPanel />
+        {/* El panel de llamadas lee una central de voz que no es del hotel: en su
+            dashboard no va, para no mostrarle actividad de otra cuenta. */}
+        {!esHotel && <CallsPanel />}
       </div>
     </div>
   );

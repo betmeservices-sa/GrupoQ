@@ -6,6 +6,7 @@ import { hospitalTenant } from "./hospital";
 import { grupoqTenant } from "./grupoq";
 import { excelTenant } from "./excel";
 import { miagentiaTenant } from "./miagentia";
+import { hotelTenant } from "./hotel";
 
 export type { TenantConfig, TenantId } from "./types";
 
@@ -14,6 +15,7 @@ export const TENANTS: Record<TenantId, TenantConfig> = {
   grupoq: grupoqTenant,
   excel: excelTenant,
   miagentia: miagentiaTenant,
+  hotel: hotelTenant,
 };
 
 // Tenant por defecto (SSR / antes de login). No es visible: la UI se pinta tras
@@ -21,7 +23,13 @@ export const TENANTS: Record<TenantId, TenantConfig> = {
 export const DEFAULT_TENANT: TenantId = "grupoq";
 
 export function isTenantId(v: string | null | undefined): v is TenantId {
-  return v === "hospital" || v === "grupoq" || v === "excel" || v === "miagentia";
+  return (
+    v === "hospital" ||
+    v === "grupoq" ||
+    v === "excel" ||
+    v === "miagentia" ||
+    v === "hotel"
+  );
 }
 
 export function getTenant(id: TenantId): TenantConfig {
@@ -45,6 +53,7 @@ export const DEMO_LOGINS: DemoLogin[] = [
   { usuario: "demoagentia", password: "demoi", tenant: "grupoq" },
   { usuario: "demoagentia", password: "demoj", tenant: "excel" },
   { usuario: "demoagentia", password: "demok", tenant: "miagentia" },
+  { usuario: "demoagentia", password: "miagentiahotel", tenant: "hotel" },
   // Acceso directo al dashboard de llamadas (tenant miagentia).
   // OJO: esta clave queda visible mientras el repo sea publico. Para cerrarla,
   // hacer el repo privado o mover las credenciales a la env LOGIN_PASSWORDS.

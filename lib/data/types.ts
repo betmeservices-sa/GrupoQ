@@ -28,7 +28,10 @@ export type DepartmentId =
   | "recepcion"
   // MiAgentIA (agencia de agentes IA)
   | "soporte"
-  | "onboarding";
+  | "onboarding"
+  // Hotel (El Descanso Antigua)
+  | "reservas"
+  | "conserjeria";
 
 export type RoleId = "recepcion" | "marketing" | "gerente_marketing" | "medico" | "jefe" | "admin";
 

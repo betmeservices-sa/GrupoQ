@@ -37,6 +37,38 @@ Centro de Pintura · CrediQ (financiamiento) · Atención al Cliente.
   rojo `#a32923`, teal `#2baab1`, verde `#00c040`. Tagline "Vas a llegar"; lema
   "Servirte con pasión es la fuerza que nos mueve".
 
+## Variables de entorno
+
+Se copian de `.env.example` a `.env.local` (que está en `.gitignore`: ningún
+valor real se commitea). Sin las de un módulo, ese módulo cae a datos demo.
+
+| Variable | Para qué |
+|---|---|
+| `SESSION_SECRET` | Firma la cookie de sesión. Sin ella no entra nadie en producción. |
+| `LOGIN_PASSWORDS` | Contraseñas por cliente (`tenant:clave,tenant:clave`). Si existe, manda sobre las del código. |
+| `ANTHROPIC_API_KEY` | Respuestas de la IA. |
+| `WHATSAPP_*` | WhatsApp Cloud API (recibir, responder, plantillas). |
+| `META_*` | Conectar Facebook e Instagram por OAuth. |
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Persistencia de mensajes de WhatsApp. |
+| `VAPI_PRIVATE_KEY` | Módulo de llamadas. |
+| `CLOUDBEDS_API_KEY` | Sistema de reservas del hotel (Cloudbeds), **solo lectura**. |
+| `CLOUDBEDS_PROPERTY_ID` | Id de la propiedad del hotel en ese sistema. |
+
+Ninguna lleva prefijo `NEXT_PUBLIC_`: todas se leen en el servidor y no pueden
+terminar en el bundle del navegador.
+
+### Cliente "hotel" y su sistema de reservas
+
+El tenant del hotel lee ocupación, tarifas y reservas en vivo con la API de
+Cloudbeds (v1.3), **siempre de solo lectura**: `lib/cloudbeds.ts` tiene una lista
+blanca de endpoints `get*`, fija `method: "GET"` y expone `PMS_WRITE_ENABLED =
+false`. Escribir ahí sincronizaría con el channel manager y bloquearía
+inventario real del hotel en los canales de venta.
+
+Cuando el agente cierra una reserva, se guarda como **simulada** en
+`lib/hotel-reservas.ts` y el panel la pinta aparte de las reales. La llave del
+sistema de reservas caduca si pasan 30 días sin usarse.
+
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · lucide-react ·

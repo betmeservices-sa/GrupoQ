@@ -62,6 +62,17 @@
   --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
+/* El Descanso Antigua: jade del hotel + ámbar para ocupación */
+[data-tenant="hotel"] {
+  --brand-blue: #0e8062;
+  --brand-blue-dark: #0a5c47;
+  --brand-green: #2e9e5b;
+  --brand-red: #d64545;
+  --brand-accent: #c7772e;
+  --brand-accent-soft: #f7e8d8;
+  --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
 /* Excel Automotriz: rojo/granate de marca + grafito como acento */
 [data-tenant="excel"] {
   --brand-blue: #c8102e; /* rojo Excel = color principal de marca */

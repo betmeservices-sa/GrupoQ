@@ -5,6 +5,12 @@ import {
   type InputDisponibilidad,
   type InputConfirmar,
 } from "./n8n";
+import {
+  consultarDisponibilidadHotel,
+  reservarHabitacionSimulada,
+  type InputDisponibilidadHotel,
+  type InputReservaHotel,
+} from "./hotel-agente";
 import { activeTenant } from "./tenants/active";
 import { TENANTS } from "./tenants";
 import type { TenantId } from "./tenants/types";
@@ -132,24 +138,148 @@ const TOOLS_BASE: Anthropic.Tool[] = [
   },
 ];
 
-// Fecha y hora actual en El Salvador, para que la IA agende con sentido (no
+// Herramientas del tenant "hotel": la disponibilidad y las tarifas salen del PMS
+// en vivo, y la reserva se toma en el demo (nunca se escribe en el PMS).
+const TOOLS_HOTEL: Anthropic.Tool[] = [
+  {
+    name: "consultar_disponibilidad_hotel",
+    description:
+      "Consulta el sistema del hotel y devuelve las habitaciones libres con su tarifa para un rango de fechas. Llámala SIEMPRE antes de hablar de disponibilidad o de precios, en cuanto tengas llegada, salida y cuántas personas. Ofrece SOLO lo que devuelva.",
+    input_schema: {
+      type: "object",
+      properties: {
+        llegada: { type: "string", description: "Fecha de entrada en formato AAAA-MM-DD" },
+        salida: { type: "string", description: "Fecha de salida en formato AAAA-MM-DD" },
+        adultos: { type: "number", description: "Cuántos adultos se hospedan (mínimo 1)" },
+        ninos: { type: "number", description: "Cuántos niños se hospedan (0 si no hay)" },
+      },
+      required: ["llegada", "salida", "adultos"],
+    },
+  },
+  {
+    name: "reservar_habitacion",
+    description:
+      "Toma la reserva de una habitación devuelta por consultar_disponibilidad_hotel. Llámala SOLO cuando el huésped ya eligió habitación y fechas y te dio su nombre completo. Devuelve el número de reserva.",
+    input_schema: {
+      type: "object",
+      properties: {
+        nombre: { type: "string", description: "Nombre completo del huésped" },
+        habitacion: {
+          type: "string",
+          description: "Nombre exacto de la habitación, tal como lo devolvió la consulta",
+        },
+        llegada: { type: "string", description: "Fecha de entrada en formato AAAA-MM-DD" },
+        salida: { type: "string", description: "Fecha de salida en formato AAAA-MM-DD" },
+        adultos: { type: "number", description: "Cuántos adultos se hospedan (mínimo 1)" },
+        ninos: { type: "number", description: "Cuántos niños se hospedan (0 si no hay)" },
+      },
+      required: ["nombre", "habitacion", "llegada", "salida", "adultos"],
+    },
+  },
+  {
+    name: "reaccionar",
+    description:
+      "Reacciona al último mensaje del contacto con un solo emoji (por ejemplo 👍, ❤️, 🙏). Úsalo con moderación, como complemento cálido; NO reemplaza tu respuesta de texto.",
+    input_schema: {
+      type: "object",
+      properties: { emoji: { type: "string", description: "Un solo emoji" } },
+      required: ["emoji"],
+    },
+  },
+];
+
+function toolsPara(tenantId?: TenantId): Anthropic.Tool[] {
+  return tenantId === "hotel" ? TOOLS_HOTEL : TOOLS_BASE;
+}
+
+// Zona horaria del negocio de cada tenant. Guatemala y El Salvador comparten
+// UTC-6 sin horario de verano, pero el prompt debe nombrar la del cliente.
+function zonaDe(tenantId?: TenantId): { tz: string; etiqueta: string } {
+  return tenantId === "hotel"
+    ? { tz: "America/Guatemala", etiqueta: "Guatemala" }
+    : { tz: "America/El_Salvador", etiqueta: "El Salvador" };
+}
+
+// Fecha y hora actual del negocio, para que la IA agende con sentido (no
 // ofrezca dias/horas que ya pasaron). Se recalcula en cada llamada.
-function contextoTemporal(): string {
+function contextoTemporal(tenantId?: TenantId): string {
+  const { tz, etiqueta } = zonaDe(tenantId);
   const ahora = new Date();
   const fecha = new Intl.DateTimeFormat("es-ES", {
-    timeZone: "America/El_Salvador",
+    timeZone: tz,
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(ahora);
   const hora = new Intl.DateTimeFormat("es-ES", {
-    timeZone: "America/El_Salvador",
+    timeZone: tz,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   }).format(ahora);
-  return `CONTEXTO TEMPORAL (zona horaria El Salvador, UTC-6): hoy es ${fecha} y son las ${hora}. Usa SIEMPRE esta fecha y hora como referencia para agendar. Ofrece SOLO dias y horas FUTUROS (de hoy en adelante; si propones hoy, que sea despues de la hora actual y dentro del horario). Nunca ofrezcas un dia u hora que ya paso. Al proponer un dia, menciona el dia de la semana y la fecha, por ejemplo "el lunes 29 a las 10:00 a.m.".`;
+  const iso = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(ahora);
+  return `CONTEXTO TEMPORAL (zona horaria ${etiqueta}, UTC-6): hoy es ${fecha} (${iso}) y son las ${hora}. Usa SIEMPRE esta fecha y hora como referencia. Ofrece SOLO dias y horas FUTUROS (de hoy en adelante; si propones hoy, que sea despues de la hora actual y dentro del horario). Nunca ofrezcas un dia u hora que ya paso. Al proponer un dia, menciona el dia de la semana y la fecha, por ejemplo "el lunes 29 a las 10:00 a.m.".`;
+}
+
+// Ejecuta UNA herramienta y devuelve lo que se le entrega de vuelta al modelo.
+// Está separada del bucle para poder probarla sin gastar una llamada al modelo.
+export async function ejecutarHerramienta(
+  nombre: string,
+  input: unknown,
+  acciones?: AccionesIA,
+  contexto?: { telefono?: string },
+): Promise<string> {
+  if (nombre === "guardar_datos_contacto") {
+    await acciones?.onGuardarContacto?.(
+      input as { nombre?: string; apellido?: string; correo?: string; interes?: string },
+    );
+    return "Listo.";
+  }
+  if (nombre === "reaccionar") {
+    const emoji = (input as { emoji?: string }).emoji;
+    if (emoji) await acciones?.onReaccionar?.(emoji);
+    return "Listo.";
+  }
+  if (nombre === "consultar_disponibilidad") {
+    const r = await consultarDisponibilidad({
+      ...(input as InputDisponibilidad),
+      telefono: contexto?.telefono,
+    });
+    return JSON.stringify(r.ok ? r.data : { error: r.error ?? "no disponible" });
+  }
+  if (nombre === "confirmar_cita") {
+    const r = await confirmarCita({
+      ...(input as InputConfirmar),
+      telefono: contexto?.telefono,
+    });
+    return JSON.stringify(r.ok ? r.data : { error: r.error ?? "no se pudo agendar" });
+  }
+  if (nombre === "consultar_disponibilidad_hotel") {
+    // Lectura REAL del sistema de reservas del hotel.
+    return JSON.stringify(await consultarDisponibilidadHotel(input as InputDisponibilidadHotel));
+  }
+  if (nombre === "reservar_habitacion") {
+    // Reserva SIMULADA: se guarda en el demo, nunca en el PMS.
+    return JSON.stringify(
+      await reservarHabitacionSimulada({
+        ...(input as InputReservaHotel),
+        telefono: contexto?.telefono,
+      }),
+    );
+  }
+  return "Listo.";
+}
+
+// Herramientas que ve el modelo para un tenant (se exporta para poder probar el
+// cableado sin llamar al modelo).
+export function herramientasDeTenant(tenantId?: TenantId): string[] {
+  return [toolGuardarContacto(tenantId), ...toolsPara(tenantId)].map((t) => t.name);
 }
 
 // Genera la respuesta de la IA. Usa tool use para guardar datos del contacto y
@@ -165,14 +295,17 @@ export async function generarRespuesta(
   }));
 
   const systemPrompt = systemPromptFor(contexto?.tenantId);
-  const tools: Anthropic.Tool[] = [toolGuardarContacto(contexto?.tenantId), ...TOOLS_BASE];
+  const tools: Anthropic.Tool[] = [
+    toolGuardarContacto(contexto?.tenantId),
+    ...toolsPara(contexto?.tenantId),
+  ];
 
   let texto = "";
   for (let i = 0; i < 4; i++) {
     const res = await client.messages.create({
       model: MODEL,
       max_tokens: 500,
-      system: `${systemPrompt}\n\n${contextoTemporal()}`,
+      system: `${systemPrompt}\n\n${contextoTemporal(contexto?.tenantId)}`,
       tools,
       messages,
     });
@@ -191,24 +324,9 @@ export async function generarRespuesta(
     messages.push({ role: "assistant", content: res.content });
     const resultados: Anthropic.ToolResultBlockParam[] = [];
     for (const tu of toolUses) {
-      let contenido = "Listo.";
+      let contenido: string;
       try {
-        if (tu.name === "guardar_datos_contacto") {
-          await acciones?.onGuardarContacto?.(
-            tu.input as { nombre?: string; apellido?: string; correo?: string; interes?: string },
-          );
-        } else if (tu.name === "reaccionar") {
-          const emoji = (tu.input as { emoji?: string }).emoji;
-          if (emoji) await acciones?.onReaccionar?.(emoji);
-        } else if (tu.name === "consultar_disponibilidad") {
-          const inp = tu.input as InputDisponibilidad;
-          const r = await consultarDisponibilidad({ ...inp, telefono: contexto?.telefono });
-          contenido = JSON.stringify(r.ok ? r.data : { error: r.error ?? "no disponible" });
-        } else if (tu.name === "confirmar_cita") {
-          const inp = tu.input as InputConfirmar;
-          const r = await confirmarCita({ ...inp, telefono: contexto?.telefono });
-          contenido = JSON.stringify(r.ok ? r.data : { error: r.error ?? "no se pudo agendar" });
-        }
+        contenido = await ejecutarHerramienta(tu.name, tu.input, acciones, contexto);
       } catch (err) {
         console.error("IA tool error:", err);
         contenido = JSON.stringify({ error: "fallo la herramienta" });
