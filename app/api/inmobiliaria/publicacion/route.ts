@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buscarPropiedad } from "@/lib/inmobiliaria-cartera";
+import { buscarPropiedad } from "@/lib/inmobiliaria-store";
 import { armarAnuncio } from "@/lib/inmobiliaria-publicacion";
 import { tenantFromRequest } from "@/lib/tenants/server";
 

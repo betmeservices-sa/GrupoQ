@@ -71,6 +71,21 @@ const FOTOS = {
   "tz-112-2": "photo-1554995207-c18c203602cb",
   "tz-112-3": "photo-1484154218962-a197022b5858",
   "tz-112-4": "photo-1538307602205-80b5c2ff26ec",
+  // TZ-113 Apartamento amueblado en ALQUILER, Santa Elena (750/mes)
+  "tz-113-1": "photo-1613575831056-0acd5da8f085",
+  "tz-113-2": "photo-1616486029423-aaa4789e8c9a",
+  "tz-113-3": "photo-1631889993959-41b4e9c6e3c5",
+  // TZ-114 Casa en ALQUILER en residencial, Santa Tecla (950/mes)
+  "tz-114-1": "photo-1666532937489-331f2f8f4668",
+  "tz-114-2": "photo-1679330788855-340ff414b0cd",
+  "tz-114-3": "photo-1565538810643-b5bdb714032a",
+  "tz-114-4": "photo-1620979038013-d61e5629c4d4",
+  // TZ-115 Local en ALQUILER sobre Escalón (1,250/mes)
+  "tz-115-1": "photo-1759050486852-fdfe2fdc7bea",
+  "tz-115-2": "photo-1736236560164-bc741c70bca5",
+  // TZ-116 Apartamento en ALQUILER en Escalón (525/mes)
+  "tz-116-1": "photo-1665249934445-1de680641f50",
+  "tz-116-2": "photo-1616594039964-ae9021a400a0",
 };
 
 // Solo se bajan las que faltan, o las que se pidan por nombre en la línea de

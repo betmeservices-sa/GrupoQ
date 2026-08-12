@@ -16,11 +16,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { activeTenantId } from "@/lib/tenants/active";
+import { dibujarPieza } from "@/lib/inmobiliaria-lienzo";
 import {
   AMBIENTE_NOMBRE,
-  ESTADO_NOMBRE,
   FORMATOS,
   TIPO_NOMBRE,
+  nombreEstado,
   type Anuncio,
   type Foto,
   type FormatoRed,
@@ -105,102 +106,14 @@ function Publicacion() {
   const incluidas = orden.filter((f) => !fuera.includes(f.src));
 
   // ── Composición sobre la foto REAL de la ficha ──
+  // El dibujo vive en lib/inmobiliaria-lienzo: el alta desde el teléfono publica
+  // con exactamente el mismo arte, sin pasar por esta pantalla.
   const dibujar = useCallback(
     async (canvas: HTMLCanvasElement, indice: number): Promise<void> => {
       if (!anuncio || !p) return;
-      const { ancho: W, alto: H } = formato;
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      const portada = indice === 0;
-      const foto = portada ? incluidas[0] : incluidas[indice];
+      const foto = incluidas[indice];
       if (!foto) return;
-
-      await document.fonts.ready.catch(() => undefined);
-      const img = await cargarImagen(foto.src);
-
-      // Recorte "cover": la foto llena el formato sin deformarse.
-      const escala = Math.max(W / img.width, H / img.height);
-      const w = img.width * escala;
-      const h = img.height * escala;
-      ctx.clearRect(0, 0, W, H);
-      ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
-
-      const fuente = (peso: number, px: number) =>
-        `${peso} ${px}px 'Plus Jakarta Sans', system-ui, sans-serif`;
-
-      if (!portada) {
-        // Slides del carrusel: solo una marca discreta, la foto manda.
-        pill(ctx, 0.045 * W, H - 0.045 * W - 54, AMBIENTE_NOMBRE[foto.ambiente], fuente(700, 30), {
-          fondo: "rgba(255,255,255,0.92)",
-          texto: "#16233a",
-        });
-        ctx.font = fuente(700, 26);
-        ctx.textAlign = "right";
-        ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.shadowColor = "rgba(0,0,0,0.45)";
-        ctx.shadowBlur = 10;
-        ctx.fillText(`${MARCA}  ·  ${p.codigo}`, W - 0.045 * W, H - 0.045 * W - 14);
-        ctx.shadowBlur = 0;
-        ctx.textAlign = "left";
-        return;
-      }
-
-      // Velo inferior para que el precio se lea sobre cualquier foto.
-      const velo = ctx.createLinearGradient(0, H * 0.4, 0, H);
-      velo.addColorStop(0, "rgba(9,20,34,0)");
-      velo.addColorStop(0.55, "rgba(9,20,34,0.72)");
-      velo.addColorStop(1, "rgba(9,20,34,0.94)");
-      ctx.fillStyle = velo;
-      ctx.fillRect(0, H * 0.4, W, H * 0.6);
-
-      const m = 0.062 * W;
-
-      // Etiqueta y firma, arriba, lejos del bloque de precio.
-      const altoPill = pill(ctx, m, m, `${anuncio.portada.tipo} en venta`.toUpperCase(), fuente(800, 0.026 * W), {
-        fondo: "#12507e",
-        texto: "#ffffff",
-        espaciado: 2,
-      });
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      ctx.font = fuente(700, 0.026 * W);
-      ctx.fillStyle = "#ffffff";
-      ctx.shadowColor = "rgba(9,20,34,0.55)";
-      ctx.shadowBlur = 12;
-      ctx.fillText(`${MARCA}  ·  ${anuncio.portada.codigo}`, W - m, m + altoPill / 2);
-      ctx.shadowBlur = 0;
-      ctx.textBaseline = "alphabetic";
-      ctx.textAlign = "left";
-
-      // Precio.
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#ffffff";
-      ctx.font = fuente(800, 0.115 * W);
-      const yPrecio = H - m - 0.145 * W;
-      ctx.fillText(anuncio.portada.precio, m, yPrecio);
-
-      // Zona.
-      ctx.font = fuente(600, 0.038 * W);
-      ctx.fillStyle = "rgba(255,255,255,0.94)";
-      ctx.fillText(anuncio.portada.zona, m, yPrecio + 0.052 * W);
-
-      // Datos duros.
-      ctx.font = fuente(700, 0.03 * W);
-      let x = m;
-      const yDatos = H - m - 0.028 * W;
-      for (const dato of anuncio.portada.datos) {
-        const ancho = ctx.measureText(dato).width + 0.044 * W;
-        ctx.fillStyle = "rgba(255,255,255,0.16)";
-        redondeado(ctx, x, yDatos - 0.038 * W, ancho, 0.055 * W, 0.028 * W);
-        ctx.fill();
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(dato, x + 0.022 * W, yDatos);
-        x += ancho + 0.018 * W;
-      }
-
+      await dibujarPieza({ canvas, anuncio, marca: MARCA, formato, foto, portada: indice === 0 });
     },
     [anuncio, p, formato, incluidas],
   );
@@ -296,7 +209,7 @@ function Publicacion() {
           {lista.map((x) => (
             <option key={x.id} value={x.id}>
               {x.codigo} · {TIPO_NOMBRE[x.tipo]} en {x.zona}
-              {x.estado !== "disponible" ? ` (${ESTADO_NOMBRE[x.estado].toLowerCase()})` : ""}
+              {x.estado !== "disponible" ? ` (${nombreEstado(x.estado, x.operacion).toLowerCase()})` : ""}
             </option>
           ))}
         </select>
@@ -593,53 +506,3 @@ function IconoBoton({
   );
 }
 
-// ── Utilidades de dibujo ──
-function cargarImagen(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-function redondeado(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-// Devuelve el alto de la pastilla, para alinear lo que vaya a su lado.
-function pill(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  texto: string,
-  fuente: string,
-  colores: { fondo: string; texto: string; espaciado?: number },
-): number {
-  ctx.font = fuente;
-  ctx.letterSpacing = `${colores.espaciado ?? 0}px`;
-  const alto = Number(fuente.match(/(\d+(?:\.\d+)?)px/)?.[1] ?? 30) * 2;
-  const ancho = ctx.measureText(texto).width + alto * 0.8;
-  ctx.fillStyle = colores.fondo;
-  redondeado(ctx, x, y, ancho, alto, alto / 2);
-  ctx.fill();
-  ctx.fillStyle = colores.texto;
-  ctx.textBaseline = "middle";
-  ctx.fillText(texto, x + alto * 0.4, y + alto / 2);
-  ctx.textBaseline = "alphabetic";
-  ctx.letterSpacing = "0px";
-  return alto;
-}

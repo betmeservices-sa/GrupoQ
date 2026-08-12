@@ -4,7 +4,9 @@ import { MODULO_RUTA, moduloDeRuta, ROLES } from "@/lib/roles";
 import { LEADS, PROPIEDADES } from "@/lib/inmobiliaria-datos";
 import {
   agruparPorEtapa,
-  agruparPorPagoYEtapa,
+  agruparPorCarrilYEtapa,
+  armarTablero,
+  carrilDe,
   construirPipeline,
   contarSinTocar,
   dineroEnJuego,
@@ -13,7 +15,7 @@ import {
   restarDias,
   resolverLead,
   resumirPorEtapa,
-  resumirPorFormaPago,
+  resumirPorCarril,
   sumarDias,
   urgenciaDe,
 } from "@/lib/inmobiliaria-pipeline";
@@ -24,6 +26,7 @@ import {
 } from "@/lib/inmobiliaria-cartera";
 import {
   armarAnuncio,
+  condicionesDeAlquiler,
   datosDePortada,
   departamentoDe,
   descripcionDe,
@@ -31,8 +34,25 @@ import {
   ordenarFotos,
   tituloDe,
 } from "@/lib/inmobiliaria-publicacion";
-import { dinero, dineroCorto, desdeHace, varas } from "@/lib/inmobiliaria-formato";
-import { ETAPAS, FORMAS_PAGO, type LeadSemilla, type PropiedadSemilla } from "@/lib/inmobiliaria-tipos";
+import {
+  dinero,
+  dineroCorto,
+  dineroMes,
+  desdeHace,
+  plazo,
+  precioDe,
+  varas,
+} from "@/lib/inmobiliaria-formato";
+import {
+  ETAPAS,
+  FORMAS_PAGO,
+  RESPALDOS,
+  nombreEstado,
+  nombreEtapa,
+  urgenciaMudanza,
+  type LeadSemilla,
+  type PropiedadSemilla,
+} from "@/lib/inmobiliaria-tipos";
 
 const HOY = "2026-08-12";
 
@@ -103,6 +123,17 @@ describe("el guion de Marcela califica antes de vender", () => {
     expect(p).toContain("de contado");
   });
 
+  // Preguntarle el FSV a alguien que quiere alquilar es no haber entendido nada.
+  it("separa compra de alquiler y no arrastra el crédito al alquiler", () => {
+    expect(p).toMatch(/¿COMPRA O ALQUILA\?/);
+    expect(p).toMatch(/SI BUSCA ALQUILER \(aquí NO aplica el FSV ni el banco\)/);
+    expect(p).toMatch(/En alquiler no preguntes forma de pago ni crédito/);
+    expect(p).toMatch(/DESDE CUÁNDO la necesita/);
+    expect(p).toMatch(/ingreso comprobable/);
+    expect(p).toMatch(/fiador/);
+    expect(p).toMatch(/depósito y plazo mínimo/);
+  });
+
   it("no descarta al que todavía no puede comprar", () => {
     expect(p).toMatch(/NO lo despidas/);
     expect(p).toMatch(/vuelven en unos meses/i);
@@ -128,21 +159,26 @@ describe("el guion de Marcela califica antes de vender", () => {
 });
 
 describe("navegación propia de la inmobiliaria", () => {
-  it("las tres pantallas tienen ruta y se resuelven desde el pathname", () => {
+  it("las cuatro pantallas tienen ruta y se resuelven desde el pathname", () => {
     expect(MODULO_RUTA.pipeline).toBe("/pipeline");
+    expect(MODULO_RUTA.visitas).toBe("/visitas");
     expect(MODULO_RUTA.cartera).toBe("/cartera");
     expect(MODULO_RUTA.publicacion).toBe("/publicacion");
     expect(moduloDeRuta("/pipeline")).toBe("pipeline");
+    expect(moduloDeRuta("/visitas")).toBe("visitas");
     expect(moduloDeRuta("/cartera")).toBe("cartera");
     expect(moduloDeRuta("/cartera/p1")).toBe("cartera");
+    expect(moduloDeRuta("/cartera/nueva")).toBe("cartera");
     expect(moduloDeRuta("/publicacion")).toBe("publicacion");
   });
 
-  it("el pipeline es de quien vende, no de marketing", () => {
+  it("el pipeline y las visitas son de quien vende, no de marketing", () => {
     for (const rol of ["medico", "jefe", "gerente_marketing", "admin", "recepcion"] as const) {
       expect(ROLES[rol].ve).toContain("pipeline");
+      expect(ROLES[rol].ve).toContain("visitas");
     }
     expect(ROLES.marketing.ve).not.toContain("pipeline");
+    expect(ROLES.marketing.ve).not.toContain("visitas");
   });
 
   it("marketing sí arma publicaciones y ve la cartera", () => {
@@ -166,6 +202,7 @@ function lead(over: Partial<LeadSemilla> = {}): LeadSemilla {
     id: "x1",
     nombre: "Prueba",
     canal: "whatsapp",
+    operacion: "venta",
     etapa: "nuevo",
     formaPago: "banco",
     presupuesto: 100000,
@@ -175,6 +212,18 @@ function lead(over: Partial<LeadSemilla> = {}): LeadSemilla {
     asesorId: "s2",
     ...over,
   };
+}
+
+function inquilino(over: Partial<LeadSemilla> = {}): LeadSemilla {
+  return lead({
+    id: "a1",
+    operacion: "alquiler",
+    formaPago: undefined,
+    respaldo: "ingreso",
+    presupuesto: 650,
+    busca: "Apartamento",
+    ...over,
+  });
 }
 
 describe("fechas del pipeline", () => {
@@ -224,11 +273,11 @@ describe("resúmenes del pipeline", () => {
   ].map((l) => resolverLead(l, HOY));
 
   it("cuenta leads y dinero por forma de pago, con las cuatro siempre presentes", () => {
-    const r = resumirPorFormaPago(leads);
-    expect(r.map((x) => x.formaPago)).toEqual(FORMAS_PAGO);
-    expect(r.find((x) => x.formaPago === "fsv")!.leads).toBe(2);
-    expect(r.find((x) => x.formaPago === "fsv")!.monto).toBe(160000);
-    expect(r.find((x) => x.formaPago === "contado")!.monto).toBe(400000);
+    const r = resumirPorCarril(leads, "venta");
+    expect(r.map((x) => x.carril)).toEqual(FORMAS_PAGO);
+    expect(r.find((x) => x.carril === "fsv")!.leads).toBe(2);
+    expect(r.find((x) => x.carril === "fsv")!.monto).toBe(160000);
+    expect(r.find((x) => x.carril === "contado")!.monto).toBe(400000);
   });
 
   it("cuenta leads y dinero por etapa, con las seis siempre presentes", () => {
@@ -278,7 +327,7 @@ describe("armado del tablero", () => {
       resolverLead(lead({ id: "b", formaPago: "fsv", etapa: "oferta" }), HOY),
       resolverLead(lead({ id: "c", formaPago: "contado", etapa: "visita" }), HOY),
     ];
-    const matriz = agruparPorPagoYEtapa(mixtos);
+    const matriz = agruparPorCarrilYEtapa(mixtos, "venta");
     expect(Object.keys(matriz)).toEqual(FORMAS_PAGO);
     expect(Object.keys(matriz.fsv)).toEqual(ETAPAS);
     expect(matriz.fsv.visita.map((l) => l.id)).toEqual(["a"]);
@@ -288,16 +337,107 @@ describe("armado del tablero", () => {
   });
 });
 
+// ── Alquiler: otro negocio, no otro rótulo ──
+
+describe("el carril de un lead depende de la operación", () => {
+  it("en venta califica la forma de pago", () => {
+    expect(carrilDe(lead({ formaPago: "fsv" }))).toBe("fsv");
+  });
+
+  it("en alquiler califica lo que respalda la renta, no el FSV", () => {
+    expect(carrilDe(inquilino({ respaldo: "fiador" }))).toBe("fiador");
+    // Aunque venga con una forma de pago pegada de otro lado, en alquiler no
+    // se usa: ahí el FSV no existe.
+    expect(carrilDe({ operacion: "alquiler", formaPago: "fsv", respaldo: "deposito" })).toBe("deposito");
+  });
+
+  it("lo que no se preguntó queda sin definir, no se asume", () => {
+    expect(carrilDe({ operacion: "alquiler" })).toBe("sin_definir");
+    expect(carrilDe({ operacion: "venta" })).toBe("sin_definir");
+  });
+
+  it("el tablero de alquiler tiene sus cuatro carriles y ninguno de venta", () => {
+    const t = armarTablero([resolverLead(inquilino(), HOY)], "alquiler");
+    expect(t.porCarril.map((c) => c.carril)).toEqual(RESPALDOS);
+    expect(t.porCarril.some((c) => c.carril === "fsv")).toBe(false);
+  });
+});
+
+describe("los dos tableros no se mezclan", () => {
+  const mezcla = [
+    lead({ id: "v1", presupuesto: 200000, etapa: "visita" }),
+    lead({ id: "v2", presupuesto: 300000, etapa: "oferta" }),
+    inquilino({ id: "a1", presupuesto: 650, etapa: "visita" }),
+    inquilino({ id: "a2", presupuesto: 950, etapa: "calificado", respaldo: "fiador" }),
+  ];
+  const pipeline = construirPipeline({ leads: mezcla, hoy: HOY });
+
+  it("cada lead cae en su tablero", () => {
+    expect(pipeline.venta.leads.map((l) => l.id)).toEqual(["v1", "v2"]);
+    expect(pipeline.alquiler.leads.map((l) => l.id)).toEqual(["a1", "a2"]);
+  });
+
+  // Un techo de compra de 500 mil y una renta de 1,600 al mes no son la misma
+  // unidad: sumarlos daría un número que no significa nada.
+  it("el dinero en juego se cuenta aparte y nunca se suma", () => {
+    expect(pipeline.venta.enJuego).toBe(500000);
+    expect(pipeline.alquiler.enJuego).toBe(1600);
+  });
+
+  it("la etapa se llama distinto según la operación", () => {
+    expect(nombreEtapa("oferta", "venta")).toBe("Oferta");
+    expect(nombreEtapa("oferta", "alquiler")).toBe("Contrato");
+    expect(nombreEtapa("cerrado", "alquiler")).toBe("Entregada");
+    expect(nombreEtapa("visita", "alquiler")).toBe("Visita agendada");
+  });
+
+  it("desde cuándo la necesita se resuelve contra hoy", () => {
+    const l = resolverLead(inquilino({ mudanzaEnDias: 5 }), HOY);
+    expect(l.mudanza).toBe("inmediata");
+    expect(l.mudanzaEl).toBe("2026-08-17");
+    expect(urgenciaMudanza(20)).toBe("este_mes");
+    expect(urgenciaMudanza(60)).toBe("mas_adelante");
+    expect(urgenciaMudanza(undefined)).toBe("sin_definir");
+  });
+
+  it("a un comprador no se le pregunta cuándo se muda", () => {
+    expect(resolverLead(lead({ mudanzaEnDias: 5 }), HOY).mudanza).toBe("sin_definir");
+  });
+});
+
 describe("leads sembrados", () => {
   const pipeline = construirPipeline({ leads: LEADS, hoy: HOY });
 
   it("cubren las cuatro formas de pago y las seis etapas", () => {
     for (const p of FORMAS_PAGO) {
-      expect(pipeline.leads.some((l) => l.formaPago === p)).toBe(true);
+      expect(pipeline.venta.leads.some((l) => l.carril === p)).toBe(true);
     }
     for (const e of ETAPAS) {
       expect(pipeline.leads.some((l) => l.etapa === e)).toBe(true);
     }
+  });
+
+  it("el demo también tiene alquiler vivo, con sus cuatro respaldos y sus etapas", () => {
+    expect(pipeline.alquiler.leads.length).toBeGreaterThan(4);
+    for (const r of RESPALDOS) {
+      expect(pipeline.alquiler.leads.some((l) => l.carril === r)).toBe(true);
+    }
+    for (const e of ["nuevo", "calificado", "no_calificado", "visita", "oferta", "cerrado"] as const) {
+      expect(pipeline.alquiler.leads.some((l) => l.etapa === e)).toBe(true);
+    }
+  });
+
+  it("la renta que se juega se mide al mes y en el rango salvadoreño", () => {
+    expect(pipeline.alquiler.enJuego).toBeGreaterThan(0);
+    for (const l of pipeline.alquiler.leads) {
+      expect(l.presupuesto).toBeGreaterThanOrEqual(200);
+      expect(l.presupuesto).toBeLessThanOrEqual(5000);
+    }
+  });
+
+  it("ningún lead de alquiler arrastra una forma de pago de venta", () => {
+    for (const l of pipeline.alquiler.leads) expect(l.formaPago).toBeUndefined();
+    for (const l of pipeline.venta.leads) expect(l.respaldo).toBeUndefined();
   });
 
   it("hay leads en rojo, que es lo que hace actuar al agente", () => {
@@ -329,6 +469,7 @@ function propiedad(over: Partial<PropiedadSemilla> = {}): PropiedadSemilla {
   return {
     id: "x",
     codigo: "TZ-900",
+    operacion: "venta",
     tipo: "casa",
     titulo: "Casa de prueba",
     zona: "Santa Tecla",
@@ -405,7 +546,35 @@ describe("cartera sembrada", () => {
   it("resume lo que está a la venta", () => {
     expect(cartera.resumen.total).toBe(PROPIEDADES.length);
     expect(cartera.resumen.disponibles).toBeGreaterThan(0);
-    expect(cartera.resumen.valorDisponible).toBeGreaterThan(0);
+    expect(cartera.resumen.valorVenta).toBeGreaterThan(0);
+  });
+
+  // Sumar el precio de una casa con la renta de un apartamento daría un número
+  // que no significa nada, así que van en dos bolsas.
+  it("el valor de venta y la renta mensual se cuentan aparte", () => {
+    expect(cartera.resumen.enVenta).toBeGreaterThan(0);
+    expect(cartera.resumen.enAlquiler).toBeGreaterThan(0);
+    expect(cartera.resumen.enVenta + cartera.resumen.enAlquiler).toBe(cartera.resumen.disponibles);
+    expect(cartera.resumen.rentaMensual).toBeGreaterThan(0);
+    // La renta junta de toda la cartera es mucho menor que el precio de una
+    // sola casa: si alguien las suma en un solo total, esto se cae.
+    expect(cartera.resumen.rentaMensual).toBeLessThan(cartera.resumen.valorVenta / 10);
+  });
+
+  it("hay cartera de alquiler con depósito y plazo, que es lo que preguntan", () => {
+    const alquiler = cartera.propiedades.filter((p) => p.operacion === "alquiler");
+    expect(alquiler.length).toBeGreaterThanOrEqual(3);
+    for (const p of alquiler) {
+      expect(p.precio).toBeLessThan(5000); // es renta mensual, no precio de venta
+      expect(p.deposito).toBeGreaterThan(0);
+      expect(p.plazoMinimoMeses).toBeGreaterThan(0);
+    }
+  });
+
+  it("una en alquiler ya entregada y todavía publicada es el mismo error caro", () => {
+    const mala = cartera.propiedades.find((p) => p.operacion === "alquiler" && p.publicadaSinEstar);
+    expect(mala).toBeDefined();
+    expect(nombreEstado(mala!.estado, "alquiler")).toBe("Alquilada");
   });
 
   it("trae el error caro sembrado, para que se vea en el demo", () => {
@@ -428,10 +597,17 @@ describe("cartera sembrada", () => {
     }
   });
 
-  it("los precios se mueven en el rango salvadoreño", () => {
+  // Cada operación tiene su rango: una venta se cuenta en cientos de miles y
+  // una renta en cientos. La vara para juzgarlas no puede ser la misma.
+  it("los precios se mueven en el rango salvadoreño de cada operación", () => {
     for (const p of cartera.propiedades) {
-      expect(p.precio).toBeGreaterThanOrEqual(50000);
-      expect(p.precio).toBeLessThanOrEqual(700000);
+      if (p.operacion === "alquiler") {
+        expect(p.precio).toBeGreaterThanOrEqual(200);
+        expect(p.precio).toBeLessThanOrEqual(5000);
+      } else {
+        expect(p.precio).toBeGreaterThanOrEqual(50000);
+        expect(p.precio).toBeLessThanOrEqual(700000);
+      }
     }
   });
 });
@@ -451,6 +627,20 @@ describe("filtros de la cartera", () => {
     expect(filtrarCartera(propiedades, { estado: "vendida" })[0].codigo).toBe("TZ-902");
     expect(filtrarCartera(propiedades, { zona: "La Libertad" })).toHaveLength(1);
     expect(filtrarCartera(propiedades, {})).toHaveLength(2);
+  });
+
+  it("se puede ver solo lo que está en alquiler", () => {
+    const mixta = [
+      resolverPropiedad(propiedad({ id: "1", codigo: "TZ-903" }), HOY, []),
+      resolverPropiedad(
+        propiedad({ id: "2", codigo: "TZ-904", operacion: "alquiler", precio: 650 }),
+        HOY,
+        [],
+      ),
+    ];
+    expect(filtrarCartera(mixta, { operacion: "alquiler" })[0].codigo).toBe("TZ-904");
+    expect(filtrarCartera(mixta, { operacion: "venta" })[0].codigo).toBe("TZ-903");
+    expect(filtrarCartera(mixta, { operacion: "todas" })).toHaveLength(2);
   });
 
   it("busca por código, zona o propietario", () => {
@@ -506,6 +696,12 @@ describe("texto del anuncio", () => {
     expect(tituloDe(terreno)).toContain("850 v²");
   });
 
+  it("el título de un alquiler no dice en venta", () => {
+    const renta = resolverPropiedad(propiedad({ operacion: "alquiler", precio: 650 }), HOY, []);
+    expect(tituloDe(renta)).toContain("en alquiler");
+    expect(tituloDe(renta)).not.toContain("en venta");
+  });
+
   it("la descripción sale de la ficha, sin inventar nada", () => {
     const d = descripcionDe(casa);
     expect(d).toContain("Resumen");
@@ -533,6 +729,51 @@ describe("texto del anuncio", () => {
     expect(departamentoDe("San Salvador")).toBe("San Salvador");
     expect(departamentoDe("Antiguo Cuscatlán")).toBe("La Libertad");
     expect(departamentoDe("Colón")).toBe("La Libertad");
+  });
+});
+
+describe("anuncio de alquiler", () => {
+  const renta = resolverPropiedad(
+    propiedad({ operacion: "alquiler", precio: 650, deposito: 650, plazoMinimoMeses: 12 }),
+    HOY,
+    [],
+  );
+
+  it("el precio se escribe al mes en todas partes", () => {
+    const a = armarAnuncio(renta);
+    expect(a.portada.precio).toBe("$650/mes");
+    expect(a.portada.etiqueta).toBe("Casa en alquiler");
+    expect(a.descripcion).toContain("$650/mes");
+    expect(a.descripcion).not.toContain("Precio:");
+  });
+
+  it("el depósito y el plazo van en el anuncio, no en la letra chica", () => {
+    expect(condicionesDeAlquiler(renta)).toEqual(["Depósito: $650", "Contrato mínimo: un año"]);
+    const a = armarAnuncio(renta);
+    expect(a.descripcion).toContain("Depósito: $650");
+    expect(a.descripcion).toContain("Contrato mínimo: un año");
+    expect(a.encuentra24).toContain("Renta mensual: US$ 650");
+    expect(a.encuentra24).toContain("Contrato mínimo: 12 meses");
+  });
+
+  it("una casa en venta no habla de depósito", () => {
+    const venta = resolverPropiedad(propiedad(), HOY, []);
+    expect(condicionesDeAlquiler(venta)).toEqual([]);
+    expect(armarAnuncio(venta).descripcion).not.toContain("Depósito");
+  });
+
+  it("quien busca alquiler no busca con las palabras del que compra", () => {
+    expect(armarAnuncio(renta).hashtags).toContain("#CasaEnAlquiler");
+    expect(armarAnuncio(renta).hashtags).not.toContain("#CasaEnVenta");
+  });
+
+  it("una ya alquilada se bloquea con su palabra", () => {
+    const ida = resolverPropiedad(
+      propiedad({ operacion: "alquiler", precio: 650, estado: "vendida" }),
+      HOY,
+      [],
+    );
+    expect(armarAnuncio(ida).bloqueo).toContain("alquilada");
   });
 });
 
@@ -594,6 +835,20 @@ describe("formato de dinero y medidas", () => {
   it("el dólar va sin centavos", () => {
     expect(dinero(425000)).toBe("$425,000");
     expect(dinero(76500.4)).toBe("$76,500");
+  });
+
+  // Un "$650" suelto al lado de un "$425,000" se lee como precio de venta.
+  it("la renta lleva el al mes pegado", () => {
+    expect(dineroMes(650)).toBe("$650/mes");
+    expect(precioDe({ operacion: "alquiler", precio: 950 })).toBe("$950/mes");
+    expect(precioDe({ operacion: "venta", precio: 198000 })).toBe("$198,000");
+  });
+
+  it("el plazo se dice como lo dice el agente", () => {
+    expect(plazo(12)).toBe("un año");
+    expect(plazo(6)).toBe("6 meses");
+    expect(plazo(24)).toBe("dos años");
+    expect(plazo(1)).toBe("un mes");
   });
 
   it("los totales de columna se acortan", () => {

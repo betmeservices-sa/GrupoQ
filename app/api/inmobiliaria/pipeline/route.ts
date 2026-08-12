@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cargarPipeline } from "@/lib/inmobiliaria-pipeline";
+import { cargarPipeline } from "@/lib/inmobiliaria-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";

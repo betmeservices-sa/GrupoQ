@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Bath,
   BedDouble,
+  Camera,
   Car,
   LayoutGrid,
   List,
@@ -17,15 +18,18 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { activeTenantId } from "@/lib/tenants/active";
-import { dinero, fechaCorta, metros, varas } from "@/lib/inmobiliaria-formato";
+import { dinero, dineroMes, fechaCorta, metros, precioDe, varas } from "@/lib/inmobiliaria-formato";
 import { filtrarCartera } from "@/lib/inmobiliaria-cartera";
 import { ordenarFotos } from "@/lib/inmobiliaria-publicacion";
 import {
   ESTADO_NOMBRE,
+  OPERACION_NOMBRE,
   TIPO_NOMBRE,
+  nombreEstado,
   type Cartera,
   type EstadoPropiedad,
   type Propiedad,
+  type TipoOperacion,
   type TipoPropiedad,
 } from "@/lib/inmobiliaria-tipos";
 
@@ -56,6 +60,7 @@ export default function CarteraPage() {
   const [cargando, setCargando] = useState(true);
   const [vista, setVista] = useState<"galeria" | "lista">("galeria");
   const [texto, setTexto] = useState("");
+  const [operacion, setOperacion] = useState<TipoOperacion | "todas">("todas");
   const [tipo, setTipo] = useState<TipoPropiedad | "todos">("todos");
   const [estado, setEstado] = useState<EstadoPropiedad | "todos">("todos");
   const [zona, setZona] = useState("todas");
@@ -87,8 +92,8 @@ export default function CarteraPage() {
   );
 
   const visibles = useMemo(
-    () => filtrarCartera(cartera?.propiedades ?? [], { texto, tipo, estado, zona }),
-    [cartera, texto, tipo, estado, zona],
+    () => filtrarCartera(cartera?.propiedades ?? [], { texto, operacion, tipo, estado, zona }),
+    [cartera, texto, operacion, tipo, estado, zona],
   );
 
   if (!esInmobiliaria) return <div className="flex-1 bg-surface" />;
@@ -98,24 +103,36 @@ export default function CarteraPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-card px-5 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-card px-4 py-3 sm:px-5">
         <div>
           <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Cartera</h1>
           <p className="text-[12.5px] text-[var(--text-3)]">
             {cartera
-              ? `${cartera.resumen.disponibles} a la venta por ${dinero(cartera.resumen.valorDisponible)} · ${cartera.resumen.exclusivas} en exclusiva`
+              ? `${cartera.resumen.enVenta} en venta por ${dinero(cartera.resumen.valorVenta)} · ${cartera.resumen.enAlquiler} en alquiler por ${dineroMes(cartera.resumen.rentaMensual)}`
               : "Cargando las propiedades"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={cargar}
-          disabled={cargando}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
-        >
-          <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
-          Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={cargar}
+            disabled={cargando}
+            aria-label="Actualizar"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
+          >
+            <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
+            <span className="hidden sm:inline">Actualizar</span>
+          </button>
+          {/* La entrada al alta desde el teléfono: es lo primero que busca el
+              agente cuando ya está parado frente a la casa. */}
+          <Link
+            href="/cartera/nueva"
+            className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-brand px-3.5 py-2 text-[13px] font-bold text-white shadow-sm shadow-brand/25 transition hover:brightness-110"
+          >
+            <Camera size={16} />
+            Agregar propiedad
+          </Link>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
@@ -146,7 +163,7 @@ export default function CarteraPage() {
                 </p>
                 <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-2)]">
                   {publicadasMal
-                    .map((p) => `${p.codigo} está ${ESTADO_NOMBRE[p.estado].toLowerCase()}`)
+                    .map((p) => `${p.codigo} está ${nombreEstado(p.estado, p.operacion).toLowerCase()}`)
                     .join(" · ")}
                   . Cada consulta que entre por ellas es tiempo perdido y un cliente molesto.
                 </p>
@@ -191,6 +208,18 @@ export default function CarteraPage() {
                   className={cn(CAMPO, "w-64 pl-9")}
                 />
               </label>
+              <select
+                value={operacion}
+                onChange={(e) => setOperacion(e.target.value as typeof operacion)}
+                className={CAMPO}
+              >
+                <option value="todas">Venta y alquiler</option>
+                {(["venta", "alquiler"] as TipoOperacion[]).map((o) => (
+                  <option key={o} value={o}>
+                    {OPERACION_NOMBRE[o]}
+                  </option>
+                ))}
+              </select>
               <select value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)} className={CAMPO}>
                 <option value="todos">Todo tipo</option>
                 {(Object.keys(TIPO_NOMBRE) as TipoPropiedad[]).map((t) => (
@@ -272,7 +301,7 @@ function Sello({ p }: { p: Propiedad }) {
         ESTADO_TONO[p.estado],
       )}
     >
-      {ESTADO_NOMBRE[p.estado]}
+      {nombreEstado(p.estado, p.operacion)}
     </span>
   );
 }
@@ -336,12 +365,12 @@ function TarjetaPropiedad({ p }: { p: Propiedad }) {
       <div className="p-4">
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-[17px] font-extrabold tracking-tight text-[var(--text)]">
-            {dinero(p.precio)}
+            {precioDe(p)}
           </p>
           <span className="text-[11.5px] font-semibold text-[var(--text-3)]">{p.codigo}</span>
         </div>
         <p className="mt-0.5 truncate text-[13px] font-semibold text-[var(--text-2)]">
-          {TIPO_NOMBRE[p.tipo]} en {p.zona}
+          {TIPO_NOMBRE[p.tipo]} {p.operacion === "alquiler" ? "en alquiler" : "en venta"} en {p.zona}
         </p>
         <p className="text-[12px] text-[var(--text-3)]">{p.municipio}</p>
         <div className="mt-2.5 border-t border-line pt-2.5">
@@ -391,7 +420,7 @@ function TablaPropiedades({ propiedades }: { propiedades: Propiedad[] }) {
                   />
                   <span className="min-w-0">
                     <span className="block truncate font-bold text-[var(--text)]">
-                      {TIPO_NOMBRE[p.tipo]} en {p.zona}
+                      {TIPO_NOMBRE[p.tipo]} {p.operacion === "alquiler" ? "en alquiler" : "en venta"} en {p.zona}
                     </span>
                     <span className="block text-[11.5px] text-[var(--text-3)]">
                       {p.codigo} · {p.municipio}
@@ -399,7 +428,7 @@ function TablaPropiedades({ propiedades }: { propiedades: Propiedad[] }) {
                   </span>
                 </Link>
               </td>
-              <td className="px-4 py-2.5 font-extrabold text-[var(--text)]">{dinero(p.precio)}</td>
+              <td className="px-4 py-2.5 font-extrabold text-[var(--text)]">{precioDe(p)}</td>
               <td className="px-4 py-2.5">
                 <Ficha p={p} />
               </td>

@@ -1,18 +1,25 @@
 // Pipeline de leads del tenant "inmobiliaria". Todo puro: la vista se arma con
 // lo que se le pasa (leads + el día de hoy), sin tocar red ni reloj, para poder
 // probarlo con fechas fijas.
+//
+// Venta y alquiler corren en tableros SEPARADOS. No es un rótulo distinto: el
+// carril que califica cambia (forma de pago contra respaldo de la renta) y el
+// dinero no es la misma unidad (precio total contra renta mensual). Sumarlos
+// daría un número que no significa nada.
 
-import { LEADS } from "./inmobiliaria-datos";
 import {
+  CARRILES,
   ETAPAS,
-  FORMAS_PAGO,
+  urgenciaMudanza,
+  type Carril,
   type Etapa,
-  type FormaPago,
   type Lead,
   type LeadSemilla,
   type Pipeline,
+  type ResumenCarril,
   type ResumenEtapa,
-  type ResumenFormaPago,
+  type TableroOperacion,
+  type TipoOperacion,
   type Urgencia,
 } from "./inmobiliaria-tipos";
 
@@ -55,21 +62,37 @@ export function urgenciaDe(etapa: Etapa, dias: number): Urgencia {
   return "al_dia";
 }
 
+// El carril del lead: en venta la forma de pago, en alquiler lo que respalda la
+// renta. Lo que no se preguntó cae en "sin definir", nunca se asume.
+export function carrilDe(l: Pick<LeadSemilla, "operacion" | "formaPago" | "respaldo">): Carril {
+  return l.operacion === "alquiler" ? (l.respaldo ?? "sin_definir") : (l.formaPago ?? "sin_definir");
+}
+
 export function resolverLead(semilla: LeadSemilla, hoy: string): Lead {
   const dias = Math.max(0, Math.round(semilla.hace));
+  const mudanzaEnDias = semilla.operacion === "alquiler" ? semilla.mudanzaEnDias : undefined;
   return {
     ...semilla,
     dias,
     ultimoContacto: restarDias(hoy, dias),
     urgencia: urgenciaDe(semilla.etapa, dias),
+    carril: carrilDe(semilla),
+    mudanza: urgenciaMudanza(mudanzaEnDias),
+    mudanzaEl: typeof mudanzaEnDias === "number" ? sumarDias(hoy, mudanzaEnDias) : undefined,
   };
 }
 
-export function resumirPorFormaPago(leads: Lead[]): ResumenFormaPago[] {
-  return FORMAS_PAGO.map((formaPago) => {
-    const propios = leads.filter((l) => l.formaPago === formaPago);
+export function soloDe(leads: Lead[], operacion: TipoOperacion): Lead[] {
+  return leads.filter((l) => l.operacion === operacion);
+}
+
+// Los carriles de una operación, siempre los cuatro, aunque alguno vaya en cero:
+// una columna vacía también dice algo (nadie con fiador, por ejemplo).
+export function resumirPorCarril(leads: Lead[], operacion: TipoOperacion): ResumenCarril[] {
+  return CARRILES[operacion].map((carril) => {
+    const propios = leads.filter((l) => l.carril === carril);
     return {
-      formaPago,
+      carril,
       leads: propios.length,
       monto: propios.reduce((s, l) => s + l.presupuesto, 0),
     };
@@ -93,7 +116,8 @@ export function contarSinTocar(leads: Lead[]): number {
 }
 
 // Dinero de los leads que todavía se pueden ganar. Los cerrados ya no están en
-// juego y los no calificados no pueden comprar hoy: ninguno de los dos suma.
+// juego y los no calificados no pueden hoy: ninguno de los dos suma. En alquiler
+// el resultado es renta AL MES, no un total.
 export function dineroEnJuego(leads: Lead[]): number {
   return leads
     .filter((l) => l.etapa !== "cerrado" && l.etapa !== "no_calificado")
@@ -114,14 +138,30 @@ export function agruparPorEtapa(leads: Lead[]): Record<Etapa, Lead[]> {
   return mapa;
 }
 
-// La matriz que pidió el tablero: forma de pago por etapa, sin perder ninguna de
-// las dos dimensiones.
-export function agruparPorPagoYEtapa(leads: Lead[]): Record<FormaPago, Record<Etapa, Lead[]>> {
-  const mapa = {} as Record<FormaPago, Record<Etapa, Lead[]>>;
-  for (const pago of FORMAS_PAGO) {
-    mapa[pago] = agruparPorEtapa(leads.filter((l) => l.formaPago === pago));
+// La matriz que pide el tablero: carril por etapa, sin perder ninguna de las dos
+// dimensiones. Los carriles salen de la operación, así que un tablero de
+// alquiler nunca muestra una fila de FSV.
+export function agruparPorCarrilYEtapa(
+  leads: Lead[],
+  operacion: TipoOperacion,
+): Record<Carril, Record<Etapa, Lead[]>> {
+  const mapa = {} as Record<Carril, Record<Etapa, Lead[]>>;
+  for (const carril of CARRILES[operacion]) {
+    mapa[carril] = agruparPorEtapa(leads.filter((l) => l.carril === carril));
   }
   return mapa;
+}
+
+export function armarTablero(leads: Lead[], operacion: TipoOperacion): TableroOperacion {
+  const propios = soloDe(leads, operacion);
+  return {
+    operacion,
+    leads: propios,
+    porCarril: resumirPorCarril(propios, operacion),
+    porEtapa: resumirPorEtapa(propios),
+    sinTocar: contarSinTocar(propios),
+    enJuego: dineroEnJuego(propios),
+  };
 }
 
 export function construirPipeline(entrada: { leads: LeadSemilla[]; hoy: string }): Pipeline {
@@ -129,14 +169,8 @@ export function construirPipeline(entrada: { leads: LeadSemilla[]; hoy: string }
   return {
     hoy: entrada.hoy,
     leads,
-    porFormaPago: resumirPorFormaPago(leads),
-    porEtapa: resumirPorEtapa(leads),
+    venta: armarTablero(leads, "venta"),
+    alquiler: armarTablero(leads, "alquiler"),
     sinTocar: contarSinTocar(leads),
-    enJuego: dineroEnJuego(leads),
   };
-}
-
-// Lo que sirve la ruta de API.
-export function cargarPipeline(hoy = hoyEnSv()): Pipeline {
-  return construirPipeline({ leads: LEADS, hoy });
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BedDouble, Bot, Building2, CalendarDays, ConciergeBell, Contact, Filter, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, Share2, X, type LucideIcon } from "lucide-react";
+import { BarChart3, BedDouble, Bot, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, Share2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -26,6 +26,7 @@ const NAV: NavItem[] = [
   { id: "habitaciones", href: "/habitaciones", label: "Habitaciones", Icon: BedDouble },
   { id: "calendario", href: "/calendario", label: "Calendario", Icon: CalendarDays },
   { id: "pipeline", href: "/pipeline", label: "Pipeline", Icon: Filter },
+  { id: "visitas", href: "/visitas", label: "Visitas", Icon: CalendarClock },
   { id: "cartera", href: "/cartera", label: "Cartera", Icon: Building2 },
   { id: "publicacion", href: "/publicacion", label: "Publicación", Icon: Share2 },
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
@@ -56,7 +57,7 @@ export function Sidebar({
   // agencia, asi que solo lo ve miagentia, nunca un cliente.
   // "hoy", "habitaciones" y "calendario" se apoyan en el sistema de reservas del
   // hotel: solo el hotel.
-  // "pipeline", "cartera" y "publicacion" son el tablero del agente
+  // "pipeline", "visitas", "cartera" y "publicacion" son el tablero del agente
   // inmobiliario: solo la inmobiliaria.
   const tenant = activeTenantId();
   const veLlamadas = tenant === "miagentia" || tenant === "hospital";
@@ -72,6 +73,7 @@ export function Sidebar({
       (item.id !== "calendario" || veHotel) &&
       (item.id !== "hoy" || veHotel) &&
       (item.id !== "pipeline" || veInmobiliaria) &&
+      (item.id !== "visitas" || veInmobiliaria) &&
       (item.id !== "cartera" || veInmobiliaria) &&
       (item.id !== "publicacion" || veInmobiliaria),
   );

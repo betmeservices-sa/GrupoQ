@@ -17,12 +17,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { activeTenantId } from "@/lib/tenants/active";
-import { dinero, fechaLarga, metros, varas } from "@/lib/inmobiliaria-formato";
+import { dinero, fechaLarga, metros, plazo, precioDe, varas } from "@/lib/inmobiliaria-formato";
 import { ordenarFotos } from "@/lib/inmobiliaria-publicacion";
 import {
   AMBIENTE_NOMBRE,
-  ESTADO_NOMBRE,
+  OPERACION_EN,
   TIPO_NOMBRE,
+  nombreEstado,
   type Propiedad,
 } from "@/lib/inmobiliaria-tipos";
 
@@ -80,7 +81,9 @@ export default function FichaPropiedadPage() {
               {p ? p.codigo : "Ficha"}
             </h1>
             <p className="text-[12.5px] text-[var(--text-3)]">
-              {p ? `${TIPO_NOMBRE[p.tipo]} en ${p.zona}, ${p.municipio}` : "Cargando"}
+              {p
+                ? `${TIPO_NOMBRE[p.tipo]} ${OPERACION_EN[p.operacion]} en ${p.zona}, ${p.municipio}`
+                : "Cargando"}
             </p>
           </div>
         </div>
@@ -157,7 +160,7 @@ export default function FichaPropiedadPage() {
               <div className="rounded-2xl border border-line bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[28px] font-extrabold leading-none tracking-tight text-[var(--text)]">
-                    {dinero(p.precio)}
+                    {precioDe(p)}
                   </p>
                   <span
                     className={cn(
@@ -169,10 +172,21 @@ export default function FichaPropiedadPage() {
                           : "bg-[var(--brand-red)]",
                     )}
                   >
-                    {ESTADO_NOMBRE[p.estado]}
+                    {nombreEstado(p.estado, p.operacion)}
                   </span>
                 </div>
                 <p className="mt-1 text-[13px] text-[var(--text-2)]">{p.titulo}</p>
+
+                {/* Las dos preguntas de todo el que alquila, arriba y no en la
+                    letra chica. */}
+                {p.operacion === "alquiler" && (p.deposito || p.plazoMinimoMeses) && (
+                  <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-surface px-3 py-2 text-[12.5px] font-semibold text-[var(--text-2)]">
+                    {p.deposito ? <span>Depósito {dinero(p.deposito)}</span> : null}
+                    {p.plazoMinimoMeses ? (
+                      <span>Contrato mínimo {plazo(p.plazoMinimoMeses)}</span>
+                    ) : null}
+                  </p>
+                )}
 
                 {p.publicadaSinEstar && (
                   <p className="mt-3 flex items-start gap-2 rounded-xl border border-[var(--brand-red)]/50 bg-[var(--brand-red)]/[0.08] px-3 py-2.5 text-[12.5px] font-semibold text-[var(--brand-red)]">
