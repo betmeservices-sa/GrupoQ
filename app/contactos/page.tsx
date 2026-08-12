@@ -22,6 +22,7 @@ import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import { telefonoBonito } from "@/lib/phone";
 import { Avatar, inicialesDe } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { HuespedPms } from "@/components/hotel/HuespedPms";
 
 interface ContactoDTO {
   telefono: string;
@@ -447,6 +448,15 @@ function Ficha({
             <DatoFila Icon={Phone} label="Teléfono" valor={telefonoBonito(contacto.telefono)} />
             <DatoFila Icon={Mail} label="Correo" valor={contacto.correo || "Sin correo"} />
           </Seccion>
+
+          {/* Lo que sabe el sistema de reservas. Solo el hotel tiene uno conectado. */}
+          {activeTenantId() === "hotel" && (
+            <HuespedPms
+              telefono={contacto.telefono}
+              correo={contacto.correo}
+              nombre={nombreDe(contacto)}
+            />
+          )}
 
           {/* Etiquetas editables */}
           <Seccion titulo="Etiquetas">

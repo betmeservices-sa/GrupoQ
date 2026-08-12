@@ -43,6 +43,18 @@ describe("telefonoLocal", () => {
     // "503123456789": length=12, length-3=9 != 8 -> retorna "503123456789"
     expect(telefonoLocal("503123456789")).toBe("503123456789");
   });
+
+  it("tambien quita el 502 del hotel, que tiene la misma numeracion de 8 digitos", () => {
+    expect(telefonoLocal("50257881234")).toBe("57881234");
+    expect(telefonoLocal("+502 4120-7766")).toBe("41207766");
+  });
+
+  it("no le recorta digitos a un numero de otro pais", () => {
+    // Estados Unidos: 11 digitos que empiezan con 1, no se toca.
+    expect(telefonoLocal("12025550123")).toBe("12025550123");
+    // Mexico: 12 digitos, tampoco.
+    expect(telefonoLocal("525512345678")).toBe("525512345678");
+  });
 });
 
 describe("telefonoBonito", () => {
@@ -76,5 +88,9 @@ describe("telefonoBonito", () => {
   it("devuelve digitos sin formato cuando 503 + digitos extras no dan exactamente 8 locales", () => {
     // "503123456789": telefonoLocal devuelve "503123456789" (length 12 != 8) -> sin guion
     expect(telefonoBonito("503123456789")).toBe("503123456789");
+  });
+
+  it("formatea el numero guatemalteco del hotel", () => {
+    expect(telefonoBonito("50257881234")).toBe("5788-1234");
   });
 });

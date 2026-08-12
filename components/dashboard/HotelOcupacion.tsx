@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   BedDouble,
   CalendarCheck,
   CalendarX,
   CircleDollarSign,
+  ConciergeBell,
   Loader2,
   RefreshCw,
   Sparkles,
@@ -209,15 +211,24 @@ function Encabezado({
           {panel.propiedad?.nombre} · próximas {panel.dias} noches · leído a las {hora}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onRecargar}
-        disabled={cargando}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
-      >
-        <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
-        Actualizar
-      </button>
+      <div className="flex items-center gap-2">
+        <Link
+          href="/hoy"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-bold text-white shadow-sm shadow-brand/25 transition hover:brightness-110"
+        >
+          <ConciergeBell size={13} />
+          Llegadas, salidas y limpieza de hoy
+        </Link>
+        <button
+          type="button"
+          onClick={onRecargar}
+          disabled={cargando}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
+        >
+          <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
+          Actualizar
+        </button>
+      </div>
     </div>
   );
 }

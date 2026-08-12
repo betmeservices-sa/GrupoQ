@@ -6,6 +6,7 @@ import { activeTenant } from "./tenants/active";
 
 export type ModuleId =
   | "bandeja"
+  | "hoy"
   | "contactos"
   | "habitaciones"
   | "calendario"
@@ -28,15 +29,15 @@ export interface RoleDef {
 //   Dirección       -> todo
 //   Gerente de Mkt. -> todo
 // Médico/Asesor y Jefe mantienen su acceso operativo (bandeja/interno/dashboard).
-// "habitaciones" y "calendario" solo existen en el tenant del hotel (el Sidebar
-// los filtra); los roles que atienden al huésped los ven, marketing no.
-const TODO: ModuleId[] = ["bandeja", "contactos", "habitaciones", "calendario", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
+// "hoy", "habitaciones" y "calendario" solo existen en el tenant del hotel (el
+// Sidebar los filtra); los roles que atienden al huésped los ven, marketing no.
+const TODO: ModuleId[] = ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
-  recepcion: ["bandeja", "contactos", "habitaciones", "calendario", "interno"],
+  recepcion: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "interno"],
   marketing: ["bandeja", "contactos", "redes"],
   gerente_marketing: TODO,
-  medico: ["bandeja", "contactos", "habitaciones", "calendario", "interno"],
-  jefe: ["bandeja", "contactos", "habitaciones", "calendario", "interno", "dashboard"],
+  medico: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "interno"],
+  jefe: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "interno", "dashboard"],
   admin: TODO,
 };
 
@@ -56,6 +57,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
 // Ruta de cada modulo (para navegar / redirigir).
 export const MODULO_RUTA: Record<ModuleId, string> = {
   bandeja: "/",
+  hoy: "/hoy",
   contactos: "/contactos",
   habitaciones: "/habitaciones",
   calendario: "/calendario",
@@ -70,6 +72,7 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
 // Que modulo corresponde a una ruta. null = ruta sin modulo (no se restringe).
 export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname === "/") return "bandeja";
+  if (pathname.startsWith("/hoy")) return "hoy";
   if (pathname.startsWith("/contactos")) return "contactos";
   if (pathname.startsWith("/habitaciones")) return "habitaciones";
   if (pathname.startsWith("/calendario")) return "calendario";

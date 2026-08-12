@@ -93,7 +93,9 @@ function sumarDias(fecha: string, dias: number): string {
 }
 
 const CAMPO =
-  "rounded-xl border border-line bg-surface px-3 py-2 text-[13px] text-[var(--text)] outline-none transition focus:border-brand focus:bg-card [color-scheme:dark]";
+  // El hotel es el único tenant en tema claro: el selector de fecha del
+  // navegador tiene que pintarse claro también, o sale una caja negra.
+  "rounded-xl border border-line bg-surface px-3 py-2 text-[13px] text-[var(--text)] outline-none transition focus:border-brand focus:bg-card [color-scheme:light]";
 
 export default function HabitacionesPage() {
   const router = useRouter();

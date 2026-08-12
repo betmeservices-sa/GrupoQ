@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BedDouble, Bot, CalendarDays, Contact, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, X, type LucideIcon } from "lucide-react";
+import { BarChart3, BedDouble, Bot, CalendarDays, ConciergeBell, Contact, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -21,6 +21,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { id: "bandeja", href: "/", label: "Bandeja", Icon: Inbox },
+  { id: "hoy", href: "/hoy", label: "Hoy", Icon: ConciergeBell },
   { id: "contactos", href: "/contactos", label: "Contactos", Icon: Contact },
   { id: "habitaciones", href: "/habitaciones", label: "Habitaciones", Icon: BedDouble },
   { id: "calendario", href: "/calendario", label: "Calendario", Icon: CalendarDays },
@@ -50,8 +51,8 @@ export function Sidebar({
   // demas clientes queda oculta.
   // "agentes" expone el script (prompt) y el boton de marcar: es propiedad de la
   // agencia, asi que solo lo ve miagentia, nunca un cliente.
-  // "habitaciones" y "calendario" se apoyan en el sistema de reservas del hotel:
-  // solo el hotel.
+  // "hoy", "habitaciones" y "calendario" se apoyan en el sistema de reservas del
+  // hotel: solo el hotel.
   const tenant = activeTenantId();
   const veLlamadas = tenant === "miagentia" || tenant === "hospital";
   const veAgentes = tenant === "miagentia";
@@ -62,7 +63,8 @@ export function Sidebar({
       (item.id !== "llamadas" || veLlamadas) &&
       (item.id !== "agentes" || veAgentes) &&
       (item.id !== "habitaciones" || veHotel) &&
-      (item.id !== "calendario" || veHotel),
+      (item.id !== "calendario" || veHotel) &&
+      (item.id !== "hoy" || veHotel),
   );
 
   return (

@@ -1,15 +1,21 @@
 // Utilidades puras para formatear numeros de telefono salvadorenos.
 // Sin dependencias externas.
 
+// Paises de los clientes del demo, los dos con numeracion local de 8 digitos:
+// 503 El Salvador (hospital, Grupo Q, Excel) y 502 Guatemala (el hotel).
+// Se listan a proposito en vez de recortar cualquier prefijo: quitarle digitos
+// a un numero de otro pais lo dejaria irreconocible.
+const PREFIJOS_LOCALES = ["503", "502"];
+
 /**
- * Devuelve los digitos locales (8 digitos) de un waId salvadoreno.
- * Si el numero (solo digitos) empieza con "503" y al quitarlo quedan 8 digitos,
- * devuelve esos 8 digitos. Si no, devuelve los digitos tal cual.
- * Ejemplo: "50376294980" -> "76294980"
+ * Devuelve los digitos locales (8 digitos) de un waId.
+ * Si el numero (solo digitos) empieza con un prefijo conocido y al quitarlo
+ * quedan 8 digitos, devuelve esos 8 digitos. Si no, devuelve los digitos tal cual.
+ * Ejemplo: "50376294980" -> "76294980", "50257881234" -> "57881234"
  */
 export function telefonoLocal(waId: string): string {
   const digits = waId.replace(/\D/g, "");
-  if (digits.startsWith("503") && digits.length - 3 === 8) {
+  if (digits.length - 3 === 8 && PREFIJOS_LOCALES.some((p) => digits.startsWith(p))) {
     return digits.slice(3);
   }
   return digits;
