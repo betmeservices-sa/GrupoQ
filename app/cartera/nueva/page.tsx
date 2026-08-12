@@ -39,11 +39,13 @@ import {
   TreePine,
   Store,
   Home,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { activeTenantId } from "@/lib/tenants/active";
 import { AMBIENTES_ALTA, telefonoValido, type AltaPropiedad, type ProblemaAlta } from "@/lib/inmobiliaria-alta";
 import { extraerDeDictado, ETIQUETA_CAMPO, type CampoAlta, type Extraccion } from "@/lib/inmobiliaria-dictado";
+import { crearAcumulador, type EventoVoz } from "@/lib/inmobiliaria-voz";
 import { elegirFotos, juzgarFoto, medirImageData, type JuicioFoto, type MedidaFoto } from "@/lib/inmobiliaria-fotos";
 import { componerCarrusel } from "@/lib/inmobiliaria-lienzo";
 import { armarAnuncio } from "@/lib/inmobiliaria-publicacion";
@@ -88,6 +90,7 @@ const VACIO: Campos = {
   areaConstruccion: 0,
   areaTerreno: 0,
   descripcion: "",
+  caracteristicas: [],
   propietario: { nombre: "", telefono: "" },
   exclusiva: false,
   exclusivaEnDias: 90,
@@ -186,6 +189,9 @@ export default function NuevaPropiedadPage() {
       if (e.exclusiva) next.exclusiva = e.exclusiva.valor;
       if (e.exclusivaEnDias) next.exclusivaEnDias = e.exclusivaEnDias.valor;
       next.descripcion = e.descripcion;
+      // Lo que contó de la casa y no es un campo (piscina, plusvalía, los
+      // comercios de la esquina) va al anuncio en vez de perderse.
+      next.caracteristicas = e.caracteristicas.map((c) => c.valor);
       return next;
     });
     setOrigen(nuevoOrigen);
@@ -474,6 +480,31 @@ export default function NuevaPropiedadPage() {
               placeholder="Lo que le dirías de viva voz a un interesado."
               className="w-full resize-y rounded-xl border-2 border-line bg-surface px-3 py-2.5 text-[16px] leading-relaxed text-[var(--text)] outline-none transition focus:border-brand focus:bg-card"
             />
+            {(campos.caracteristicas?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <p className="text-[13px] font-bold text-[var(--text-2)]">Va en viñetas al anuncio</p>
+                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                  {(campos.caracteristicas ?? []).map((c) => (
+                    <li key={c}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          set(
+                            "caracteristicas",
+                            (campos.caracteristicas ?? []).filter((x) => x !== c),
+                          )
+                        }
+                        aria-label={`Quitar ${c}`}
+                        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-brand/35 bg-brand/[0.07] pl-3 pr-2 text-[13px] font-semibold text-brand"
+                      >
+                        {c}
+                        <X size={14} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Tarjeta>
 
           <Tarjeta titulo="Propietario">
@@ -596,20 +627,21 @@ export default function NuevaPropiedadPage() {
 
 // ── Bloque de dictado ──
 
-interface ReconocimientoEvento {
-  results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
-  resultIndex: number;
-}
 interface Reconocimiento {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   start: () => void;
   stop: () => void;
-  onresult: ((e: ReconocimientoEvento) => void) | null;
+  abort?: () => void;
+  onresult: ((e: EventoVoz) => void) | null;
   onerror: ((e: { error?: string }) => void) | null;
   onend: (() => void) | null;
 }
+
+// El motor se corta solo en el teléfono; se reanuda hasta este tope para no
+// quedar en un ciclo si el micrófono dejó de dar audio.
+const TOPE_REINICIOS = 30;
 
 function Dictado({ onExtraccion }: { onExtraccion: (e: Extraccion) => void }) {
   const [texto, setTexto] = useState("");
@@ -618,6 +650,13 @@ function Dictado({ onExtraccion }: { onExtraccion: (e: Extraccion) => void }) {
   const [nota, setNota] = useState<string | null>(null);
   const [audio, setAudio] = useState<string | null>(null);
   const reco = useRef<Reconocimiento | null>(null);
+  // El acumulado vive en un ref, no en el estado: los eventos del motor llegan
+  // de a decenas por segundo y cada uno tiene que ver lo que dejó el anterior,
+  // no lo que había cuando se armó el manejador.
+  const acumulado = useRef(crearAcumulador(""));
+  const queriendo = useRef(false); // el agente todavía no dijo "ya dije todo"
+  const reinicios = useRef(0);
+  const relanzar = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const w = window as unknown as { SpeechRecognition?: new () => Reconocimiento; webkitSpeechRecognition?: new () => Reconocimiento };
@@ -638,43 +677,97 @@ function Dictado({ onExtraccion }: { onExtraccion: (e: Extraccion) => void }) {
     }
   }, []);
 
-  function arrancar() {
-    const w = window as unknown as { SpeechRecognition?: new () => Reconocimiento; webkitSpeechRecognition?: new () => Reconocimiento };
+  // Se limpia al salir de la pantalla: un motor vivo se queda con el micrófono.
+  useEffect(() => {
+    return () => {
+      queriendo.current = false;
+      if (relanzar.current) clearTimeout(relanzar.current);
+      const r = reco.current;
+      if (!r) return;
+      try {
+        if (r.abort) r.abort();
+        else r.stop();
+      } catch {
+        // Ya estaba cerrado.
+      }
+    };
+  }, []);
+
+  function abrirMotor() {
+    const w = window as unknown as {
+      SpeechRecognition?: new () => Reconocimiento;
+      webkitSpeechRecognition?: new () => Reconocimiento;
+    };
     const Motor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Motor) return;
     const r = new Motor();
     r.lang = "es-SV";
     r.continuous = true;
     r.interimResults = true;
-    let acumulado = texto;
-    r.onresult = (e) => {
-      let parcial = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const frase = e.results[i][0].transcript;
-        if (e.results[i].isFinal) acumulado = `${acumulado} ${frase}`.trim();
-        else parcial += frase;
-      }
-      setTexto(`${acumulado} ${parcial}`.trim());
-    };
+
+    // Todo el cuidado contra la bola de nieve vive en el acumulador (ver
+    // lib/inmobiliaria-voz): acá solo se le pasa el evento tal cual llega.
+    r.onresult = (e) => setTexto(acumulado.current.recibir(e));
+
     r.onerror = (e) => {
+      // "no-speech" y "aborted" son el pan de cada día en el teléfono: el motor
+      // se corta con el silencio y onend lo vuelve a levantar. No son un error
+      // para el agente.
+      if (e.error === "no-speech" || e.error === "aborted") return;
+      queriendo.current = false;
       setNota(
-        e.error === "not-allowed"
+        e.error === "not-allowed" || e.error === "service-not-allowed"
           ? "No diste permiso al micrófono. Podés escribir la descripción."
           : "Se cortó el dictado. Probá otra vez o escribilo.",
       );
       setGrabando(false);
     };
-    r.onend = () => setGrabando(false);
+
+    r.onend = () => {
+      // El motor arranca de cero: lo dicho se cierra acá para que el tramo
+      // siguiente no lo repita ni lo pise.
+      const cerrado = acumulado.current.cerrar();
+      setTexto(cerrado);
+      if (queriendo.current && reinicios.current < TOPE_REINICIOS) {
+        reinicios.current++;
+        // Un respiro antes de reabrir: llamar start() dentro de onend truena en
+        // Android.
+        relanzar.current = setTimeout(() => {
+          if (queriendo.current) abrirMotor();
+        }, 250);
+        return;
+      }
+      setGrabando(false);
+      if (cerrado.trim()) onExtraccion(extraerDeDictado(cerrado));
+    };
+
     reco.current = r;
+    try {
+      r.start();
+    } catch {
+      // Ya estaba arrancado: no es nada que el agente tenga que ver.
+    }
+  }
+
+  function arrancar() {
+    // Lo que ya había escrito o dictado es el punto de partida, no se pierde.
+    acumulado.current.fijar(texto);
+    queriendo.current = true;
+    reinicios.current = 0;
     setNota(null);
     setGrabando(true);
-    r.start();
+    abrirMotor();
   }
 
   function detener() {
+    queriendo.current = false;
+    if (relanzar.current) clearTimeout(relanzar.current);
     reco.current?.stop();
     setGrabando(false);
-    if (texto.trim()) onExtraccion(extraerDeDictado(texto));
+    // Se llenan los campos con lo que hay ya mismo; si el motor todavía manda el
+    // final de la última frase, onend vuelve a llenarlos con el texto completo.
+    const ahora = acumulado.current.texto();
+    if (ahora.trim()) onExtraccion(extraerDeDictado(ahora));
   }
 
   return (
@@ -736,7 +829,11 @@ function Dictado({ onExtraccion }: { onExtraccion: (e: Extraccion) => void }) {
 
       <textarea
         value={texto}
-        onChange={(e) => setTexto(e.target.value)}
+        onChange={(e) => {
+          // Lo corregido a mano pasa a ser el punto de partida del dictado.
+          setTexto(e.target.value);
+          acumulado.current.fijar(e.target.value);
+        }}
         rows={4}
         placeholder="Casa de tres habitaciones, dos baños, en Santa Tecla, cuatrocientos mil"
         className="mt-3 w-full resize-y rounded-xl border-2 border-line bg-card px-3 py-2.5 text-[16px] leading-relaxed text-[var(--text)] outline-none transition focus:border-brand"

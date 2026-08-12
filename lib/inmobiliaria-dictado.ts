@@ -51,6 +51,10 @@ export interface Extraccion {
   exclusivaEnDias?: CampoDicho<number>;
   propietarioNombre?: CampoDicho<string>;
   propietarioTelefono?: CampoDicho<string>;
+  // Lo que dijo y NO es un campo del formulario: piscina, alta plusvalía, los
+  // comercios de la esquina. Va al anuncio; sin esto, el agente dicta lo mejor
+  // de la casa y se tira a la basura.
+  caracteristicas: CampoDicho<string>[];
   descripcion: string; // el dictado tal cual, que es lo que el agente diría
   faltantes: CampoAlta[]; // lo que hay que preguntarle antes de guardar
   avisos: string[]; // cosas que entendió a medias y conviene revisar
@@ -176,7 +180,10 @@ interface Token {
 
 function tokenizar(norm: string): Token[] {
   const out: Token[] = [];
-  const re = /\$?\d[\d.,]*|[a-z]+/g;
+  // "m2", "m²", "v2" y "v²" van primero para que no se partan en una letra y un
+  // número suelto: "600 v2" tiene que quedar como 600 + la unidad, no como 600,
+  // "v" y 2 (ese 2 después se leería como otra cantidad).
+  const re = /[mv][2²](?![a-z0-9])|\$?\d[\d.,]*|[a-z]+/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(norm))) {
     out.push({ t: m[0], ini: m.index, fin: m.index + m[0].length });
@@ -256,13 +263,34 @@ function hallarCantidades(tokens: Token[]): Cantidad[] {
 
 // ── Vocabulario ──
 
-const UNIDAD_HABITACION = /^(habitacion|habitaciones|cuarto|cuartos|dormitorio|dormitorios|recamara|recamaras|hab)$/;
+// Cómo se dice acá. En El Salvador el agente dicta "cuartos" antes que
+// "habitaciones", "cochera" antes que "parqueo", y el terreno SIEMPRE en varas
+// cuadradas (la unidad de la escritura); los metros son de la construcción.
+const UNIDAD_HABITACION = /^(habitacion|habitaciones|cuarto|cuartos|dormitorio|dormitorios|recamara|recamaras|aposento|aposentos|hab)$/;
 const UNIDAD_BANO = /^(bano|banos)$/;
 const UNIDAD_PARQUEO = /^(parqueo|parqueos|cochera|cocheras|garaje|garajes|estacionamiento|estacionamientos)$/;
-const UNIDAD_METRO = /^(metro|metros|m2|mts)$/;
-const UNIDAD_VARA = /^(vara|varas|v2)$/;
+const UNIDAD_METRO = /^(metro|metros|m2|m²|mts|mt)$/;
+const UNIDAD_VARA = /^(vara|varas|v2|v²|vrs)$/;
+// Terrenos grandes: la manzana es exactamente 10,000 varas cuadradas.
+const UNIDAD_MANZANA = /^(manzana|manzanas|mz)$/;
+const VARAS_POR_MANZANA = 10_000;
 const UNIDAD_MES = /^(mes|meses)$/;
 const UNIDAD_ANIO = /^(ano|anos|year)$/;
+// Lo que se estaciona en la cochera: "cochera para cinco vehículos".
+const VEHICULO = /^(vehiculo|vehiculos|carro|carros|auto|autos|automovil|automoviles|camioneta|camionetas|pickup|pickups)$/;
+
+function unidadDura(t: string): boolean {
+  return (
+    UNIDAD_HABITACION.test(t) ||
+    UNIDAD_BANO.test(t) ||
+    UNIDAD_PARQUEO.test(t) ||
+    UNIDAD_METRO.test(t) ||
+    UNIDAD_VARA.test(t) ||
+    UNIDAD_MANZANA.test(t) ||
+    UNIDAD_MES.test(t) ||
+    UNIDAD_ANIO.test(t)
+  );
+}
 
 // Palabras que delatan que una cantidad es dinero. Se buscan en el pedazo de
 // frase que viene ANTES del número, así que van sin anclas.
@@ -300,6 +328,80 @@ const MUNICIPIOS = [
 
 const PREFIJO_ZONA = /\b(colonia|residencial|reparto|urbanizacion|barrio|condominio|lotificacion|villas|pasaje|km|kilometro)\b/;
 
+// ── Lo que vende y no cabe en un campo ──
+//
+// El agente termina el dictado con lo mejor de la casa ("tiene piscina, está en
+// zona de alta plusvalía, hay centros comerciales cerca") y nada de eso es un
+// número del formulario. Antes se perdía; ahora sale como característica y
+// entra al anuncio, que es donde sirve. Solo se reconoce lo que dijo: no hay
+// lista de adjetivos lindos que se agreguen solos.
+
+interface Ventaja {
+  re: RegExp;
+  etiqueta: string;
+  grupo?: string; // de cada grupo se guarda una sola, la más específica
+  cercania?: boolean; // solo cuenta si en la misma frase dijo que está cerca
+}
+
+const PROXIMIDAD =
+  /\b(cerca|cercano|cercanos|cercana|cercanas|cerquita|junto|contiguo|frente|minutos|cuadras|pasos|alrededor|la par|al lado)\b/;
+
+const VENTAJAS: Ventaja[] = [
+  { re: /\bpiscina\b/, etiqueta: "Piscina" },
+  { re: /\bjacuzzi\b/, etiqueta: "Jacuzzi" },
+  { re: /\balta plusvalia\b/, etiqueta: "Zona de alta plusvalía", grupo: "plusvalia" },
+  { re: /\bplusvalia\b/, etiqueta: "Zona con plusvalía", grupo: "plusvalia" },
+  { re: /\b(seguridad|vigilancia)\b[^]{0,16}\b(24|veinticuatro)\b/, etiqueta: "Seguridad 24 horas", grupo: "seguridad" },
+  { re: /\b(garita|caseta)\b/, etiqueta: "Garita de seguridad", grupo: "seguridad" },
+  { re: /\b(seguridad|vigilancia)\b/, etiqueta: "Con seguridad", grupo: "seguridad" },
+  { re: /\bcircuito cerrado|\bcamaras\b/, etiqueta: "Cámaras de seguridad" },
+  { re: /\bporton electrico\b/, etiqueta: "Portón eléctrico" },
+  { re: /\b(area|areas|zona|zonas) verde/, etiqueta: "Área verde", grupo: "verde" },
+  { re: /\bjardin\b/, etiqueta: "Jardín", grupo: "verde" },
+  { re: /\bterraza\b/, etiqueta: "Terraza" },
+  { re: /\bbalcon\b/, etiqueta: "Balcón" },
+  { re: /\bcisterna\b/, etiqueta: "Cisterna", grupo: "agua" },
+  { re: /\bpozo\b/, etiqueta: "Pozo propio", grupo: "agua" },
+  { re: /\bpaneles solares\b/, etiqueta: "Paneles solares" },
+  { re: /\bplanta electrica\b/, etiqueta: "Planta eléctrica" },
+  { re: /\baire acondicionado|\bclimatizad[oa]\b/, etiqueta: "Aire acondicionado" },
+  { re: /\bamueblad[oa]\b/, etiqueta: "Amueblada" },
+  { re: /\bcocina equipada\b/, etiqueta: "Cocina equipada" },
+  { re: /\bclosets?\b/, etiqueta: "Clósets" },
+  { re: /\bcuarto de (empleada|servicio)\b/, etiqueta: "Cuarto de servicio" },
+  { re: /\bascensor\b|\belevador\b/, etiqueta: "Ascensor" },
+  { re: /\b(area|areas) social(es)?\b/, etiqueta: "Áreas sociales" },
+  { re: /\bgimnasio\b/, etiqueta: "Gimnasio" },
+  { re: /\bvista al mar\b/, etiqueta: "Vista al mar", grupo: "vista" },
+  { re: /\bvista al volcan\b/, etiqueta: "Vista al volcán", grupo: "vista" },
+  { re: /\bvista a la ciudad\b/, etiqueta: "Vista a la ciudad", grupo: "vista" },
+  { re: /\bvista panoramica\b/, etiqueta: "Vista panorámica", grupo: "vista" },
+  { re: /\bcalle (pavimentada|adoquinada|asfaltada)\b/, etiqueta: "Calle pavimentada" },
+  { re: /\bcentros? comerciales?\b/, etiqueta: "Centros comerciales cerca", cercania: true, grupo: "comercio" },
+  { re: /\bsupermercados?\b/, etiqueta: "Supermercado cerca", cercania: true, grupo: "comercio" },
+  { re: /\b(colegios?|escuelas?)\b/, etiqueta: "Colegios cerca", cercania: true },
+  { re: /\buniversidad(es)?\b/, etiqueta: "Universidad cerca", cercania: true },
+  { re: /\b(hospital|hospitales|clinicas?)\b/, etiqueta: "Hospital cerca", cercania: true },
+  { re: /\bparques?\b/, etiqueta: "Parque cerca", cercania: true },
+  { re: /\b(parada de bus|transporte publico)\b/, etiqueta: "Transporte público cerca", cercania: true },
+];
+
+// Los puntos de referencia con nombre, que es como se ubica la gente acá. Solo
+// se guardan si en la misma frase dijo que están cerca.
+const REFERENCIAS: Array<[RegExp, string]> = [
+  [/\bsuper selectos\b/, "Super Selectos"],
+  [/\bwalmart\b/, "Walmart"],
+  [/\bdespensa de don juan\b/, "Despensa de Don Juan"],
+  [/\bprice ?smart\b/, "PriceSmart"],
+  [/\bmetrocentro\b/, "Metrocentro"],
+  [/\bmultiplaza\b/, "Multiplaza"],
+  [/\bla gran via\b/, "La Gran Vía"],
+  [/\bplaza mundo\b/, "Plaza Mundo"],
+  [/\blas cascadas\b/, "Las Cascadas"],
+  [/\bgalerias\b/, "Galerías"],
+  [/\bunicentro\b/, "Unicentro"],
+];
+
 // Palabras donde se corta la captura del nombre de una zona o de una persona.
 const CORTE = new Set([
   "de", "del", "la", "el", "los", "las", "en", "con", "por", "para", "y", "o",
@@ -318,7 +420,12 @@ export function extraerDeDictado(texto: string): Extraccion {
   const tokens = tokenizar(norm);
   const cantidades = hallarCantidades(tokens);
   const avisos: string[] = [];
-  const out: Extraccion = { descripcion: original, faltantes: [], avisos };
+  const out: Extraccion = {
+    caracteristicas: ventajasDe(original, norm),
+    descripcion: original,
+    faltantes: [],
+    avisos,
+  };
 
   // Lo que se le muestra al agente es su propia frase, sin la coma de la que
   // venía pegada.
@@ -327,10 +434,12 @@ export function extraerDeDictado(texto: string): Extraccion {
   const tokenEn = (i: number) => tokens[i]?.t ?? "";
 
   // Cantidad seguida de una unidad: "tres habitaciones", "150 metros".
-  function porUnidad(re: RegExp): Cantidad | null {
+  function porUnidad(re: RegExp, sirve?: (c: Cantidad) => boolean): Cantidad | null {
     for (const c of cantidades) {
       if (c.usada) continue;
-      if (re.test(tokenEn(c.hasta + 1))) return c;
+      if (!re.test(tokenEn(c.hasta + 1))) continue;
+      if (sirve && !sirve(c)) continue;
+      return c;
     }
     return null;
   }
@@ -363,58 +472,156 @@ export function extraerDeDictado(texto: string): Extraccion {
     fijar("operacion", "venta" as TipoOperacion, venta.index, venta.index + venta[0].length);
   }
 
-  // ── Habitaciones, baños, parqueos ──
-  const hab = porUnidad(UNIDAD_HABITACION);
+  // ── Habitaciones ──
+  // "cinco cuartos" es lo que dice el agente; "cuarto de baño" no es un cuarto.
+  const hab = porUnidad(UNIDAD_HABITACION, (c) => {
+    const unidad = tokenEn(c.hasta + 1);
+    if (unidad !== "cuarto" && unidad !== "cuartos") return true;
+    return !(tokenEn(c.hasta + 2) === "de" && UNIDAD_BANO.test(tokenEn(c.hasta + 3)));
+  });
   if (hab) {
     hab.usada = true;
     fijar("habitaciones", hab.valor, hab.ini, tokens[hab.hasta + 1].fin);
   }
 
+  // ── Baños ──
+  // Tres formas de lo mismo: "tres baños completos", "dos baños y medio" y "un
+  // baño completo y medio baño". El medio baño (el de visitas) vale 0.5 y en el
+  // anuncio se nota.
+  let banos: number | null = null;
+  let banoIni = 0;
+  let banoFin = 0;
   const ban = porUnidad(UNIDAD_BANO);
   if (ban) {
     ban.usada = true;
-    // "dos baños y medio": el medio baño es real y cuenta.
-    const siguiente = tokens[ban.hasta + 2]?.t;
-    const luego = tokens[ban.hasta + 3]?.t;
-    const medio = siguiente === "y" && luego === "medio";
-    const fin = medio ? tokens[ban.hasta + 3].fin : tokens[ban.hasta + 1].fin;
-    fijar("banos", ban.valor + (medio ? 0.5 : 0), ban.ini, fin);
+    banos = ban.valor;
+    banoIni = ban.ini;
+    banoFin = tokens[ban.hasta + 1].fin;
+    let k = ban.hasta + 2;
+    if (/^completos?$/.test(tokenEn(k))) {
+      banoFin = tokens[k].fin;
+      k++;
+    }
+    if (tokenEn(k) === "y" && tokenEn(k + 1) === "medio") {
+      banos += 0.5;
+      banoFin = tokens[k + 1].fin;
+      // "y medio baño": la palabra cierra la frase que se le muestra.
+      if (UNIDAD_BANO.test(tokenEn(k + 2))) banoFin = tokens[k + 2].fin;
+    }
   } else {
     // "baño y medio", sin número delante.
     const m = /\bbano y medio\b/.exec(norm);
-    if (m) fijar("banos", 1.5, m.index, m.index + m[0].length);
+    if (m) {
+      banos = 1.5;
+      banoIni = m.index;
+      banoFin = m.index + m[0].length;
+    }
   }
+  // "y un medio baño" dicho aparte. Si el medio ya se contó arriba, no se suma
+  // dos veces.
+  const mediom = /\b(?:un |una )?medio bano\b/.exec(norm);
+  if (mediom && (banos === null || banos % 1 === 0)) {
+    banos = (banos ?? 0) + 0.5;
+    if (banos === 0.5) banoIni = mediom.index;
+    banoFin = Math.max(banoFin, mediom.index + mediom[0].length);
+  }
+  if (banos !== null) fijar("banos", banos, banoIni, banoFin);
 
+  // ── Parqueos ──
+  // El número va antes ("dos cocheras") o después ("cochera para cinco
+  // vehículos"), que es como se dicta acá.
   const par = porUnidad(UNIDAD_PARQUEO);
   if (par) {
     par.usada = true;
     fijar("parqueos", par.valor, par.ini, tokens[par.hasta + 1].fin);
   } else {
-    // "con cochera", "tiene garaje": dijo que hay uno.
-    const m = /\b(cochera|garaje|parqueo|estacionamiento)\b/.exec(norm);
-    if (m) fijar("parqueos", 1, m.index, m.index + m[0].length);
+    let puesto: { c: Cantidad; ini: number; fin: number } | null = null;
+    for (const c of cantidades) {
+      if (c.usada) continue;
+      const antes = tokenEn(c.desde - 1);
+      const puente = /^(para|de|con)$/.test(antes);
+      const donde = UNIDAD_PARQUEO.test(antes)
+        ? c.desde - 1
+        : puente && UNIDAD_PARQUEO.test(tokenEn(c.desde - 2))
+          ? c.desde - 2
+          : -1;
+      if (donde === -1) continue;
+      const sigue = tokenEn(c.hasta + 1);
+      // "cochera de 20 metros" habla del tamaño, no de cuántos carros entran.
+      if (unidadDura(sigue)) continue;
+      const vehiculos = VEHICULO.test(sigue);
+      if (!vehiculos && !puente) continue;
+      if (c.valor < 1 || c.valor > 20) continue;
+      puesto = { c, ini: tokens[donde].ini, fin: vehiculos ? tokens[c.hasta + 1].fin : c.fin };
+      break;
+    }
+    if (puesto) {
+      puesto.c.usada = true;
+      fijar("parqueos", puesto.c.valor, puesto.ini, puesto.fin);
+    } else {
+      // "con cochera", "tiene garaje": dijo que hay uno.
+      const m = /\b(cochera|garaje|parqueo|estacionamiento)\b/.exec(norm);
+      if (m) fijar("parqueos", 1, m.index, m.index + m[0].length);
+    }
   }
 
   // ── Áreas ──
+  // Dos campos distintos que NO se mezclan: la construcción va en metros
+  // cuadrados y el terreno en varas cuadradas, como la escritura.
+  // "600 varas cuadradas": el "cuadradas" es parte de lo que dijo, así que entra
+  // en la frase que se le muestra, pero la unidad termina antes.
+  const conCuadradas = (i: number, fin: number) =>
+    /^cuadrad[oa]s?$/.test(tokenEn(i + 2)) ? tokens[i + 2].fin : fin;
+
   const metros = porUnidad(UNIDAD_METRO);
   if (metros) {
     metros.usada = true;
     const fin = tokens[metros.hasta + 1].fin;
+    const dichoFin = conCuadradas(metros.hasta, fin);
     // "200 metros de terreno": el dato es del terreno aunque la unidad no sea
     // la de la escritura. Se guarda donde va y se avisa, no se convierte a
     // varas por cuenta propia.
-    const cola = norm.slice(fin, fin + 22);
-    if (/^\s*(cuadrados?\s*)?de\s+terreno/.test(cola)) {
-      fijar("areaTerreno", metros.valor, metros.ini, fin);
+    const cola = norm.slice(fin, fin + 26);
+    if (/^\s*(cuadrad[oa]s?\s*)?(de|del)\s+(terreno|lote|solar)/.test(cola)) {
+      fijar("areaTerreno", metros.valor, metros.ini, dichoFin);
       avisos.push("Dictó el terreno en metros y el campo va en varas: revisá el número.");
     } else {
-      fijar("areaConstruccion", metros.valor, metros.ini, fin);
+      fijar("areaConstruccion", metros.valor, metros.ini, dichoFin);
     }
   }
   const varas = porUnidad(UNIDAD_VARA);
   if (varas) {
     varas.usada = true;
-    fijar("areaTerreno", varas.valor, varas.ini, tokens[varas.hasta + 1].fin);
+    const fin = tokens[varas.hasta + 1].fin;
+    const dichoFin = conCuadradas(varas.hasta, fin);
+    const cola = norm.slice(fin, fin + 30);
+    if (/^\s*(cuadrad[oa]s?\s*)?(de|del)\s+(construccion|construido)/.test(cola)) {
+      fijar("areaConstruccion", varas.valor, varas.ini, dichoFin);
+      avisos.push("Dictó la construcción en varas y el campo va en metros: revisá el número.");
+    } else {
+      fijar("areaTerreno", varas.valor, varas.ini, dichoFin);
+    }
+  }
+  // Manzanas: los terrenos grandes se dictan así. La manzana son 10,000 varas
+  // cuadradas exactas, pero el número del campo ya no es el que dijo, así que se
+  // avisa.
+  if (!out.areaTerreno) {
+    const manzanas = porUnidad(UNIDAD_MANZANA);
+    if (manzanas) {
+      manzanas.usada = true;
+      const fin = tokens[manzanas.hasta + 1].fin;
+      const enVaras = manzanas.valor * VARAS_POR_MANZANA;
+      fijar("areaTerreno", enVaras, manzanas.ini, fin);
+      avisos.push(
+        `Dictó ${trozo(manzanas.ini, fin)}: quedaron ${enVaras.toLocaleString("en-US")} v² (una manzana son 10,000 v²).`,
+      );
+    } else {
+      const media = /\bmedia manzana\b/.exec(norm);
+      if (media) {
+        fijar("areaTerreno", VARAS_POR_MANZANA / 2, media.index, media.index + media[0].length);
+        avisos.push("Media manzana se guardó como 5,000 v² (una manzana son 10,000).");
+      }
+    }
   }
 
   // ── Plazo del contrato y exclusiva (los dos hablan de meses) ──
@@ -454,15 +661,7 @@ export function extraerDeDictado(texto: string): Extraccion {
   for (const c of cantidades) {
     if (c.usada) continue;
     const siguiente = tokenEn(c.hasta + 1);
-    const unidadDura =
-      UNIDAD_HABITACION.test(siguiente) ||
-      UNIDAD_BANO.test(siguiente) ||
-      UNIDAD_PARQUEO.test(siguiente) ||
-      UNIDAD_METRO.test(siguiente) ||
-      UNIDAD_VARA.test(siguiente) ||
-      UNIDAD_MES.test(siguiente) ||
-      UNIDAD_ANIO.test(siguiente);
-    if (unidadDura) continue;
+    if (unidadDura(siguiente) || VEHICULO.test(siguiente)) continue;
 
     const conDolar = PALABRA_DOLAR.test(siguiente);
     const fin = conDolar ? tokens[c.hasta + 1].fin : c.fin;
@@ -552,6 +751,46 @@ export function extraerDeDictado(texto: string): Extraccion {
 
   out.faltantes = faltantesDe(out);
   return out;
+}
+
+// Lo que dijo y no entra en ningún campo. Se lee frase por frase (cortando en
+// comas y puntos) por dos razones: la cercanía se juzga con lo que la acompaña
+// ("centros comerciales CERCA"), y así cada característica guarda la frase
+// exacta que la produjo, igual que los campos.
+const TOPE_VENTAJAS = 10;
+
+export function ventajasDe(original: string, norm: string): CampoDicho<string>[] {
+  const out: CampoDicho<string>[] = [];
+  const vistas = new Set<string>();
+  const grupos = new Set<string>();
+  const agregar = (etiqueta: string, dicho: string, grupo?: string) => {
+    if (vistas.has(etiqueta) || (grupo && grupos.has(grupo))) return;
+    vistas.add(etiqueta);
+    if (grupo) grupos.add(grupo);
+    out.push({ valor: etiqueta, dicho });
+  };
+
+  const re = /[^.,;:!?]+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(norm)) && out.length < TOPE_VENTAJAS) {
+    const frase = m[0];
+    if (!frase.trim()) continue;
+    const dicho = original.slice(m.index, m.index + frase.length).trim();
+    if (!dicho) continue;
+    // "como Super Selectos" viene después de decir que hay algo cerca.
+    const cerca = PROXIMIDAD.test(frase) || /\bcomo\b/.test(frase);
+    for (const v of VENTAJAS) {
+      if (v.cercania && !cerca) continue;
+      if (!v.re.test(frase)) continue;
+      agregar(v.etiqueta, dicho, v.grupo);
+    }
+    if (cerca) {
+      for (const [pat, nombre] of REFERENCIAS) {
+        if (pat.test(frase)) agregar(`Cerca de ${nombre}`, dicho);
+      }
+    }
+  }
+  return out.slice(0, TOPE_VENTAJAS);
 }
 
 // Toma hasta `max` palabras desde una posición, cortando en las palabras que

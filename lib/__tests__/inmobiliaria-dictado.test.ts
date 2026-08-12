@@ -198,6 +198,133 @@ describe("medias palabras y trampas", () => {
   });
 });
 
+// Esta es, palabra por palabra, la que dictó el agente desde su teléfono. De
+// acá salió la mitad del vocabulario de abajo.
+describe("como se habla en El Salvador", () => {
+  const e = extraerDeDictado(
+    "es una casa de 600 varas cuadradas con cinco cuartos, tres baños completos, tiene piscina, cochera para cinco vehículos, está en una zona de alta plusvalía, tiene centros comerciales cerca como Super Selectos",
+  );
+
+  it("cuartos son habitaciones y baños completos son baños", () => {
+    expect(v(e.tipo)).toBe("casa");
+    expect(v(e.habitaciones)).toBe(5);
+    expect(v(e.banos)).toBe(3);
+  });
+
+  it("las varas cuadradas son TERRENO, no construcción", () => {
+    expect(v(e.areaTerreno)).toBe(600);
+    expect(e.areaConstruccion).toBeUndefined();
+    expect(e.faltantes).toContain("areaConstruccion");
+  });
+
+  it("cochera para cinco vehículos son cinco parqueos, no uno", () => {
+    expect(v(e.parqueos)).toBe(5);
+    expect(e.parqueos?.dicho).toBe("cochera para cinco vehículos");
+  });
+
+  it("lo que vende y no es un campo no se tira: queda como característica", () => {
+    const etiquetas = e.caracteristicas.map((c) => c.valor);
+    expect(etiquetas).toContain("Piscina");
+    expect(etiquetas).toContain("Zona de alta plusvalía");
+    expect(etiquetas).toContain("Centros comerciales cerca");
+    expect(etiquetas).toContain("Cerca de Super Selectos");
+  });
+
+  it("cada característica guarda la frase que la produjo", () => {
+    const piscina = e.caracteristicas.find((c) => c.valor === "Piscina");
+    expect(piscina?.dicho).toBe("tiene piscina");
+  });
+
+  it("y el dictado entero sigue siendo la descripción", () => {
+    expect(e.descripcion).toContain("piscina");
+    expect(e.descripcion).toContain("Super Selectos");
+  });
+
+  it("nada de lo que no dijo se inventa", () => {
+    expect(e.precio).toBeUndefined();
+    expect(e.operacion).toBeUndefined();
+    expect(e.zona).toBeUndefined();
+    expect(e.faltantes).toContain("precio");
+    expect(e.faltantes).toContain("zona");
+  });
+});
+
+describe("más variantes salvadoreñas", () => {
+  it("metros de construcción y varas de terreno son campos distintos", () => {
+    const e = extraerDeDictado(
+      "casa de 180 metros cuadrados de construcción y 300 varas cuadradas de terreno, cuatro dormitorios, dos baños y medio, garaje para dos carros",
+    );
+    expect(v(e.areaConstruccion)).toBe(180);
+    expect(v(e.areaTerreno)).toBe(300);
+    expect(v(e.habitaciones)).toBe(4);
+    expect(v(e.banos)).toBe(2.5);
+    expect(v(e.parqueos)).toBe(2);
+    expect(e.areaTerreno?.dicho).toBe("300 varas cuadradas");
+  });
+
+  it("v² y m² abreviados cuentan igual", () => {
+    const e = extraerDeDictado("casa de 250 v2 de terreno y 140 m2 en Las Colinas");
+    expect(v(e.areaTerreno)).toBe(250);
+    expect(v(e.areaConstruccion)).toBe(140);
+    const e2 = extraerDeDictado("terreno de 500 v² en Zaragoza");
+    expect(v(e2.areaTerreno)).toBe(500);
+  });
+
+  it("un baño completo y medio baño son uno y medio", () => {
+    expect(v(extraerDeDictado("apartamento con un baño completo y medio baño").banos)).toBe(1.5);
+    expect(v(extraerDeDictado("casa con tres baños completos y un medio baño").banos)).toBe(3.5);
+    expect(v(extraerDeDictado("casa con dos baños completos").banos)).toBe(2);
+  });
+
+  it("las manzanas se pasan a varas y se avisa, porque el número ya no es el suyo", () => {
+    const e = extraerDeDictado("terreno de dos manzanas en Zaragoza, ciento cincuenta mil dólares");
+    expect(v(e.areaTerreno)).toBe(20000);
+    expect(v(e.precio)).toBe(150000);
+    expect(e.avisos.join(" ")).toContain("manzana");
+    const media = extraerDeDictado("terreno de media manzana en San Juan Opico");
+    expect(v(media.areaTerreno)).toBe(5000);
+  });
+
+  it("el número de la cochera no se confunde con el tamaño ni con el precio", () => {
+    const e = extraerDeDictado("casa con cochera de 20 metros, precio 95 mil dólares");
+    expect(v(e.parqueos)).toBe(1);
+    expect(v(e.areaConstruccion)).toBe(20);
+    expect(v(e.precio)).toBe(95000);
+  });
+
+  it("un cuarto de baño no es una habitación", () => {
+    const e = extraerDeDictado("apartamento con un cuarto de baño");
+    expect(e.habitaciones).toBeUndefined();
+  });
+
+  it("las ventajas se reconocen sueltas y no se repiten", () => {
+    const e = extraerDeDictado(
+      "Casa en Santa Elena con seguridad 24 horas, área verde, cisterna, portón eléctrico y vista al volcán. Hay colegios cerca.",
+    );
+    const etiquetas = e.caracteristicas.map((c) => c.valor);
+    expect(etiquetas).toContain("Seguridad 24 horas");
+    expect(etiquetas).toContain("Área verde");
+    expect(etiquetas).toContain("Cisterna");
+    expect(etiquetas).toContain("Portón eléctrico");
+    expect(etiquetas).toContain("Vista al volcán");
+    expect(etiquetas).toContain("Colegios cerca");
+    expect(new Set(etiquetas).size).toBe(etiquetas.length);
+  });
+
+  it("lo que solo se nombra sin decir que está cerca no se cuenta como ventaja", () => {
+    const e = extraerDeDictado("Casa frente al parque, a dos cuadras del colegio");
+    const etiquetas = e.caracteristicas.map((c) => c.valor);
+    expect(etiquetas).toContain("Parque cerca");
+    const lejos = extraerDeDictado("La dueña trabaja en un centro comercial");
+    expect(lejos.caracteristicas).toHaveLength(0);
+  });
+
+  it("una casa sin ventajas dictadas no inventa ninguna", () => {
+    const e = extraerDeDictado("Casa de tres habitaciones, dos baños, en Santa Tecla");
+    expect(e.caracteristicas).toHaveLength(0);
+  });
+});
+
 describe("lo que falta según el tipo", () => {
   it("a un terreno no se le reclaman baños", () => {
     const e = extraerDeDictado("Terreno de 500 varas en La Libertad, cien mil dólares");

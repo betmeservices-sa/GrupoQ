@@ -23,6 +23,9 @@ export interface AltaPropiedad {
   areaConstruccion: number; // m²
   areaTerreno: number; // v²
   descripcion: string;
+  // Lo que vende y no es un número: piscina, alta plusvalía, los comercios de la
+  // esquina. Sale de lo que dictó y entra al anuncio; nada se agrega solo.
+  caracteristicas?: string[];
   propietario: { nombre: string; telefono: string };
   exclusiva: boolean;
   exclusivaEnDias?: number;
@@ -127,6 +130,26 @@ export function resumenDesdeAlta(a: AltaPropiedad): string {
   return `${tituloDesdeAlta(a)}.`;
 }
 
+// Las características llegan del dictado o escritas a mano: se limpian, se
+// quitan las repetidas (sin importar mayúsculas ni tildes) y se topan, para que
+// el anuncio no termine con una lista de treinta viñetas.
+const TOPE_CARACTERISTICAS = 12;
+
+export function limpiarCaracteristicas(lista: string[] | undefined): string[] {
+  const out: string[] = [];
+  const vistas = new Set<string>();
+  for (const cruda of lista ?? []) {
+    const texto = String(cruda ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+    if (!texto) continue;
+    const clave = texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    out.push(texto);
+    if (out.length === TOPE_CARACTERISTICAS) break;
+  }
+  return out;
+}
+
 export function propiedadDesdeAlta(
   a: AltaPropiedad,
   ids: { id: string; codigo: string },
@@ -159,7 +182,7 @@ export function propiedadDesdeAlta(
     },
     exclusiva: Boolean(a.exclusiva),
     exclusivaEnDias: a.exclusiva ? a.exclusivaEnDias : undefined,
-    caracteristicas: [],
+    caracteristicas: limpiarCaracteristicas(a.caracteristicas),
     resumen: resumenDesdeAlta(a),
     fotos: a.fotos,
   };
