@@ -31,7 +31,10 @@ export type DepartmentId =
   | "onboarding"
   // Hotel (El Descanso Antigua)
   | "reservas"
-  | "conserjeria";
+  | "conserjeria"
+  // Inmobiliaria (Terrazul): captación de propiedades y trámites de escritura
+  | "captacion"
+  | "legal";
 
 export type RoleId = "recepcion" | "marketing" | "gerente_marketing" | "medico" | "jefe" | "admin";
 

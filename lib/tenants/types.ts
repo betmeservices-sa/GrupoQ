@@ -19,7 +19,13 @@ import type {
   WaTemplate,
 } from "@/lib/data/types";
 
-export type TenantId = "hospital" | "grupoq" | "excel" | "miagentia" | "hotel";
+export type TenantId =
+  | "hospital"
+  | "grupoq"
+  | "excel"
+  | "miagentia"
+  | "hotel"
+  | "inmobiliaria";
 
 // Datos semilla (mock) de un tenant. Misma forma que el antiguo lib/data/seed.
 export interface TenantSeed {
@@ -48,7 +54,7 @@ export interface TenantBrand {
   logoSrc?: string;
   logoAlt?: string;
   wordmark?: {
-    icon: "HeartPulse" | "CarFront" | "Bot" | "Hotel";
+    icon: "HeartPulse" | "CarFront" | "Bot" | "Hotel" | "Building2";
     titulo: string;
     subtitulo: string;
   };

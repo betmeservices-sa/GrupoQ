@@ -118,6 +118,40 @@
   background: #b3afa1;
 }
 
+/* Terrazul Bienes Raíces va en CLARO FRÍO: papel azulado, tinta marina y azul
+   profundo de marca, con terracota para lo que urge. No comparte nada con el
+   hueso y jade del hotel ni con el negro de los otros cuatro. Va DESPUÉS del
+   bloque de marca unificada para ganarle con la misma especificidad.
+   Contraste medido sobre el fondo #EEF2F7: tinta #16233A 14.0:1, secundario
+   #40506A 7.3:1, terciario #55647A 5.3:1, azul de marca #12507E 7.5:1, azul
+   oscuro #0D3F63 9.8:1 y terracota #9A4D15 5.4:1; sobre la tarjeta blanca todos
+   suben. Por encima del 4.5:1 que pide WCAG AA para texto normal. Lo cubre
+   inmobiliaria-tema.test.ts. */
+[data-tenant="inmobiliaria"] {
+  --brand-blue: #12507e;
+  --brand-blue-dark: #0d3f63;
+  --brand-green: #15653f;
+  --brand-red: #a12a1e;
+  --brand-accent: #9a4d15;
+  --brand-accent-soft: #fdf1e5;
+
+  --surface: #eef2f7;
+  --surface-2: #e2e8f0;
+  --card: #ffffff;
+  --border: #d8e0ea;
+  --border-2: #bfcbd9;
+  --text: #16233a;
+  --text-2: #40506a;
+  --text-3: #55647a;
+
+  --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* La barra de scroll clara de Terrazul. */
+[data-tenant="inmobiliaria"] ::-webkit-scrollbar-thumb:hover {
+  background: #9fb0c4;
+}
+
 @theme inline {
   --font-sans: var(--font-app);
   --color-brand: var(--brand-blue);

@@ -10,6 +10,9 @@ export type ModuleId =
   | "contactos"
   | "habitaciones"
   | "calendario"
+  | "pipeline"
+  | "cartera"
+  | "publicacion"
   | "interno"
   | "redes"
   | "dashboard"
@@ -31,13 +34,16 @@ export interface RoleDef {
 // Médico/Asesor y Jefe mantienen su acceso operativo (bandeja/interno/dashboard).
 // "hoy", "habitaciones" y "calendario" solo existen en el tenant del hotel (el
 // Sidebar los filtra); los roles que atienden al huésped los ven, marketing no.
-const TODO: ModuleId[] = ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
+// "pipeline", "cartera" y "publicacion" solo existen en la inmobiliaria: el
+// pipeline es de quien vende (marketing no ve los leads), y la publicación la
+// arman tanto el asesor como marketing, porque los dos suben anuncios.
+const TODO: ModuleId[] = ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "cartera", "publicacion", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
-  recepcion: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "interno"],
-  marketing: ["bandeja", "contactos", "redes"],
+  recepcion: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "cartera", "interno"],
+  marketing: ["bandeja", "contactos", "cartera", "publicacion", "redes"],
   gerente_marketing: TODO,
-  medico: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "interno"],
-  jefe: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "interno", "dashboard"],
+  medico: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "cartera", "publicacion", "interno"],
+  jefe: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "cartera", "publicacion", "interno", "dashboard"],
   admin: TODO,
 };
 
@@ -61,6 +67,9 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   contactos: "/contactos",
   habitaciones: "/habitaciones",
   calendario: "/calendario",
+  pipeline: "/pipeline",
+  cartera: "/cartera",
+  publicacion: "/publicacion",
   interno: "/interno",
   redes: "/redes",
   dashboard: "/dashboard",
@@ -76,6 +85,9 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname.startsWith("/contactos")) return "contactos";
   if (pathname.startsWith("/habitaciones")) return "habitaciones";
   if (pathname.startsWith("/calendario")) return "calendario";
+  if (pathname.startsWith("/pipeline")) return "pipeline";
+  if (pathname.startsWith("/cartera")) return "cartera";
+  if (pathname.startsWith("/publicacion")) return "publicacion";
   if (pathname.startsWith("/interno")) return "interno";
   if (pathname.startsWith("/redes")) return "redes";
   if (pathname.startsWith("/dashboard")) return "dashboard";

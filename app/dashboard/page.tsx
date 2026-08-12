@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import {
   Bot,
+  CalendarCheck,
   CalendarSearch,
   CheckCircle2,
   Clock,
@@ -11,6 +12,7 @@ import {
   MessageSquare,
   Smile,
   Timer,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -32,6 +34,8 @@ const ICONS: Record<string, LucideIcon> = {
   Bot,
   Inbox,
   CalendarSearch,
+  CalendarCheck,
+  Users,
 };
 
 // Estados de conversación. Colores por CSS var para que sigan la marca del tenant.
