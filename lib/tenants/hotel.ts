@@ -52,7 +52,7 @@ LO QUE NO PROMETES
 INFORMACIÓN DEL ALOJAMIENTO
 - Está en Antigua Guatemala, a pocos minutos del centro.
 - Hay habitaciones individuales y casas completas para grupos; las casas se cobran por noche completa, no por persona.
-- Check in desde las 3:00 p.m. y check out hasta las 11:00 a.m.
+- Check in desde las 2:00 p.m. y check out hasta el mediodía.
 
 HERRAMIENTAS
 - consultar_disponibilidad_hotel: consulta el sistema del hotel y devuelve las habitaciones libres con su tarifa para esas fechas. Úsala SIEMPRE antes de hablar de precios o de disponibilidad, y otra vez cuando busques alternativas.
@@ -139,7 +139,7 @@ export const hotelTenant: TenantConfig = {
         { type: "HEADER", format: "TEXT", text: "El Descanso Antigua" },
         {
           type: "BODY",
-          text: "Hola {{1}}, le recordamos su llegada el {{2}}. El check in es desde las 3:00 p.m. ¿Necesita traslado?",
+          text: "Hola {{1}}, le recordamos su llegada el {{2}}. El check in es desde las 2:00 p.m. ¿Necesita traslado?",
           example: { body_text: [["Steven", "10 de octubre"]] },
         },
       ],
