@@ -8,6 +8,7 @@ import {
 } from "@/lib/hotel-calendario";
 import { borrarReservasSimuladas } from "@/lib/hotel-reservas";
 import type { ReservaSimulada } from "@/lib/hotel-reservas";
+import type { ReservaPms } from "@/lib/cloudbeds";
 
 const TIPOS = [
   { id: "t1", nombre: "Habitación 1", corto: "H01", maxHuespedes: 4, unidades: 1 },
@@ -30,6 +31,23 @@ function entrada(over: Partial<EntradaMes> = {}): EntradaMes {
     noches,
     conTarifa: new Set(["t1", "t2"]),
     simuladas: [],
+    reservasPms: [],
+    ...over,
+  };
+}
+
+function reservaPms(over: Partial<ReservaPms> = {}): ReservaPms {
+  return {
+    id: "5GB83317DU",
+    huesped: "Karen Gonzalez",
+    desde: "2026-08-18",
+    hasta: "2026-08-21",
+    adultos: 1,
+    ninos: 0,
+    estado: "confirmed",
+    saldo: 966.67,
+    fuente: "Phone",
+    creada: "2026-07-21 08:35:40",
     ...over,
   };
 }
@@ -196,5 +214,65 @@ describe("mes del calendario", () => {
     expect(m.dias.every((d) => d.pasado)).toBe(true);
     expect(m.dias.every((d) => !d.leido)).toBe(true);
     expect(m.dias.every((d) => d.libres.length === 0)).toBe(true);
+  });
+});
+
+describe("reservas del sistema en el calendario", () => {
+  it("aparecen en cada noche que cubren, sin la de salida", () => {
+    const m = construirMes(entrada({ reservasPms: [reservaPms()] }));
+    expect(m.dias[17].reservas.map((r) => r.id)).toEqual(["5GB83317DU"]); // 18
+    expect(m.dias[18].reservas).toHaveLength(1); // 19
+    expect(m.dias[19].reservas).toHaveLength(1); // 20
+    expect(m.dias[20].reservas).toHaveLength(0); // 21, día de salida
+    expect(m.dias[16].reservas).toHaveLength(0); // 17
+  });
+
+  it("traen el huésped, las fechas y de dónde vino la reserva", () => {
+    const r = construirMes(entrada({ reservasPms: [reservaPms()] })).dias[17].reservas[0];
+    expect(r.huesped).toBe("Karen Gonzalez");
+    expect(r.desde).toBe("2026-08-18");
+    expect(r.hasta).toBe("2026-08-21");
+    expect(r.fuente).toBe("Phone");
+  });
+
+  it("no se mezclan con las del demo", () => {
+    const m = construirMes(
+      entrada({ reservasPms: [reservaPms()], simuladas: [simulada()] }),
+    );
+    expect(m.dias[17].reservas).toHaveLength(1);
+    expect(m.dias[17].simuladas).toHaveLength(0);
+    expect(m.dias[13].simuladas).toHaveLength(1);
+    expect(m.dias[13].reservas).toHaveLength(0);
+  });
+
+  it("una reserva de otro mes no ensucia este", () => {
+    const m = construirMes(
+      entrada({ reservasPms: [reservaPms({ desde: "2026-07-21", hasta: "2026-07-24" })] }),
+    );
+    expect(m.dias.every((d) => d.reservas.length === 0)).toBe(true);
+  });
+
+  it("una estadía que cruza el fin de mes se ve en los días que le tocan", () => {
+    const m = construirMes(
+      entrada({ reservasPms: [reservaPms({ desde: "2026-07-30", hasta: "2026-08-03" })] }),
+    );
+    expect(m.dias[0].reservas).toHaveLength(1); // 1
+    expect(m.dias[1].reservas).toHaveLength(1); // 2
+    expect(m.dias[2].reservas).toHaveLength(0); // 3, día de salida
+  });
+
+  // La del sistema NO libera la habitación en la lista de libres: el propio
+  // sistema ya la descuenta de disponibilidad. Duplicarlo sería contarla dos veces.
+  it("no se descuenta a mano de las habitaciones libres", () => {
+    const m = construirMes(entrada({ reservasPms: [reservaPms()] }));
+    expect(m.dias[17].libres).toHaveLength(2);
+  });
+
+  it("las del demo conservan las fechas de la estadía para mostrarlas", () => {
+    const s = construirMes(entrada({ simuladas: [simulada()] })).dias[13].simuladas[0];
+    expect(s.desde).toBe("2026-08-14");
+    expect(s.hasta).toBe("2026-08-16");
+    expect(s.huesped).toBe("Paula Marroquín");
+    expect(s.tipoNombre).toBe("Habitación 1");
   });
 });

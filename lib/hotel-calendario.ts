@@ -9,10 +9,12 @@ import {
   disponibilidadRango,
   enTandas,
   hoyEnZona,
+  listarReservas,
   listarTiposHabitacion,
   obtenerPropiedad,
   sumarDias,
   type PropiedadPms,
+  type ReservaPms,
   type TipoDisponible,
   type TipoHabitacion,
 } from "./cloudbeds";
@@ -32,6 +34,18 @@ export interface TomaSimulada {
   id: string;
   tipoNombre: string;
   huesped: string;
+  desde: string;
+  hasta: string;
+}
+
+// Reserva del sistema del hotel que cubre esa noche. El listado del PMS no dice
+// qué habitación ocupa, así que no se inventa: solo va lo que devuelve.
+export interface TomaPms {
+  id: string;
+  huesped: string;
+  desde: string;
+  hasta: string;
+  fuente: string;
 }
 
 export interface DiaCalendario {
@@ -42,6 +56,7 @@ export interface DiaCalendario {
   leido: boolean;
   libres: TipoLibre[];
   simuladas: TomaSimulada[];
+  reservas: TomaPms[];
 }
 
 export interface MesCalendario {
@@ -81,6 +96,7 @@ export interface EntradaMes {
   noches: Array<TipoDisponible[] | null>;
   conTarifa: Set<string> | null;
   simuladas: ReservaSimulada[];
+  reservasPms: ReservaPms[];
 }
 
 // Puro: arma el mes con lo ya leído, sin tocar la red.
@@ -92,7 +108,13 @@ export function construirMes(e: EntradaMes): Omit<MesCalendario, "propiedad" | "
   for (const r of e.simuladas) {
     for (const f of nochesDe(r)) {
       const lista = tomadasPorFecha.get(f) ?? [];
-      lista.push({ id: r.id, tipoNombre: r.tipoNombre, huesped: r.huesped });
+      lista.push({
+        id: r.id,
+        tipoNombre: r.tipoNombre,
+        huesped: r.huesped,
+        desde: r.desde,
+        hasta: r.hasta,
+      });
       tomadasPorFecha.set(f, lista);
     }
   }
@@ -120,6 +142,18 @@ export function construirMes(e: EntradaMes): Omit<MesCalendario, "propiedad" | "
       .filter((t) => !nombresTomados.has(t.nombre))
       .sort((a, b) => a.tarifa - b.tarifa);
 
+    // Reservas del sistema que cubren esa noche. La noche de salida ya no
+    // cuenta: esa habitación queda libre para el siguiente huésped.
+    const reservas: TomaPms[] = e.reservasPms
+      .filter((r) => r.desde <= fecha && fecha < r.hasta)
+      .map((r) => ({
+        id: r.id,
+        huesped: r.huesped,
+        desde: r.desde,
+        hasta: r.hasta,
+        fuente: r.fuente,
+      }));
+
     dias.push({
       fecha,
       dia: d,
@@ -127,6 +161,7 @@ export function construirMes(e: EntradaMes): Omit<MesCalendario, "propiedad" | "
       leido: disponibles !== null,
       libres,
       simuladas,
+      reservas,
     });
   }
 
@@ -189,7 +224,11 @@ export async function cargarMes(opts: {
     if (respuestas.every((r) => r !== null)) cache.set(clave, { ts: Date.now(), noches });
   }
 
-  const [tipos, conTarifa] = await Promise.all([listarTiposHabitacion(), tiposConTarifa()]);
+  const [tipos, conTarifa, reservasPms] = await Promise.all([
+    listarTiposHabitacion(),
+    tiposConTarifa(),
+    listarReservas(),
+  ]);
 
   return {
     ...construirMes({
@@ -201,6 +240,7 @@ export async function cargarMes(opts: {
       noches,
       conTarifa,
       simuladas: listarReservasSimuladas(),
+      reservasPms,
     }),
     propiedad,
     consultado: new Date().toISOString(),

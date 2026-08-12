@@ -24,6 +24,15 @@ interface TomaSimulada {
   id: string;
   tipoNombre: string;
   huesped: string;
+  desde: string;
+  hasta: string;
+}
+interface TomaPms {
+  id: string;
+  huesped: string;
+  desde: string;
+  hasta: string;
+  fuente: string;
 }
 interface Dia {
   fecha: string;
@@ -32,6 +41,7 @@ interface Dia {
   leido: boolean;
   libres: TipoLibre[];
   simuladas: TomaSimulada[];
+  reservas: TomaPms[];
 }
 interface Mes {
   anio: number;
@@ -85,6 +95,20 @@ function sumarDias(fecha: string, dias: number): string {
 function diaSemanaLunes(fecha: string): number {
   const [a, m, d] = fecha.split("-").map(Number);
   return (new Date(Date.UTC(a, m - 1, d)).getUTCDay() + 6) % 7;
+}
+
+function fechaCorta(fecha: string): string {
+  const [a, m, d] = fecha.split("-").map(Number);
+  return new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+    new Date(Date.UTC(a, m - 1, d)),
+  );
+}
+
+// Iniciales del huésped para la celda del mes: "Rocío Herrera" -> "RH".
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  return (partes[0][0] + (partes[1]?.[0] ?? "")).toUpperCase();
 }
 
 const CAMPO =
@@ -265,8 +289,16 @@ export default function CalendarioPage() {
                   Sin nada libre
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-3.5 w-3.5 rounded bg-brand [background-image:repeating-linear-gradient(45deg,transparent,transparent_3px,rgba(255,255,255,.45)_3px,rgba(255,255,255,.45)_5px)]" />
-                  Con reserva del demo
+                  <span className="flex h-3.5 w-5 items-end overflow-hidden rounded border-2 border-[var(--text)]">
+                    <span className="h-1.5 w-full bg-[var(--brand-blue-dark)]" />
+                  </span>
+                  Reserva del demo
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="flex h-3.5 w-5 items-end overflow-hidden rounded border-2 border-[var(--text)]">
+                    <span className="h-1.5 w-full bg-[var(--brand-accent)]" />
+                  </span>
+                  Reserva del sistema
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-3.5 w-3.5 rounded border border-dashed border-[var(--border-2)]" />
@@ -307,19 +339,27 @@ function CeldaDia({
 }) {
   const n = dia.libres.length;
   const lleno = tope > 0 ? n / tope : 0;
-  const conReserva = dia.simuladas.length > 0;
+  const tomas = [...dia.reservas, ...dia.simuladas];
+  const conReserva = tomas.length > 0;
+  const soloDemo = dia.reservas.length === 0;
 
   // Sin lectura no se pinta disponibilidad: no se sabe.
   const sinLectura = !dia.leido && !dia.pasado;
-  const seleccionable = dia.leido && !dia.pasado;
+  const disponible = dia.leido && !dia.pasado;
+  // Un día que ya pasó no se puede reservar, pero si tiene reservas igual se
+  // abre para ver de quién son.
+  const seleccionable = disponible || conReserva;
 
-  const titulo = dia.pasado
-    ? `${fechaLarga(dia.fecha)}: ya pasó`
-    : !dia.leido
-      ? `${fechaLarga(dia.fecha)}: no se pudo leer la disponibilidad`
-      : `${fechaLarga(dia.fecha)}: ${n} ${n === 1 ? "habitación libre" : "habitaciones libres"}${
-          conReserva ? ` · ${dia.simuladas.length} del demo` : ""
-        }`;
+  const quienes = tomas.map((t) => t.huesped).join(", ");
+  const titulo = conReserva
+    ? `${fechaLarga(dia.fecha)}: reservado por ${quienes}${
+        disponible ? ` · ${n} ${n === 1 ? "habitación libre" : "habitaciones libres"}` : ""
+      }`
+    : dia.pasado
+      ? `${fechaLarga(dia.fecha)}: ya pasó`
+      : !dia.leido
+        ? `${fechaLarga(dia.fecha)}: no se pudo leer la disponibilidad`
+        : `${fechaLarga(dia.fecha)}: ${n} ${n === 1 ? "habitación libre" : "habitaciones libres"}`;
 
   return (
     <button
@@ -330,21 +370,28 @@ function CeldaDia({
       aria-label={titulo}
       aria-pressed={activo}
       className={cn(
-        "relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border transition",
-        dia.pasado && "border-transparent bg-surface/40 text-[var(--text-3)]",
+        "relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-xl border transition",
+        dia.pasado && !conReserva && "border-transparent bg-surface/40 text-[var(--text-3)]",
+        dia.pasado && conReserva && "bg-surface/40",
         sinLectura && "border-dashed border-[var(--border-2)] bg-transparent",
-        seleccionable && "border-line hover:border-brand",
+        disponible && "border-line hover:border-brand",
+        seleccionable && !disponible && "cursor-pointer hover:border-brand",
+        // Un día reservado se distingue por PESO y FORMA, no solo por color:
+        // borde grueso y una franja llena abajo con las iniciales del huésped.
+        conReserva && "border-2 border-[var(--text)] shadow-sm",
         activo && "ring-2 ring-brand ring-offset-1 ring-offset-[var(--card)]",
       )}
       style={
-        seleccionable
+        disponible
           ? {
               backgroundColor:
                 n === 0
                   ? "color-mix(in srgb, var(--brand-accent) 22%, transparent)"
                   : `color-mix(in srgb, var(--brand-blue) ${Math.round(12 + lleno * 68)}%, transparent)`,
               borderColor:
-                n === 0 ? "color-mix(in srgb, var(--brand-accent) 45%, transparent)" : undefined,
+                n === 0 && !conReserva
+                  ? "color-mix(in srgb, var(--brand-accent) 45%, transparent)"
+                  : undefined,
             }
           : undefined
       }
@@ -353,14 +400,15 @@ function CeldaDia({
         className={cn(
           "text-[13px] font-bold leading-none",
           esHoy && "underline decoration-2 underline-offset-2",
-          seleccionable && lleno > 0.55 ? "text-white" : "text-[var(--text)]",
-          dia.pasado && "font-medium text-[var(--text-3)]",
+          disponible && lleno > 0.55 ? "text-white" : "text-[var(--text)]",
+          dia.pasado && !conReserva && "font-medium text-[var(--text-3)]",
           sinLectura && "text-[var(--text-3)]",
+          conReserva && "mb-0.5",
         )}
       >
         {dia.dia}
       </span>
-      {seleccionable && (
+      {disponible && (
         <span
           className={cn(
             "text-[11px] font-semibold leading-none tabular-nums",
@@ -371,11 +419,26 @@ function CeldaDia({
         </span>
       )}
       {sinLectura && <span className="text-[11px] font-bold text-[var(--text-3)]">?</span>}
+
       {conReserva && (
         <span
-          aria-hidden
-          className="absolute inset-x-1.5 bottom-1 h-1 rounded-full bg-brand [background-image:repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(255,255,255,.6)_2px,rgba(255,255,255,.6)_3.5px)]"
-        />
+          className={cn(
+            "absolute inset-x-0 bottom-0 flex h-[22px] items-center justify-center gap-1 px-1",
+            soloDemo ? "bg-[var(--brand-blue-dark)]" : "bg-[var(--brand-accent)]",
+          )}
+        >
+          {/* La trama marca lo simulado del demo; lo del sistema va liso. */}
+          {soloDemo && (
+            <span
+              aria-hidden
+              className="h-3 w-2 shrink-0 rounded-[2px] bg-white/85 [background-image:repeating-linear-gradient(45deg,transparent,transparent_1.5px,var(--brand-blue-dark)_1.5px,var(--brand-blue-dark)_3px)]"
+            />
+          )}
+          <span className="truncate text-[10.5px] font-extrabold uppercase leading-none tracking-wide text-white">
+            {iniciales(tomas[0].huesped)}
+            {tomas.length > 1 ? ` +${tomas.length - 1}` : ""}
+          </span>
+        </span>
       )}
     </button>
   );
@@ -391,6 +454,7 @@ function DetalleDia({
   onReservada: () => void;
 }) {
   const simbolo = mes.propiedad?.simbolo ?? "$";
+  const tomas = dia ? [...dia.reservas, ...dia.simuladas] : [];
   const [abierta, setAbierta] = useState<string | null>(null);
   const [nombre, setNombre] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -455,22 +519,68 @@ function DetalleDia({
         {fechaLarga(dia.fecha)}
       </p>
       <p className="mt-0.5 text-[12px] text-[var(--text-3)]">
-        {dia.libres.length === 0
-          ? "Ninguna habitación disponible esa noche"
-          : `${dia.libres.length} ${dia.libres.length === 1 ? "habitación" : "habitaciones"} para ${mes.huespedes} ${mes.huespedes === 1 ? "huésped" : "huéspedes"}`}
+        {/* De una noche que no se consultó (ya pasó) no se dice cuánto queda. */}
+        {tomas.length > 0
+          ? `${tomas.length} ${tomas.length === 1 ? "reserva" : "reservas"}${
+              dia.leido
+                ? ` · ${dia.libres.length} ${dia.libres.length === 1 ? "habitación libre" : "libres"}`
+                : ""
+            }`
+          : dia.libres.length === 0
+            ? "Ninguna habitación disponible esa noche"
+            : `${dia.libres.length} ${dia.libres.length === 1 ? "habitación" : "habitaciones"} para ${mes.huespedes} ${mes.huespedes === 1 ? "huésped" : "huéspedes"}`}
       </p>
 
-      {dia.simuladas.length > 0 && (
-        <div className="mt-3 space-y-1.5">
-          {dia.simuladas.map((s) => (
-            <p
-              key={s.id}
-              className="rounded-lg border border-brand/40 bg-brand/[0.08] px-2.5 py-1.5 text-[12px] text-[var(--text-2)]"
+      {/* Primero lo reservado y a nombre de quién; después lo que queda. */}
+      {tomas.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {dia.reservas.map((r) => (
+            <li
+              key={r.id}
+              className="overflow-hidden rounded-xl border border-[var(--brand-accent)]/45 bg-[var(--brand-accent)]/[0.09]"
             >
-              <span className="font-bold text-brand">{s.id}</span> {s.tipoNombre} · {s.huesped}
-            </p>
+              <div className="flex">
+                <span aria-hidden className="w-1.5 shrink-0 bg-[var(--brand-accent)]" />
+                <div className="min-w-0 flex-1 px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-[13px] font-bold text-[var(--text)]">{r.huesped}</p>
+                    <span className="shrink-0 text-[10.5px] font-bold text-[var(--text-3)]">
+                      {r.id}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11.5px] text-[var(--text-2)]">
+                    {fechaCorta(r.desde)} al {fechaCorta(r.hasta)} · {r.fuente}
+                  </p>
+                </div>
+              </div>
+            </li>
           ))}
-        </div>
+          {dia.simuladas.map((s) => (
+            <li key={s.id} className="overflow-hidden rounded-xl border border-brand/50 bg-brand/[0.10]">
+              <div className="flex">
+                <span
+                  aria-hidden
+                  className="w-1.5 shrink-0 bg-[var(--brand-blue-dark)] [background-image:repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(255,255,255,.75)_2px,rgba(255,255,255,.75)_4px)]"
+                />
+                <div className="min-w-0 flex-1 px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-[13px] font-bold text-[var(--text)]">{s.huesped}</p>
+                    <span className="shrink-0 text-[10.5px] font-bold text-brand">{s.id}</span>
+                  </div>
+                  <p className="mt-0.5 text-[11.5px] text-[var(--text-2)]">
+                    {s.tipoNombre} · {fechaCorta(s.desde)} al {fechaCorta(s.hasta)}
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {dia.libres.length > 0 && tomas.length > 0 && (
+        <p className="mt-4 border-t border-line pt-3 text-[11px] font-bold uppercase tracking-wide text-[var(--text-3)]">
+          Queda libre
+        </p>
       )}
 
       <ul className="mt-3 space-y-2">
