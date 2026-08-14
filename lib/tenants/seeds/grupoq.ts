@@ -95,6 +95,7 @@ export const grupoqSeed: TenantSeed = {
   socialStats: [
     { red: "instagram", handle: "@grupoq_centroamerica", seguidores: 18420, nuevosSeguidores: 574, crecimientoPct: 3.2, alcance30d: 42100, vistas30d: 96300, interacciones30d: 5840 },
     { red: "facebook", handle: "Grupo Q Centroamérica", seguidores: 31250, nuevosSeguidores: 412, crecimientoPct: 1.4, alcance30d: 58700, vistas30d: 121400, interacciones30d: 7920 },
+    { red: "tiktok", handle: "@grupoq", seguidores: 23700, nuevosSeguidores: 4100, crecimientoPct: 20.9, vistas30d: 518300, meGusta30d: 29400, compartidos30d: 3870 },
   ],
   metrics: [
     { label: "Conversaciones hoy", valor: 38, delta: 12 },

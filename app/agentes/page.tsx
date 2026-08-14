@@ -5,6 +5,8 @@ import { Bot, PhoneOff, RefreshCw } from "lucide-react";
 import { AgenteCard } from "@/components/agentes/AgenteCard";
 import { PanelAgente } from "@/components/agentes/PanelAgente";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { activeTenantId } from "@/lib/tenants/active";
+import { esAgencia } from "@/lib/tenants/voz";
 import type { AgenteRecord, NumeroRecord } from "@/lib/vapi";
 
 interface Respuesta {
@@ -22,6 +24,9 @@ export default function AgentesPage() {
   const [cargando, setCargando] = useState(true);
   // Panel abierto: que agente y en que seccion. null = cerrado.
   const [panel, setPanel] = useState<{ id: string; seccion: Seccion } | null>(null);
+  // La agencia administra la cuenta entera (script, lineas, avisos). El cliente
+  // ve su agente y lo puede probar; el resto ni le llega del servidor.
+  const agencia = esAgencia(activeTenantId());
 
   const sincronizar = useCallback(async () => {
     setCargando(true);
@@ -70,9 +75,11 @@ export default function AgentesPage() {
           <p className="text-[12.5px] text-[var(--text-3)]">
             {!data
               ? "Cargando..."
-              : `${agentes.length} agente${agentes.length === 1 ? "" : "s"} de voz ${
-                  data.source === "demo" ? "(datos de demostración)" : "en Vapi"
-                }`}
+              : agencia
+                ? `${agentes.length} agente${agentes.length === 1 ? "" : "s"} de voz ${
+                    data.source === "demo" ? "(datos de demostración)" : "en Vapi"
+                  }`
+                : "Quién atiende y responde tu línea"}
           </p>
         </div>
         <button
@@ -89,11 +96,17 @@ export default function AgentesPage() {
       <div className="flex-1 space-y-4 overflow-y-auto p-5">
         {data?.error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
-            <strong>No se pudo conectar con Vapi:</strong> {data.error}
+            {agencia ? (
+              <>
+                <strong>No se pudo conectar con Vapi:</strong> {data.error}
+              </>
+            ) : (
+              <strong>No se pudo cargar tu agente. Probá sincronizar en unos segundos.</strong>
+            )}
           </div>
         )}
 
-        {data?.source === "demo" && (
+        {agencia && data?.source === "demo" && (
           <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900">
             <strong>Estás viendo agentes de ejemplo, no los reales.</strong> Falta la variable{" "}
             <code>VAPI_PRIVATE_KEY</code> en este entorno. Llamar y reasignar quedan deshabilitados.
@@ -103,7 +116,7 @@ export default function AgentesPage() {
         {/* Aviso accionable: un agente sin numero no sirve, y un numero libre es
             capacidad ociosa. Se dice arriba para no tener que abrir cada
             tarjeta para descubrirlo. */}
-        {sinNumero > 0 && (
+        {agencia && sinNumero > 0 && (
           <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.5px] text-amber-900">
             <PhoneOff size={15} className="shrink-0" />
             <span>
@@ -120,7 +133,11 @@ export default function AgentesPage() {
         {data && agentes.length === 0 && !data.error ? (
           <EmptyState
             titulo="Sin agentes"
-            descripcion="No hay assistants configurados en esta cuenta de Vapi."
+            descripcion={
+              agencia
+                ? "No hay assistants configurados en esta cuenta de Vapi."
+                : "Todavía no hay un agente de voz configurado para tu línea."
+            }
             Icon={Bot}
           />
         ) : (
@@ -129,6 +146,7 @@ export default function AgentesPage() {
               <AgenteCard
                 key={a.id}
                 agente={a}
+                modoCliente={!agencia}
                 onAbrir={(seccion) => setPanel({ id: a.id, seccion })}
               />
             ))}
@@ -141,6 +159,7 @@ export default function AgentesPage() {
           agente={abierto}
           numeros={numeros}
           seccionInicial={panel.seccion}
+          modoCliente={!agencia}
           onCerrar={() => setPanel(null)}
           onCambio={() => void sincronizar()}
         />

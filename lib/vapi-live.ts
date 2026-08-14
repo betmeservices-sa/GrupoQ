@@ -16,6 +16,8 @@ export interface LlamadaEnCurso {
   numeroCliente?: string;
   numeroPropio?: string;
   nombreNumero?: string;
+  // El id del agente viaja para poder recortar por tenant en el route handler.
+  assistantId?: string;
   nombreAssistant?: string;
   estado: string;
   // Momento en que se origino. La UI calcula el cronometro con esto para que
@@ -140,6 +142,7 @@ export async function fetchLlamadasEnCurso(): Promise<EstadoEnVivo> {
         numeroCliente: c.customer?.number,
         numeroPropio: num?.numero,
         nombreNumero: num?.nombre,
+        assistantId: c.assistantId,
         nombreAssistant: c.assistantId ? cat?.agentes.get(c.assistantId) : undefined,
         estado: String(c.status ?? ""),
         desde: c.startedAt ?? c.createdAt,

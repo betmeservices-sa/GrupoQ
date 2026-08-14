@@ -195,4 +195,6 @@ export const grupoqTenant: TenantConfig = {
     },
   ],
   whatsapp: {},
+  // Agente de voz "Sofia Nissan".
+  voz: { assistantId: "f4e60d15-31f9-4278-b014-fb1e0ab1eaff" },
 };

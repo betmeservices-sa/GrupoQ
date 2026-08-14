@@ -81,6 +81,7 @@ export const miagentiaSeed: TenantSeed = {
   socialStats: [
     { red: "instagram", handle: "@miagentia", seguidores: 4800, nuevosSeguidores: 260, crecimientoPct: 5.7, alcance30d: 21400, vistas30d: 46800, interacciones30d: 2980 },
     { red: "facebook", handle: "MiAgentIA", seguidores: 9200, nuevosSeguidores: 410, crecimientoPct: 4.6, alcance30d: 38200, vistas30d: 71500, interacciones30d: 4310 },
+    { red: "tiktok", handle: "@miagentia", seguidores: 7400, nuevosSeguidores: 2100, crecimientoPct: 39.6, vistas30d: 168900, meGusta30d: 9600, compartidos30d: 1450 },
   ],
   metrics: [
     { label: "Conversaciones hoy", valor: 18, delta: 22 },

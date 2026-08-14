@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { fetchVapiCalls, hayLlaveVapi } from "@/lib/vapi";
 import { guardarLlamadas, haySupabase, leerLlamadas } from "@/lib/calls-store";
 import { resumirLlamadas } from "@/lib/calls-metrics";
+import { tenantFromRequest } from "@/lib/tenants/server";
+import { soloDelTenant, veModuloVoz } from "@/lib/tenants/voz";
+import type { TenantId } from "@/lib/tenants/types";
 import type { CallRecord } from "@/lib/data/types";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +21,7 @@ function tarifaCarrier(): number {
  * Si Vapi falla pero hay historial en Supabase, se sirve el historial con un
  * aviso: preferimos datos viejos antes que una pantalla rota.
  */
-async function armarRespuesta() {
+async function armarRespuesta(tenant: TenantId) {
   const tarifa = tarifaCarrier();
   let calls: CallRecord[] = [];
   // Se separan a proposito: un fallo de la BASE no es un fallo de VAPI, y
@@ -50,26 +53,39 @@ async function armarRespuesta() {
     }
   }
 
+  // 3) Recortar a lo que es del cliente. Se guarda TODO el historial (arriba),
+  // pero se responde solo lo del agente del tenant: la cuenta de voz tiene
+  // agentes de varios clientes y nadie debe ver el trafico de otro. Las
+  // metricas se recalculan sobre lo ya recortado, no sobre el total.
+  const mias = soloDelTenant(calls, tenant);
+
   return {
     source: hayLlaveVapi() ? "vapi" : "demo",
     persistido,
     tarifaCarrier: tarifa,
-    metrics: resumirLlamadas(calls, tarifa),
-    calls,
+    metrics: resumirLlamadas(mias, tarifa),
+    calls: mias,
     sincronizadaEn: new Date().toISOString(),
     ...(errorVapi ? { errorVapi } : {}),
     ...(errorBase ? { errorBase } : {}),
   };
 }
 
-export async function GET() {
-  const body = await armarRespuesta();
+async function responder(req: Request) {
+  const tenant = tenantFromRequest(req);
+  if (!veModuloVoz(tenant)) {
+    return NextResponse.json({ error: "Este módulo no está habilitado." }, { status: 403 });
+  }
+  const body = await armarRespuesta(tenant);
   return NextResponse.json(body, { status: body.errorVapi && body.calls.length === 0 ? 502 : 200 });
+}
+
+export async function GET(req: Request) {
+  return responder(req);
 }
 
 // Mismo trabajo que GET. Existe para que el boton "Sincronizar" exprese
 // intencion de escritura y no quede cacheado por ningun intermediario.
-export async function POST() {
-  const body = await armarRespuesta();
-  return NextResponse.json(body, { status: body.errorVapi && body.calls.length === 0 ? 502 : 200 });
+export async function POST(req: Request) {
+  return responder(req);
 }

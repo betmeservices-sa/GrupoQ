@@ -19,14 +19,16 @@ export function PanelAgente({
   seccionInicial,
   onCerrar,
   onCambio,
+  modoCliente = false,
 }: {
   agente: AgenteRecord;
   numeros: NumeroRecord[];
   seccionInicial: Seccion;
   onCerrar: () => void;
   onCambio: () => void;
+  modoCliente?: boolean;
 }) {
-  const [seccion, setSeccion] = useState<Seccion>(seccionInicial);
+  const [seccion, setSeccion] = useState<Seccion>(modoCliente ? "llamar" : seccionInicial);
 
   // Escape cierra: en un panel modal es lo que la gente intenta primero.
   useEffect(() => {
@@ -52,7 +54,9 @@ export function PanelAgente({
               {agente.nombre}
             </h2>
             <p className="mt-0.5 text-[12px] text-[var(--text-3)]">
-              {[agente.modelo, agente.voz].filter(Boolean).join(" · ") || "Agente de voz"}
+              {modoCliente
+                ? "Agente de voz"
+                : [agente.modelo, agente.voz].filter(Boolean).join(" · ") || "Agente de voz"}
             </p>
           </div>
           <button
@@ -64,7 +68,7 @@ export function PanelAgente({
           </button>
         </header>
 
-        <nav className="flex gap-1 border-b border-line px-4 pt-2">
+        <nav className={cn("flex gap-1 border-b border-line px-4 pt-2", modoCliente && "hidden")}>
           {(
             [
               ["script", "Script"],
@@ -96,7 +100,9 @@ export function PanelAgente({
           {seccion === "llamar" && (
             <div className="space-y-3">
               <p className="text-[12.5px] text-[var(--text-3)]">
-                Se marca de verdad y consume minutos. El destino debe ser de El Salvador, 8 dígitos.
+                {modoCliente
+                  ? "El agente marca de verdad y consume minutos del plan. El destino debe ser de El Salvador, 8 dígitos."
+                  : "Se marca de verdad y consume minutos. El destino debe ser de El Salvador, 8 dígitos."}
               </p>
               <LlamarForm assistantId={agente.id} numeros={agente.numeros} />
             </div>

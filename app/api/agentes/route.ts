@@ -6,15 +6,28 @@ import {
   lanzarLlamadaVapi,
 } from "@/lib/vapi";
 import { destinoRiesgoso, normalizarDestinoSV } from "@/lib/phone";
+import { tenantFromRequest } from "@/lib/tenants/server";
+import { assistantIdDeTenant, esAgencia, veModuloVoz } from "@/lib/tenants/voz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Lista los agentes de Vapi con su numero asignado y su script.
-// El script se sirve completo a proposito: esta pantalla es solo de la agencia.
-export async function GET() {
+// Lista los agentes con su numero asignado.
+// La agencia recibe la cuenta completa, con el script. Un cliente recibe SOLO su
+// agente y sin script: el prompt es propiedad de la agencia, y recortarlo aca
+// (no en la pantalla) es lo unico que lo protege de verdad.
+export async function GET(req: Request) {
+  const tenant = tenantFromRequest(req);
+  if (!veModuloVoz(tenant)) {
+    return NextResponse.json({ error: "Este módulo no está habilitado." }, { status: 403 });
+  }
+
   try {
-    const agentes = await fetchVapiAgentes();
+    const todos = await fetchVapiAgentes();
+    const mio = assistantIdDeTenant(tenant);
+    const agentes = esAgencia(tenant)
+      ? todos
+      : todos.filter((a) => a.id === mio).map((a) => ({ ...a, script: "" }));
     return NextResponse.json({
       source: hayLlaveVapi() ? "vapi" : "demo",
       agentes,
@@ -29,6 +42,11 @@ export async function GET() {
 // Guarda el script (system prompt) de un agente en Vapi.
 // Body: { assistantId, script }
 export async function PATCH(req: Request) {
+  // Editar el prompt es trabajo de la agencia. Un cliente ni siquiera lo recibe.
+  if (!esAgencia(tenantFromRequest(req))) {
+    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+  }
+
   let body: { assistantId?: string; script?: string };
   try {
     body = await req.json();
@@ -73,6 +91,11 @@ export async function PATCH(req: Request) {
 // Dispara una llamada saliente real.
 // Body: { assistantId, phoneNumberId, numero }
 export async function POST(req: Request) {
+  const tenant = tenantFromRequest(req);
+  if (!veModuloVoz(tenant)) {
+    return NextResponse.json({ ok: false, error: "Este módulo no está habilitado." }, { status: 403 });
+  }
+
   let body: { assistantId?: string; phoneNumberId?: string; numero?: string };
   try {
     body = await req.json();
@@ -80,8 +103,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "JSON inválido" }, { status: 400 });
   }
 
-  const assistantId = body.assistantId?.trim();
-  const phoneNumberId = body.phoneNumberId?.trim();
+  // El agente NO se toma del cuerpo cuando llama un cliente: se impone el suyo.
+  // Asi nadie puede marcar (ni facturar minutos) con el agente de otro.
+  const propio = assistantIdDeTenant(tenant);
+  const assistantId = esAgencia(tenant) ? body.assistantId?.trim() : propio;
+  let phoneNumberId = body.phoneNumberId?.trim();
+
+  if (!esAgencia(tenant) && assistantId) {
+    // La linea desde la que se marca tambien tiene que ser del agente del
+    // cliente; si no lo es, se usa la suya en vez de fallar.
+    const suyos = (await fetchVapiAgentes()).find((a) => a.id === assistantId)?.numeros ?? [];
+    if (!phoneNumberId || !suyos.some((n) => n.id === phoneNumberId)) {
+      phoneNumberId = suyos[0]?.id;
+    }
+  }
+
   if (!assistantId || !phoneNumberId) {
     return NextResponse.json(
       { ok: false, error: "Faltan 'assistantId' o 'phoneNumberId'" },

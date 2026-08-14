@@ -6,6 +6,7 @@ import { BarChart3, BedDouble, Bot, Building2, CalendarClock, CalendarDays, Conc
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
+import { veModuloVoz } from "@/lib/tenants/voz";
 import { staff, ME } from "@/lib/data/seed";
 import { Avatar } from "@/components/ui/Avatar";
 import { Brand } from "./Brand";
@@ -50,18 +51,16 @@ export function Sidebar({
   const { def } = useRole();
   const yo = staff.find((s) => s.id === ME)!;
 
-  // "llamadas": la agencia (miagentia) ve la cuenta completa con costos; el
-  // hospital ve una version simplificada por PLAN (sin precios ni infra). En los
-  // demas clientes queda oculta.
-  // "agentes" expone el script (prompt) y el boton de marcar: es propiedad de la
-  // agencia, asi que solo lo ve miagentia, nunca un cliente.
+  // "llamadas" y "agentes" los ve quien tiene voz contratada: la agencia
+  // (miagentia) con la cuenta completa y sus costos, y cada cliente con su
+  // agente y su vista por plan. Un tenant sin agente declarado no ve el modulo.
   // "hoy", "habitaciones" y "calendario" se apoyan en el sistema de reservas del
   // hotel: solo el hotel.
   // "pipeline", "visitas", "cartera" y "publicacion" son el tablero del agente
   // inmobiliario: solo la inmobiliaria.
   const tenant = activeTenantId();
-  const veLlamadas = tenant === "miagentia" || tenant === "hospital";
-  const veAgentes = tenant === "miagentia";
+  const veLlamadas = veModuloVoz(tenant);
+  const veAgentes = veLlamadas;
   const veHotel = tenant === "hotel";
   const veInmobiliaria = tenant === "inmobiliaria";
   const visibles = NAV.filter(

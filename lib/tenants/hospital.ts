@@ -159,4 +159,6 @@ export const hospitalTenant: TenantConfig = {
     },
   ],
   whatsapp: {},
+  // Agente de voz "Hospital".
+  voz: { assistantId: "a934532e-a9c5-43c5-83d5-c95092bac36b" },
 };

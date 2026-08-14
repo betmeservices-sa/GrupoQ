@@ -189,4 +189,6 @@ export const excelTenant: TenantConfig = {
     },
   ],
   whatsapp: {},
+  // Agente de voz "Sofia Toyota".
+  voz: { assistantId: "4f589f34-f3e0-43e2-bbeb-baf8854668e7" },
 };

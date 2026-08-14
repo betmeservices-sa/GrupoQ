@@ -81,6 +81,14 @@ export interface TenantWhatsApp {
   phoneNumberId?: string;
 }
 
+// Agente de voz del tenant. La cuenta de voz es UNA sola y tiene agentes de
+// varios clientes mezclados, así que este id es la frontera: un cliente solo ve
+// (y solo puede marcar con) SU agente. Sin este bloque, el tenant no tiene
+// módulo de voz.
+export interface TenantVoz {
+  assistantId: string;
+}
+
 export interface TenantConfig {
   id: TenantId;
   brand: TenantBrand;
@@ -100,4 +108,5 @@ export interface TenantConfig {
   // listan desde la WABA del cliente.
   waTemplates: WaTemplate[];
   whatsapp?: TenantWhatsApp;
+  voz?: TenantVoz;
 }

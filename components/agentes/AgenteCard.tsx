@@ -28,9 +28,13 @@ function tono(nombre: string): number {
 export function AgenteCard({
   agente,
   onAbrir,
+  modoCliente = false,
 }: {
   agente: AgenteRecord;
   onAbrir: (seccion: "script" | "numeros" | "llamar") => void;
+  // El cliente ve a su agente y lo puede probar; el script y la administracion
+  // de lineas son de la agencia y ni siquiera le llegan del servidor.
+  modoCliente?: boolean;
 }) {
   const activo = agente.numeros.length > 0;
   const h = tono(agente.nombre);
@@ -62,7 +66,9 @@ export function AgenteCard({
             />
           </div>
           <p className="mt-0.5 truncate text-[11.5px] text-[var(--text-3)]">
-            {[agente.modelo, agente.voz].filter(Boolean).join(" · ") || "Agente de voz"}
+            {modoCliente
+              ? "Agente de voz"
+              : [agente.modelo, agente.voz].filter(Boolean).join(" · ") || "Agente de voz"}
           </p>
         </div>
       </div>
@@ -71,7 +77,7 @@ export function AgenteCard({
           y clickeable, no escondido en una lista. */}
       <button
         type="button"
-        onClick={() => onAbrir("numeros")}
+        onClick={() => onAbrir(modoCliente ? "llamar" : "numeros")}
         className={cn(
           "mx-4 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition",
           activo
@@ -120,14 +126,16 @@ export function AgenteCard({
       )}
 
       <div className="mt-auto flex items-center gap-2 p-4 pt-3">
-        <button
-          type="button"
-          onClick={() => onAbrir("script")}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line px-2.5 py-2 text-[12px] font-medium text-[var(--text-2)] transition hover:bg-surface"
-        >
-          <FileText size={13} />
-          Script
-        </button>
+        {!modoCliente && (
+          <button
+            type="button"
+            onClick={() => onAbrir("script")}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line px-2.5 py-2 text-[12px] font-medium text-[var(--text-2)] transition hover:bg-surface"
+          >
+            <FileText size={13} />
+            Script
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onAbrir("llamar")}

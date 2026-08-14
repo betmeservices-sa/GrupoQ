@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
 import { asignarNumeroVapi, fetchVapiNumeros, hayLlaveVapi } from "@/lib/vapi";
+import { tenantFromRequest } from "@/lib/tenants/server";
+import { esAgencia, soloDelTenant, veModuloVoz } from "@/lib/tenants/voz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Todos los numeros de la cuenta, con el agente que los atiende. */
-export async function GET() {
+/**
+ * Los numeros de la cuenta con el agente que los atiende. La agencia los ve
+ * todos; un cliente solo las lineas de SU agente (las demas son de otros).
+ */
+export async function GET(req: Request) {
+  const tenant = tenantFromRequest(req);
+  if (!veModuloVoz(tenant)) {
+    return NextResponse.json({ error: "Este módulo no está habilitado." }, { status: 403 });
+  }
+
   try {
-    const numeros = await fetchVapiNumeros();
+    const numeros = soloDelTenant(await fetchVapiNumeros(), tenant);
     return NextResponse.json({
       source: hayLlaveVapi() ? "vapi" : "demo",
       numeros,
@@ -23,6 +33,11 @@ export async function GET() {
  * Body: { phoneNumberId, assistantId }  ·  assistantId null = liberar.
  */
 export async function PATCH(req: Request) {
+  // Mover una linea de un agente a otro afecta a toda la cuenta: solo la agencia.
+  if (!esAgencia(tenantFromRequest(req))) {
+    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+  }
+
   let body: { phoneNumberId?: string; assistantId?: string | null };
   try {
     body = await req.json();

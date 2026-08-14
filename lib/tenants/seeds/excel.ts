@@ -97,6 +97,7 @@ export const excelSeed: TenantSeed = {
   socialStats: [
     { red: "instagram", handle: "@excelautomotriz.ca", seguidores: 13200, nuevosSeguidores: 342, crecimientoPct: 2.7, alcance30d: 38400, vistas30d: 88200, interacciones30d: 5120 },
     { red: "facebook", handle: "Excel Automotriz", seguidores: 137600, nuevosSeguidores: 980, crecimientoPct: 1.1, alcance30d: 210500, vistas30d: 402300, interacciones30d: 14200 },
+    { red: "tiktok", handle: "@excelautomotriz", seguidores: 41300, nuevosSeguidores: 6800, crecimientoPct: 19.7, vistas30d: 892400, meGusta30d: 47600, compartidos30d: 6240 },
   ],
   metrics: [
     { label: "Conversaciones hoy", valor: 42, delta: 14 },

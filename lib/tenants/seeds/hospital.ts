@@ -65,6 +65,7 @@ export const hospitalSeed: TenantSeed = {
   socialStats: [
     { red: "instagram", handle: "@hospitalcentroginecologico", seguidores: 18420, nuevosSeguidores: 574, crecimientoPct: 3.2, alcance30d: 42100, vistas30d: 96300, interacciones30d: 5840 },
     { red: "facebook", handle: "Hospital Centro Ginecológico", seguidores: 31250, nuevosSeguidores: 412, crecimientoPct: 1.4, alcance30d: 58700, vistas30d: 121400, interacciones30d: 7920 },
+    { red: "tiktok", handle: "@centroginecologico", seguidores: 11600, nuevosSeguidores: 1740, crecimientoPct: 17.6, vistas30d: 214600, meGusta30d: 12800, compartidos30d: 1930 },
   ],
   metrics: [
     { label: "Conversaciones hoy", valor: 38, delta: 12 },
