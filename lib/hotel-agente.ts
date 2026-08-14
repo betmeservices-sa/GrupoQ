@@ -17,6 +17,7 @@ import {
   hayPms,
 } from "./cloudbeds";
 import { crearReservaSimulada, solapeSimulado } from "./hotel-reservas";
+import { invalidarCacheDia } from "./hotel-dia";
 import { tiposConTarifa } from "./hotel-panel";
 
 const ZONA_HOTEL = "America/Guatemala";
@@ -262,6 +263,11 @@ export async function reservarHabitacionSimulada(input: InputReservaHotel): Prom
   // Las cachés guardan SOLO lo que devolvió el sistema del hotel; las reservas
   // del demo se superponen en cada lectura. Por eso tomar una no obliga a barrer
   // otra vez el sistema y el panel se actualiza al instante.
+  //
+  // El panel del día es la excepción: se arma entero y se guarda hecho, así que
+  // hay que tirarlo para que la reserva recién tomada aparezca sin esperar los
+  // dos minutos del caché.
+  invalidarCacheDia();
 
   return {
     ok: true,

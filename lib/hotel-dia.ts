@@ -29,6 +29,30 @@ import {
   type PropiedadPms,
 } from "./cloudbeds";
 import { estadoLegible } from "./hotel-huesped";
+import { listarReservasSimuladas, type ReservaSimulada } from "./hotel-reservas";
+
+// Las reservas del demo no existen en el sistema del hotel, así que el panel
+// del día no las vería nunca. Se suman acá, marcadas, para que lo que cierra
+// el agente aparezca donde recepción lo busca.
+function simuladaAMovimiento(r: ReservaSimulada): Movimiento {
+  return {
+    id: r.id,
+    huesped: r.huesped,
+    estado: "Reserva del demo",
+    desde: r.desde,
+    hasta: r.hasta,
+    noches: noches(r.desde, r.hasta),
+    adultos: r.adultos,
+    ninos: r.ninos,
+    habitaciones: [],
+    tipos: [r.tipoNombre],
+    saldo: r.tarifaTotal,
+    fuente: r.origen === "agente" ? "WhatsApp" : "Tablero",
+    fuenteExterna: false,
+    sinAsignar: 1,
+    simulada: true,
+  };
+}
 
 export const ZONA_HOTEL = "America/Guatemala";
 
@@ -50,6 +74,8 @@ export interface Movimiento {
   fuente: string;
   fuenteExterna: boolean;
   sinAsignar: number;
+  /** Reserva del demo, no del sistema del hotel. Se pinta distinta. */
+  simulada?: boolean;
 }
 
 export interface EnCasa {
@@ -99,6 +125,8 @@ export interface EntradaDia {
   limpieza: LimpiezaPms[] | null;
   bloqueos: BloqueoPms[] | null;
   fuentes: FuentePms[];
+  /** Reservas del demo. Se inyectan para poder probar el panel sin PMS. */
+  simuladas?: ReservaSimulada[];
 }
 
 function aMovimiento(e: EstadiaPms, fuentes: FuentePms[]): Movimiento {
@@ -143,6 +171,11 @@ export function resumirLimpieza(filas: LimpiezaPms[]): ResumenLimpieza {
 export function construirDia(e: EntradaDia): PanelDia {
   const faltantes: string[] = [];
   const vivas = (lista: EstadiaPms[]) => lista.filter((r) => !MUERTAS.has(r.estado));
+  const simuladas = e.simuladas ?? [];
+  const simLlegan = simuladas.filter((r) => r.desde === e.hoy).map(simuladaAMovimiento);
+  const simSalen = simuladas.filter((r) => r.hasta === e.hoy).map(simuladaAMovimiento);
+  // "En casa" en el demo = entró antes de hoy y todavía no se va.
+  const simEnCasa = simuladas.filter((r) => r.desde < e.hoy && r.hasta > e.hoy);
 
   let llegadas: Movimiento[] | null = null;
   let sinHabitacion: Movimiento[] | null = null;
@@ -151,16 +184,23 @@ export function construirDia(e: EntradaDia): PanelDia {
     faltantes.push("las reservas sin habitación");
   } else {
     const activas = vivas(e.proximas);
-    llegadas = activas.filter((r) => r.desde === e.hoy).map((r) => aMovimiento(r, e.fuentes));
-    sinHabitacion = activas.filter((r) => r.sinAsignar > 0).map((r) => aMovimiento(r, e.fuentes));
+    llegadas = [...activas.filter((r) => r.desde === e.hoy).map((r) => aMovimiento(r, e.fuentes)), ...simLlegan];
+    sinHabitacion = [
+      ...activas.filter((r) => r.sinAsignar > 0).map((r) => aMovimiento(r, e.fuentes)),
+      // La del demo nunca tiene habitación puesta: no existe en el sistema.
+      ...simuladas.filter((r) => r.hasta > e.hoy).map(simuladaAMovimiento),
+    ];
   }
 
   let salidas: Movimiento[] | null = null;
   if (e.salidas === null) faltantes.push("las salidas");
   else {
-    salidas = vivas(e.salidas)
-      .filter((r) => r.hasta === e.hoy)
-      .map((r) => aMovimiento(r, e.fuentes));
+    salidas = [
+      ...vivas(e.salidas)
+        .filter((r) => r.hasta === e.hoy)
+        .map((r) => aMovimiento(r, e.fuentes)),
+      ...simSalen,
+    ];
   }
 
   let enCasa: EnCasa[] | null = null;
@@ -175,6 +215,18 @@ export function construirDia(e: EntradaDia): PanelDia {
       correo: h.correo,
       telefono: h.telefono,
     }));
+    enCasa = [
+      ...enCasa,
+      ...simEnCasa.map((r) => ({
+        reservaId: r.id,
+        huesped: r.huesped,
+        habitacion: r.tipoNombre,
+        desde: r.desde,
+        hasta: r.hasta,
+        correo: "",
+        telefono: r.telefono ?? "",
+      })),
+    ];
   }
 
   if (e.libres === null) faltantes.push("las habitaciones libres");
@@ -241,6 +293,7 @@ export async function cargarDia(ventana = 14): Promise<PanelDia> {
     limpieza: limpieza.ok ? limpieza.datos : null,
     bloqueos: bloqueos.ok ? bloqueos.datos : null,
     fuentes: fuentes.ok ? fuentes.datos : [],
+    simuladas: listarReservasSimuladas(),
   });
 
   // Una lectura incompleta no se cachea: así el siguiente "Actualizar" vuelve a
