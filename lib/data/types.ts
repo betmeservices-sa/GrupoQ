@@ -107,13 +107,17 @@ export interface InternalMessage {
   ts: string; // ISO 8601
 }
 
-export type RedSocial = "facebook" | "instagram";
+export type RedSocial = "facebook" | "instagram" | "tiktok";
 
-// Métricas por publicación, equivalentes a las que devuelve la API:
-// IG media insights (reach, likes, comments, shares, saved) y
-// FB post insights (reach, reactions, comments, shares).
+// Métricas por publicación, equivalentes a las que devuelve la API de cada red:
+// IG media insights (reach, likes, comments, shares, saved),
+// FB post insights (reach, reactions, comments, shares) y
+// TikTok video (video_views, likes, comments, shares).
+// Cada red reporta lo suyo: en TikTok no existe el alcance y en Meta la vista
+// del post no es la métrica que se mira, así que ambas son opcionales.
 export interface PostEngagement {
-  alcance: number; // reach
+  alcance?: number; // reach (Meta)
+  vistas?: number; // video_views (TikTok)
   meGusta: number; // likes / reactions
   comentarios: number; // comments
   compartidos: number; // shares
@@ -126,21 +130,30 @@ export interface SocialPost {
   estado: "publicado" | "programado" | "borrador";
   texto: string;
   fecha: string; // ISO 8601
+  // Rutas públicas de las fotos que llevan la publicación. Varias = carrusel.
+  // Vacío o ausente = publicación de solo texto.
+  imagenes?: string[];
   engagement?: PostEngagement; // presente en publicaciones ya publicadas
 }
 
-// Estadísticas a nivel de cuenta, equivalentes a Meta Graph API Insights.
-// IG: follower_count, reach, views, total_interactions.
-// FB: page_fans, page reach, views, page_post_engagements.
+// Estadísticas a nivel de cuenta.
+// Meta Graph API Insights: IG follower_count, reach, views, total_interactions;
+// FB page_fans, page reach, views, page_post_engagements.
+// TikTok Business API: follower_count, video_views, likes, comments, shares.
+// Lo único común a las tres redes son los seguidores y las vistas; el resto se
+// declara solo donde esa red lo mide.
 export interface SocialStats {
   red: RedSocial;
   handle: string;
   seguidores: number; // follower_count / page_fans
   nuevosSeguidores: number; // crecimiento en 30 días
   crecimientoPct: number; // variación porcentual de seguidores
-  alcance30d: number; // reach (30 días)
-  vistas30d: number; // views (30 días), reemplaza impressions
-  interacciones30d: number; // total_interactions / page_post_engagements
+  vistas30d: number; // views (30 días). En TikTok es LA métrica de la cuenta.
+  alcance30d?: number; // reach (30 días), solo Meta
+  interacciones30d?: number; // total_interactions / page_post_engagements, solo Meta
+  meGusta30d?: number; // likes (30 días), TikTok
+  comentarios30d?: number; // comments (30 días), TikTok
+  compartidos30d?: number; // shares (30 días), TikTok
 }
 
 export interface Metric {

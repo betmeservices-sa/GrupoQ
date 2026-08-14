@@ -79,15 +79,20 @@ export const inmobiliariaSeed: TenantSeed = {
     { id: "im8", channelId: "dm1", staffId: ME, texto: "Perfecto, agéndalas y les tomamos fotos el mismo día.", ts: "2026-08-12T09:05:00" },
   ],
   socialPosts: [
-    { id: "sp1", red: "facebook", estado: "publicado", texto: "Casa de 3 habitaciones en residencial cerrado de Santa Tecla, con patio y cuarto de servicio. Escríbenos para coordinar la visita.", fecha: "2026-08-09T10:00:00", engagement: { alcance: 18400, meGusta: 612, comentarios: 94, compartidos: 138 } },
-    { id: "sp2", red: "instagram", estado: "publicado", texto: "Terreno con vista al mar sobre carretera al Litoral, 850 v², con servicios en la entrada.", fecha: "2026-08-07T17:30:00", engagement: { alcance: 12700, meGusta: 845, comentarios: 41, compartidos: 62, guardados: 310 } },
-    { id: "sp3", red: "facebook", estado: "programado", texto: "Casa apta para crédito del Fondo Social, con escritura inscrita y papelería lista.", fecha: "2026-08-14T09:00:00" },
+    { id: "sp1", red: "facebook", estado: "publicado", texto: "Casa de 3 habitaciones en residencial cerrado de Santa Tecla, con patio y cuarto de servicio. Escríbenos para coordinar la visita.", fecha: "2026-08-09T10:00:00", imagenes: ["/inmobiliaria/tz-103-1.jpg", "/inmobiliaria/tz-103-2.jpg", "/inmobiliaria/tz-103-3.jpg", "/inmobiliaria/tz-103-4.jpg"], engagement: { alcance: 18400, meGusta: 612, comentarios: 94, compartidos: 138 } },
+    { id: "sp2", red: "instagram", estado: "publicado", texto: "Terreno con vista al mar sobre carretera al Litoral, 850 v², con servicios en la entrada.", fecha: "2026-08-07T17:30:00", imagenes: ["/inmobiliaria/tz-105-1.jpg", "/inmobiliaria/tz-105-2.jpg", "/inmobiliaria/tz-105-3.jpg"], engagement: { alcance: 12700, meGusta: 845, comentarios: 41, compartidos: 62, guardados: 310 } },
+    { id: "sp6", red: "tiktok", estado: "publicado", texto: "Recorrido completo de la casa de Escalón: dos niveles, estudio en planta baja y patio central. El precio va en los comentarios.", fecha: "2026-08-10T19:00:00", imagenes: ["/inmobiliaria/tz-101-1.jpg", "/inmobiliaria/tz-101-2.jpg"], engagement: { vistas: 96400, meGusta: 5230, comentarios: 187, compartidos: 412 } },
+    { id: "sp3", red: "facebook", estado: "programado", texto: "Casa apta para crédito del Fondo Social, con escritura inscrita y papelería lista.", fecha: "2026-08-14T09:00:00", imagenes: ["/inmobiliaria/tz-108-1.jpg", "/inmobiliaria/tz-108-2.jpg"] },
+    { id: "sp7", red: "tiktok", estado: "programado", texto: "Lo que nadie te dice del apartamento con vista: el piso 14 se siente distinto al 4. Te lo enseño.", fecha: "2026-08-16T19:30:00", imagenes: ["/inmobiliaria/tz-102-1.jpg", "/inmobiliaria/tz-102-2.jpg"] },
     { id: "sp4", red: "instagram", estado: "programado", texto: "Tres cosas que le piden a uno en el banco antes de aprobar un crédito de vivienda.", fecha: "2026-08-15T11:00:00" },
     { id: "sp5", red: "instagram", estado: "borrador", texto: "Lo que cambia entre comprar de contado, con banco o con el Fondo Social.", fecha: "2026-08-16T12:00:00" },
   ],
   socialStats: [
     { red: "facebook", handle: "Terrazul Bienes Raíces", seguidores: 21400, nuevosSeguidores: 1180, crecimientoPct: 5.8, alcance30d: 142600, vistas30d: 208300, interacciones30d: 9840 },
     { red: "instagram", handle: "@terrazul.sv", seguidores: 9600, nuevosSeguidores: 720, crecimientoPct: 8.1, alcance30d: 88400, vistas30d: 131200, interacciones30d: 7215 },
+    // En TikTok el número que manda son las vistas: el alcance queda muy por
+    // debajo porque el video se sirve a quien no sigue la cuenta.
+    { red: "tiktok", handle: "@terrazul.sv", seguidores: 14800, nuevosSeguidores: 3900, crecimientoPct: 35.6, vistas30d: 412700, meGusta30d: 21400, comentarios30d: 1840, compartidos30d: 3120 },
   ],
   metrics: [
     { label: "Conversaciones hoy", valor: 23, delta: 21 },

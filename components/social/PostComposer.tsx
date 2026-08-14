@@ -3,12 +3,16 @@
 import { useState } from "react";
 import { CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { RED_NOMBRE } from "@/lib/social";
 import type { SocialPost } from "@/lib/data/types";
 
 export function PostComposer({
   onProgramar,
+  enModal = false,
 }: {
   onProgramar: (red: SocialPost["red"], texto: string, fecha: string) => void;
+  /** Dentro del modal no lleva borde ni ancho fijo: los pone la ventana. */
+  enModal?: boolean;
 }) {
   const [red, setRed] = useState<SocialPost["red"]>("instagram");
   const [texto, setTexto] = useState("");
@@ -23,23 +27,28 @@ export function PostComposer({
   }
 
   return (
-    <div className="w-full shrink-0 border-b border-line bg-card p-4 lg:w-80 lg:border-b-0 lg:border-r">
-      <h2 className="mb-3 text-sm font-bold text-[var(--text)]">Nueva publicación</h2>
+    <div
+      className={cn(
+        "w-full shrink-0 bg-card p-4",
+        !enModal && "border-b border-line lg:w-80 lg:border-b-0 lg:border-r",
+      )}
+    >
+      {!enModal && <h2 className="mb-3 text-sm font-bold text-[var(--text)]">Nueva publicación</h2>}
 
       <div className="mb-3 flex gap-2">
-        {(["instagram", "facebook"] as const).map((r) => (
+        {(["instagram", "facebook", "tiktok"] as const).map((r) => (
           <button
             key={r}
             type="button"
             onClick={() => setRed(r)}
             className={cn(
-              "flex-1 rounded-lg border px-2 py-2 text-[12.5px] font-semibold capitalize transition",
+              "flex-1 rounded-lg border px-2 py-2 text-[12.5px] font-semibold transition",
               red === r
                 ? "border-brand bg-brand/5 text-brand"
                 : "border-line bg-surface text-[var(--text-2)] hover:bg-surface-2",
             )}
           >
-            {r}
+            {RED_NOMBRE[r]}
           </button>
         ))}
       </div>

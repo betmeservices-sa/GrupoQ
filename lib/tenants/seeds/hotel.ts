@@ -83,6 +83,9 @@ export const hotelSeed: TenantSeed = {
   socialStats: [
     { red: "instagram", handle: "@eldescansoantigua", seguidores: 6100, nuevosSeguidores: 340, crecimientoPct: 5.9, alcance30d: 48200, vistas30d: 91400, interacciones30d: 5240 },
     { red: "facebook", handle: "El Descanso Antigua", seguidores: 4400, nuevosSeguidores: 180, crecimientoPct: 4.3, alcance30d: 26800, vistas30d: 39100, interacciones30d: 2115 },
+    // El hotel se mueve mucho más en TikTok que en el resto: ahí llega gente
+    // que no lo conocía, y por eso el crecimiento va tan por encima.
+    { red: "tiktok", handle: "@eldescansoantigua", seguidores: 28600, nuevosSeguidores: 7400, crecimientoPct: 34.9, vistas30d: 736500, meGusta30d: 38900, comentarios30d: 2760, compartidos30d: 5410 },
   ],
   metrics: [
     { label: "Conversaciones hoy", valor: 14, delta: 18 },
