@@ -11,9 +11,11 @@ import { fakeProvider } from "./data/provider";
 import { telefonoBonito } from "./phone";
 import { activeTenant } from "./tenants/active";
 import type {
+  Channel,
   Contact,
   Conversation,
   ConversationStatus,
+  DepartmentId,
   InternalChannel,
   InternalMessage,
   Message,
@@ -31,6 +33,8 @@ export interface StoreState {
   socialPosts: SocialPost[];
   socialStats: SocialStats[];
   metrics: Metric[];
+  // Conversaciones donde el agente está redactando (indicador de escribiendo).
+  escribiendo: string[];
   tsSeq: number;
   idSeq: number;
 }
@@ -43,7 +47,23 @@ export type StoreAction =
   | { type: "MARK_READ"; conversationId: string }
   | { type: "NUEVA_CONVERSACION_WA"; telefono: string; nombre?: string }
   | { type: "ELIMINAR_CONVERSACION"; conversationId: string }
-  | { type: "INCOMING"; conversationId: string; texto: string }
+  | {
+      type: "INCOMING";
+      conversationId: string;
+      texto: string;
+      // Si la conversación no existe todavía, se crea con estos datos (así la
+      // simulación puede estrenar un contacto que nadie tenía en la bandeja).
+      nueva?: {
+        canal: Exclude<Channel, "internal">;
+        nombre: string;
+        telefono?: string;
+        handle?: string;
+        departamento?: DepartmentId;
+      };
+    }
+  // Respuesta automática del agente de IA (staff sin persona detrás).
+  | { type: "RESPUESTA_IA"; conversationId: string; texto: string }
+  | { type: "ESCRIBIENDO"; conversationId: string; activo: boolean }
   | { type: "SEND_INTERNAL"; channelId: string; texto: string; staffId: string }
   | { type: "ADD_SOCIAL_POST"; red: SocialPost["red"]; texto: string; fecha: string }
   | {
@@ -105,6 +125,7 @@ export function createInitialState(): StoreState {
     socialPosts: fakeProvider.listSocialPosts(),
     socialStats: fakeProvider.getSocialStats(),
     metrics: fakeProvider.getMetrics(),
+    escribiendo: [],
     tsSeq: 1,
     idSeq: 1,
   };
@@ -176,7 +197,51 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
         ),
       };
     case "INCOMING": {
-      const ts = tsFromSeq(state.tsSeq);
+      // Hora real: así el mensaje sube al tope de la bandeja y se lee "recién
+      // llegado", sin importar de qué fecha sean los datos semilla del tenant.
+      const ts = new Date().toISOString();
+      const existe = state.conversations.some((c) => c.id === action.conversationId);
+
+      // Conversación estrenada: primero su contacto, luego el hilo arriba de todo.
+      if (!existe && action.nueva) {
+        const contactId = `sc-${action.conversationId}`;
+        const contacto: Contact = {
+          id: contactId,
+          nombre: action.nueva.nombre,
+          telefono: action.nueva.telefono,
+          handle: action.nueva.handle,
+          canal: action.nueva.canal,
+        };
+        const conversacion: Conversation = {
+          id: action.conversationId,
+          canal: action.nueva.canal,
+          contactId,
+          departamento: action.nueva.departamento ?? activeTenant().defaultDepartment,
+          estado: "nuevo",
+          noLeidos: 1,
+          ultimoMensajeTs: ts,
+        };
+        return {
+          ...state,
+          contacts: [contacto, ...state.contacts],
+          conversations: [conversacion, ...state.conversations],
+          messages: [
+            ...state.messages,
+            {
+              id: `nm${state.idSeq}`,
+              conversationId: action.conversationId,
+              autor: "cliente",
+              texto: action.texto,
+              ts,
+            },
+          ],
+          tsSeq: state.tsSeq + 1,
+          idSeq: state.idSeq + 1,
+        };
+      }
+
+      if (!existe) return state;
+
       const msg: Message = {
         id: `nm${state.idSeq}`,
         conversationId: action.conversationId,
@@ -199,6 +264,39 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
         ),
         tsSeq: state.tsSeq + 1,
         idSeq: state.idSeq + 1,
+      };
+    }
+    case "RESPUESTA_IA": {
+      if (!state.conversations.some((c) => c.id === action.conversationId)) return state;
+      const ts = new Date().toISOString();
+      // Sin staffId: la burbuja lo muestra como "Asistente IA".
+      const msg: Message = {
+        id: `nia${state.idSeq}`,
+        conversationId: action.conversationId,
+        autor: "staff",
+        texto: action.texto,
+        ts,
+      };
+      return {
+        ...state,
+        messages: [...state.messages, msg],
+        conversations: state.conversations.map((c) =>
+          c.id === action.conversationId
+            ? { ...c, ultimoMensajeTs: ts, estado: c.estado === "nuevo" ? "en_progreso" : c.estado }
+            : c,
+        ),
+        escribiendo: state.escribiendo.filter((id) => id !== action.conversationId),
+        idSeq: state.idSeq + 1,
+      };
+    }
+    case "ESCRIBIENDO": {
+      const dentro = state.escribiendo.includes(action.conversationId);
+      if (action.activo === dentro) return state;
+      return {
+        ...state,
+        escribiendo: action.activo
+          ? [...state.escribiendo, action.conversationId]
+          : state.escribiendo.filter((id) => id !== action.conversationId),
       };
     }
     case "SEND_INTERNAL": {

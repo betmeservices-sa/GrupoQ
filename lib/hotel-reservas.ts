@@ -29,7 +29,50 @@ export interface ReservaSimulada {
 }
 
 const MAX = 100;
-const store: ReservaSimulada[] = [];
+let store: ReservaSimulada[] = [];
+
+// ── Por qué esto se guarda en disco ──
+// Vivía solo en memoria y se perdía en cada recompilación del servidor: se
+// reservaba, se cambiaba de pantalla y la reserva ya no estaba. Para una
+// demostración eso es fatal, porque parece que el sistema perdió el dato.
+// El archivo es local y descartable; en producción no existe y se sigue
+// trabajando en memoria, sin romper nada.
+const ARCHIVO = "reservas-demo.json";
+let cargado = false;
+
+function rutaArchivo(): string | null {
+  if (process.env.NODE_ENV === "production") return null;
+  try {
+    const path = require("node:path") as typeof import("node:path");
+    return path.join(process.cwd(), ".next", "cache", ARCHIVO);
+  } catch {
+    return null;
+  }
+}
+
+function cargar(): void {
+  if (cargado) return;
+  cargado = true;
+  const ruta = rutaArchivo();
+  if (!ruta) return;
+  try {
+    const fs = require("node:fs") as typeof import("node:fs");
+    if (!fs.existsSync(ruta)) return;
+    const datos = JSON.parse(fs.readFileSync(ruta, "utf8"));
+    if (Array.isArray(datos)) store = datos.slice(0, MAX);
+  } catch {}
+}
+
+function guardar(): void {
+  const ruta = rutaArchivo();
+  if (!ruta) return;
+  try {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    fs.mkdirSync(path.dirname(ruta), { recursive: true });
+    fs.writeFileSync(ruta, JSON.stringify(store), "utf8");
+  } catch {}
+}
 
 function nuevoId(): string {
   return `SIM-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -38,13 +81,16 @@ function nuevoId(): string {
 export function crearReservaSimulada(
   r: Omit<ReservaSimulada, "id" | "creada">,
 ): ReservaSimulada {
+  cargar();
   const reserva: ReservaSimulada = { ...r, id: nuevoId(), creada: new Date().toISOString() };
   store.unshift(reserva);
   if (store.length > MAX) store.length = MAX;
+  guardar();
   return reserva;
 }
 
 export function listarReservasSimuladas(): ReservaSimulada[] {
+  cargar();
   return [...store];
 }
 
@@ -61,7 +107,9 @@ export function nochesDe(r: ReservaSimulada): string[] {
 }
 
 export function borrarReservasSimuladas(): void {
-  store.length = 0;
+  cargado = true;
+  store = [];
+  guardar();
 }
 
 // ¿Ya hay una reserva del demo en esa habitación que pise alguna de estas
@@ -72,5 +120,6 @@ export function solapeSimulado(
   desde: string,
   hasta: string,
 ): ReservaSimulada | null {
+  cargar();
   return store.find((r) => r.tipoId === tipoId && r.desde < hasta && desde < r.hasta) ?? null;
 }

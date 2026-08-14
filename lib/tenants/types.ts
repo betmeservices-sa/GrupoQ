@@ -4,6 +4,7 @@
 // aquí. Sumar un cliente nuevo = agregar un TenantConfig, sin duplicar código.
 
 import type {
+  Channel,
   Contact,
   Conversation,
   DepartmentId,
@@ -89,6 +90,32 @@ export interface TenantVoz {
   assistantId: string;
 }
 
+// --- Simulación de bandeja en vivo (el interruptor "En vivo" del demo) ---
+// Con el interruptor encendido, el motor inyecta mensajes en el navegador para
+// que la bandeja se vea con movimiento al grabar. El guion es de cada cliente:
+// al hotel le preguntan por tarifas y check in, a la inmobiliaria por metros y
+// financiamiento. El motor no sabe de rubros, solo lee esto.
+export type CanalExterno = Exclude<Channel, "internal">;
+
+export interface TurnoSimulado {
+  entra: string; // lo que escribe el cliente
+  responde: string; // lo que contesta el agente de IA, sin llamar al modelo
+}
+
+// Contacto que abre una conversación nueva durante la simulación.
+export interface ContactoSimulado {
+  nombre: string;
+  canal: CanalExterno;
+  telefono?: string; // WhatsApp
+  handle?: string; // Messenger e Instagram
+  departamento?: DepartmentId; // si falta, el defaultDepartment del tenant
+}
+
+export interface TenantSimulacion {
+  turnos: TurnoSimulado[];
+  contactos: ContactoSimulado[];
+}
+
 export interface TenantConfig {
   id: TenantId;
   brand: TenantBrand;
@@ -102,6 +129,8 @@ export interface TenantConfig {
   // Son propias de cada cliente (autos para Grupo Q, servicios para el hospital).
   tags: string[];
   seed: TenantSeed;
+  // Guion de la bandeja en vivo del demo (solo simulación en el navegador).
+  simulacion: TenantSimulacion;
   ai: { systemPrompt: string };
   dashboard: DashboardCard[];
   // Plantillas de WhatsApp demo (modo FAKE, sin credenciales). En modo real se

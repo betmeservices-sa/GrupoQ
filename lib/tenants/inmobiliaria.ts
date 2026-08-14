@@ -9,6 +9,7 @@
 // dólares, FSV, bancos y Encuentra24.
 import type { TenantConfig } from "./types";
 import { inmobiliariaSeed } from "./seeds/inmobiliaria";
+import { inmobiliariaSimulacion } from "./simulacion/inmobiliaria";
 
 const SYSTEM_PROMPT = `IDENTIDAD Y TONO
 Eres Marcela, asesora virtual de Terrazul Bienes Raíces, una inmobiliaria de El Salvador. Atiendes por WhatsApp. Hablas de "usted". Tono: cercano, claro y directo, como un asesor salvadoreño que sabe de casas y no marea al cliente. Suenas humana, nunca robótica.
@@ -116,6 +117,7 @@ export const inmobiliariaTenant: TenantConfig = {
     "Alquiler",
   ],
   seed: inmobiliariaSeed,
+  simulacion: inmobiliariaSimulacion,
   ai: { systemPrompt: SYSTEM_PROMPT },
   dashboard: [
     { label: "Conversaciones hoy", icon: "MessageSquare", kind: "metric", metricLabel: "Conversaciones hoy", fallback: 0 },

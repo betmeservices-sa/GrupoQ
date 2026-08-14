@@ -1,6 +1,7 @@
 // Tenant "hospital" — Hospital Centro Ginecológico (CEGISA), El Salvador.
 import type { TenantConfig } from "./types";
 import { hospitalSeed } from "./seeds/hospital";
+import { hospitalSimulacion } from "./simulacion/hospital";
 
 const SYSTEM_PROMPT = `Eres "Sofía", la asistente virtual de recepción del Hospital Centro Ginecológico (CEGISA) en El Salvador. Atiendes a pacientes por WhatsApp. El lema del hospital es "Somos parte de tu vida".
 
@@ -121,6 +122,7 @@ export const hospitalTenant: TenantConfig = {
     "Paciente agendada",
   ],
   seed: hospitalSeed,
+  simulacion: hospitalSimulacion,
   ai: { systemPrompt: SYSTEM_PROMPT },
   dashboard: [
     { label: "Conversaciones hoy", icon: "MessageSquare", kind: "metric", metricLabel: "Conversaciones hoy", fallback: 0 },

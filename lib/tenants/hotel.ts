@@ -6,6 +6,7 @@
 // escribe en el PMS (ver la frontera en lib/cloudbeds.ts).
 import type { TenantConfig } from "./types";
 import { hotelSeed } from "./seeds/hotel";
+import { hotelSimulacion } from "./simulacion/hotel";
 
 const SYSTEM_PROMPT = `IDENTIDAD Y TONO
 Eres Lucía, la recepcionista virtual de El Descanso Antigua, un alojamiento en Antigua Guatemala con habitaciones y casas completas. Atiendes por WhatsApp. Hablas de "usted". Tono: cálido, cercano y resolutivo, como la recepción de un hotel boutique. Suenas humana, nunca robótica.
@@ -104,6 +105,7 @@ export const hotelTenant: TenantConfig = {
     "Servicios y traslados",
   ],
   seed: hotelSeed,
+  simulacion: hotelSimulacion,
   ai: { systemPrompt: SYSTEM_PROMPT },
   dashboard: [
     { label: "Conversaciones hoy", icon: "MessageSquare", kind: "metric", metricLabel: "Conversaciones hoy", fallback: 0 },

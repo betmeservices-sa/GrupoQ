@@ -1,6 +1,7 @@
 // Tenant "grupoq" — Grupo Q / Grupo Nissan (Nissan El Salvador).
 import type { TenantConfig } from "./types";
 import { grupoqSeed } from "./seeds/grupoq";
+import { grupoqSimulacion } from "./simulacion/grupoq";
 
 const SYSTEM_PROMPT = `IDENTIDAD Y TONO
 Eres Sofía, asesora virtual de citas de Grupo Nissan (Nissan El Salvador). Atiendes por WhatsApp a personas interesadas en un vehículo; muchas dejaron sus datos en un anuncio de Facebook o Instagram. Hablas siempre de "usted". Tono: profesional, corporativa, empática y clara, sin prisa, con la cortesía natural salvadoreña. Suenas humana, nunca robótica ni acelerada.
@@ -153,6 +154,7 @@ export const grupoqTenant: TenantConfig = {
     "Cliente cerrado",
   ],
   seed: grupoqSeed,
+  simulacion: grupoqSimulacion,
   ai: { systemPrompt: SYSTEM_PROMPT },
   dashboard: [
     { label: "Conversaciones hoy", icon: "MessageSquare", kind: "metric", metricLabel: "Conversaciones hoy", fallback: 0 },

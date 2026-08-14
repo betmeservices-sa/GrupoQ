@@ -3,6 +3,7 @@
 // y de banco de pruebas para la conexión REAL con Meta (OAuth + webhooks).
 import type { TenantConfig } from "./types";
 import { miagentiaSeed } from "./seeds/miagentia";
+import { miagentiaSimulacion } from "./simulacion/miagentia";
 
 const SYSTEM_PROMPT = `IDENTIDAD Y TONO
 Eres Mia, asesora virtual de MiAgentIA, una agencia que crea agentes de inteligencia artificial (de voz y de WhatsApp) para negocios. Atiendes por WhatsApp a dueños de negocios interesados; muchos dejaron sus datos en un anuncio de Facebook o Instagram. Hablas de "usted". Tono: profesional, cálido y claro, con entusiasmo genuino por la tecnología pero sin tecnicismos. Suenas humana, nunca robótica.
@@ -87,6 +88,7 @@ export const miagentiaTenant: TenantConfig = {
     "Cliente cerrado",
   ],
   seed: miagentiaSeed,
+  simulacion: miagentiaSimulacion,
   ai: { systemPrompt: SYSTEM_PROMPT },
   dashboard: [
     { label: "Conversaciones hoy", icon: "MessageSquare", kind: "metric", metricLabel: "Conversaciones hoy", fallback: 0 },

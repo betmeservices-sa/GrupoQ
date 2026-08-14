@@ -7,6 +7,7 @@ export interface ListaItem {
   conversation: Conversation;
   contact: Contact;
   ultimo?: Message;
+  escribiendo?: boolean;
 }
 
 export function ConversationList({
@@ -36,6 +37,7 @@ export function ConversationList({
           conversation={it.conversation}
           contact={it.contact}
           ultimo={it.ultimo}
+          escribiendo={it.escribiendo}
           activa={it.conversation.id === activaId}
           onClick={() => onSelect(it.conversation.id)}
         />

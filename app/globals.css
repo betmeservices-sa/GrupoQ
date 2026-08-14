@@ -210,6 +210,23 @@ body {
   animation: ccg-pop 0.22s ease-out;
 }
 
+/* Puntos de "escribiendo" mientras el agente redacta la respuesta */
+@keyframes ccg-punto {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.ccg-punto {
+  animation: ccg-punto 1.2s ease-in-out infinite;
+}
+
 /* Autofill de Chrome/Safari: por defecto pinta el input con fondo blanco/amarillo,
    que en el tema oscuro se ve como un "cuadro blanco feo". Lo forzamos a fondo
    oscuro + texto claro (login y cualquier formulario). */

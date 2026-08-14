@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { useStore } from "@/lib/store";
 import { useRole } from "@/lib/roles";
 import { ME } from "@/lib/data/seed";
+import { SIM_PREFIJO } from "@/lib/data/live-engine";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LiveToggle } from "@/components/shell/LiveToggle";
 import { AiModeToggle } from "@/components/shell/AiModeToggle";
@@ -61,6 +62,8 @@ export default function BandejaPage() {
     return m;
   }, [state.messages]);
 
+  const escribiendo = useMemo(() => new Set(state.escribiendo), [state.escribiendo]);
+
   const items: ListaItem[] = useMemo(() => {
     return state.conversations
       .filter((c) => filtros.canal === "todos" || c.canal === filtros.canal)
@@ -76,8 +79,9 @@ export default function BandejaPage() {
         conversation,
         contact: contactoDe.get(conversation.contactId)!,
         ultimo: ultimoDe.get(conversation.id),
+        escribiendo: escribiendo.has(conversation.id),
       }));
-  }, [state.conversations, filtros, contactoDe, ultimoDe]);
+  }, [state.conversations, filtros, contactoDe, ultimoDe, escribiendo]);
 
   const activa = activaId ? state.conversations.find((c) => c.id === activaId) ?? null : null;
   const contactoActivo = activa ? contactoDe.get(activa.contactId)! : null;
@@ -166,6 +170,7 @@ export default function BandejaPage() {
               ventanaCerrada={ventanaCerrada}
               contact={contactoActivo}
               messages={mensajesActivos}
+              escribiendo={escribiendo.has(activa.id)}
               esMia={activa.asignadoA === ME}
               onBack={() => setActivaId(null)}
               onInfo={() => setCtxOpen(true)}
@@ -182,6 +187,12 @@ export default function BandejaPage() {
                 }).catch(() => {});
               }}
               onSend={async (texto) => {
+                // Conversación de la simulación: se responde solo en el store,
+                // nunca sale un mensaje de verdad hacia un número inventado.
+                if (activa.id.startsWith(SIM_PREFIJO)) {
+                  dispatch({ type: "SEND_MESSAGE", conversationId: activa.id, texto, staffId: ME });
+                  return;
+                }
                 // WhatsApp: enviamos primero por la Cloud API; si sale bien,
                 // agregamos el mensaje con el id real (asi no se duplica con lo
                 // que el webhook persiste) y el endpoint lo guarda en la base.

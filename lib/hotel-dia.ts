@@ -44,12 +44,14 @@ function simuladaAMovimiento(r: ReservaSimulada): Movimiento {
     noches: noches(r.desde, r.hasta),
     adultos: r.adultos,
     ninos: r.ninos,
-    habitaciones: [],
+    // La reserva del demo SÍ eligió habitación: mostrarla como "sin asignar"
+    // contradice lo que acaba de hacer el usuario.
+    habitaciones: [r.tipoNombre],
     tipos: [r.tipoNombre],
     saldo: r.tarifaTotal,
     fuente: r.origen === "agente" ? "WhatsApp" : "Tablero",
     fuenteExterna: false,
-    sinAsignar: 1,
+    sinAsignar: 0,
     simulada: true,
   };
 }
@@ -185,11 +187,8 @@ export function construirDia(e: EntradaDia): PanelDia {
   } else {
     const activas = vivas(e.proximas);
     llegadas = [...activas.filter((r) => r.desde === e.hoy).map((r) => aMovimiento(r, e.fuentes)), ...simLlegan];
-    sinHabitacion = [
-      ...activas.filter((r) => r.sinAsignar > 0).map((r) => aMovimiento(r, e.fuentes)),
-      // La del demo nunca tiene habitación puesta: no existe en el sistema.
-      ...simuladas.filter((r) => r.hasta > e.hoy).map(simuladaAMovimiento),
-    ];
+    // Las del demo NO entran acá: eligieron habitación al reservarse.
+    sinHabitacion = activas.filter((r) => r.sinAsignar > 0).map((r) => aMovimiento(r, e.fuentes));
   }
 
   let salidas: Movimiento[] | null = null;

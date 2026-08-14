@@ -8,9 +8,9 @@ import { useMetaBridge } from "@/lib/meta-bridge";
 
 // Punto único donde corre el motor en vivo, dentro de los providers.
 export function LiveMount() {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
   const { enabled } = useLive();
-  useLiveEngine(dispatch, enabled); // mensajes simulados (toggle del demo)
+  useLiveEngine(dispatch, enabled, state.conversations); // simulación (toggle del demo)
   useWhatsappBridge(dispatch); // mensajes reales de WhatsApp (siempre)
   useMetaBridge(dispatch); // mensajes reales de Messenger e Instagram (siempre)
   return null;

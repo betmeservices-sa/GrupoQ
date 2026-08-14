@@ -10,12 +10,14 @@ export function ConversationListItem({
   contact,
   ultimo,
   activa,
+  escribiendo,
   onClick,
 }: {
   conversation: Conversation;
   contact: Contact;
   ultimo?: Message;
   activa: boolean;
+  escribiendo?: boolean;
   onClick: () => void;
 }) {
   const d = depto(conversation.departamento);
@@ -43,9 +45,13 @@ export function ConversationListItem({
           </span>
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className="truncate text-[13px] text-[var(--text-2)]">
-            {ultimo ? ultimo.texto : "Sin mensajes"}
-          </p>
+          {escribiendo ? (
+            <p className="truncate text-[13px] font-medium text-brand">escribiendo…</p>
+          ) : (
+            <p className="truncate text-[13px] text-[var(--text-2)]">
+              {ultimo ? ultimo.texto : "Sin mensajes"}
+            </p>
+          )}
           {conversation.noLeidos > 0 && (
             <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent)] px-1.5 text-[11px] font-bold text-white">
               {conversation.noLeidos}

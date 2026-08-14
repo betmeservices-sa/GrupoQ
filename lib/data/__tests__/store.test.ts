@@ -77,6 +77,72 @@ describe("storeReducer", () => {
     expect(conv(after, "v1").noLeidos).toBe(prev + 1);
   });
 
+  it("INCOMING con datos de contacto estrena la conversación arriba de la lista", () => {
+    const before = freshState();
+    const after = storeReducer(before, {
+      type: "INCOMING",
+      conversationId: "sim-1",
+      texto: "Buenas, ¿tienen habitación para el fin de semana?",
+      nueva: { canal: "instagram", nombre: "Valeria Tzunún", handle: "@valeria.tzunun" },
+    });
+    const nueva = after.conversations[0];
+    expect(nueva.id).toBe("sim-1");
+    expect(nueva.canal).toBe("instagram");
+    expect(nueva.estado).toBe("nuevo");
+    expect(nueva.noLeidos).toBe(1);
+    expect(after.contacts[0].nombre).toBe("Valeria Tzunún");
+    expect(after.contacts[0].id).toBe(nueva.contactId);
+    expect(msgs(after, "sim-1")).toHaveLength(1);
+    expect(after.conversations.length).toBe(before.conversations.length + 1);
+  });
+
+  it("INCOMING a una conversación que no existe y sin contacto no hace nada", () => {
+    const before = freshState();
+    const after = storeReducer(before, {
+      type: "INCOMING",
+      conversationId: "fantasma",
+      texto: "Hola",
+    });
+    expect(after).toBe(before);
+  });
+
+  it("RESPUESTA_IA contesta como asistente, sin persona detrás", () => {
+    const before = freshState();
+    expect(conv(before, "v2").estado).toBe("nuevo");
+    const after = storeReducer(before, {
+      type: "RESPUESTA_IA",
+      conversationId: "v2",
+      texto: "Con gusto le confirmo la disponibilidad.",
+    });
+    const added = msgs(after, "v2").at(-1)!;
+    expect(added.autor).toBe("staff");
+    expect(added.staffId).toBeUndefined();
+    expect(conv(after, "v2").estado).toBe("en_progreso");
+    expect(conv(after, "v2").ultimoMensajeTs).toBe(added.ts);
+  });
+
+  it("ESCRIBIENDO enciende y apaga el indicador, y la respuesta lo apaga sola", () => {
+    const prendido = storeReducer(freshState(), {
+      type: "ESCRIBIENDO",
+      conversationId: "v1",
+      activo: true,
+    });
+    expect(prendido.escribiendo).toEqual(["v1"]);
+    const apagado = storeReducer(prendido, {
+      type: "ESCRIBIENDO",
+      conversationId: "v1",
+      activo: false,
+    });
+    expect(apagado.escribiendo).toEqual([]);
+
+    const respondido = storeReducer(prendido, {
+      type: "RESPUESTA_IA",
+      conversationId: "v1",
+      texto: "Listo, se lo confirmo.",
+    });
+    expect(respondido.escribiendo).toEqual([]);
+  });
+
   it("SEND_INTERNAL agrega un mensaje al canal interno", () => {
     const before = freshState();
     const prev = before.internalMessages.filter((m) => m.channelId === "ic1").length;

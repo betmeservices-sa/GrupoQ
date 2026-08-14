@@ -21,6 +21,7 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
 import { CallsPanel } from "@/components/dashboard/CallsPanel";
 import { HotelOcupacion } from "@/components/dashboard/HotelOcupacion";
+import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
 
 // Íconos disponibles para las tarjetas del dashboard (referenciados por nombre
 // desde la config del tenant).
@@ -90,6 +91,8 @@ export default function DashboardPage() {
             );
           })}
         </div>
+
+        <OrigenCanales conversations={state.conversations} />
 
         {esHotel && <HotelOcupacion />}
 

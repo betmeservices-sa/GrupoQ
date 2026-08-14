@@ -28,11 +28,13 @@ export function Thread({
   onSendTemplate,
   aiRefresh,
   ventanaCerrada,
+  escribiendo,
 }: {
   conversation: Conversation;
   contact: Contact;
   messages: Message[];
   esMia: boolean;
+  escribiendo?: boolean;
   onSend: (texto: string) => void | Promise<void>;
   onAsignarme: () => void;
   onResolver: () => void;
@@ -51,7 +53,7 @@ export function Thread({
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length]);
+  }, [messages.length, escribiendo]);
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-surface">
@@ -145,6 +147,22 @@ export function Thread({
             onReact={onReact}
           />
         ))}
+        {escribiendo && (
+          <div className="ccg-pop flex flex-col items-end">
+            <div className="flex items-center gap-1 rounded-2xl rounded-br-sm bg-brand/85 px-3.5 py-3 shadow-sm">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="ccg-punto h-1.5 w-1.5 rounded-full bg-white"
+                  style={{ animationDelay: `${i * 0.16}s` }}
+                />
+              ))}
+            </div>
+            <span className="mt-1 px-1 text-[10.5px] text-[var(--text-3)]">
+              Asistente IA escribiendo
+            </span>
+          </div>
+        )}
         <div ref={finRef} />
       </div>
 

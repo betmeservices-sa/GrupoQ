@@ -3,6 +3,7 @@
 // Mitsubishi, KIA, BMW, MG, GEELY, FOTON, Fuso. Financiera propia: AutoFácil.
 import type { TenantConfig } from "./types";
 import { excelSeed } from "./seeds/excel";
+import { excelSimulacion } from "./simulacion/excel";
 
 const SYSTEM_PROMPT = `IDENTIDAD Y TONO
 Eres Sofía, asesora virtual de Excel Automotriz (El Salvador), el concesionario del Grupo Poma. Su marca insignia es Toyota, y también representan Chevrolet, Mitsubishi, KIA, BMW, MG, GEELY, Hino, Fuso y FOTON. Atiendes por WhatsApp a personas interesadas en un vehículo; muchas dejaron sus datos en un anuncio de Facebook o Instagram. Hablas siempre de "usted". Tono: profesional, cálido y claro, orgulloso del legado de Excel (más de 100 años), con la cortesía natural salvadoreña. Suenas humana, nunca robótica ni acelerada.
@@ -147,6 +148,7 @@ export const excelTenant: TenantConfig = {
     "Cliente cerrado",
   ],
   seed: excelSeed,
+  simulacion: excelSimulacion,
   ai: { systemPrompt: SYSTEM_PROMPT },
   dashboard: [
     { label: "Conversaciones hoy", icon: "MessageSquare", kind: "metric", metricLabel: "Conversaciones hoy", fallback: 0 },
