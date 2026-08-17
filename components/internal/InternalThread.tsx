@@ -43,7 +43,10 @@ export function InternalThread({
         <span className="text-[12px] text-[var(--text-3)]">· {channel.miembros.length} miembros</span>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      {/* min-h-0: sin esto el alto minimo de un item flex es el de su contenido,
+          asi que la lista de mensajes se niega a encoger y empuja la caja de
+          escribir fuera de la pantalla. */}
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {messages.map((m, i) => {
           const meta = staffMeta(m.staffId);
           const esYo = m.staffId === ME;

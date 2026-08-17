@@ -31,11 +31,92 @@ function sembrar(): Map<string, Deudor> {
   );
 }
 
+/**
+ * Una campaña YA CORRIDA, para que la pantalla no abra en blanco.
+ *
+ * Se arma desde la cartera semilla y no con nombres inventados aparte: cada
+ * item apunta a un deudor que existe, así el usuario puede hacer clic en un
+ * resultado y caer en la ficha que lo explica. Una campaña de mentira con
+ * gente que no está en la cartera se nota en el primer clic.
+ */
+function campanaDeAyer(deudores: Map<string, Deudor>): Campana {
+  const ayer = "2026-08-16";
+  const MAX_INTENTOS = 3;
+
+  // Del tramo 31 al 90, que es el corte que de verdad se llama: el de 1 a 30
+  // suele pagar solo y el de mas de 90 ya va por otro camino.
+  const elegidos = [...deudores.values()]
+    .filter((d) => d.diasMora >= 31 && d.diasMora <= 90)
+    .slice(0, 12);
+
+  // El resultado de cada llamada se DERIVA de la ficha del deudor, no de una
+  // lista inventada aparte. Asi, cuando alguien hace clic en una fila y cae en
+  // la ficha, lo que lee ahi explica el resultado que acaba de ver. Un guion
+  // fijo daria filas que dicen "prometio pagar" sobre cuentas sin promesa.
+  function resultadoDe(d: Deudor, i: number): [ItemCampana["resultado"], number, number] {
+    if (d.promesa) return ["promesa_pago", 1, 120 + (i % 5) * 9];
+    if (d.estado === "pagado") return ["ya_pago", 1, 74];
+    if (d.estado === "negociacion") return ["quiere_negociar", 2, 203];
+    if (d.estado === "disputa") return ["disputa", 2, 245];
+    if (d.estado === "no_contactar") return ["solicita_no_llamar", 1, 43];
+    if (d.estado === "ilocalizable") return ["numero_equivocado", 1, 22];
+    // El resto son los que no dieron nada: la mayoria de una campaña real.
+    // Cierran tras agotar los tres intentos.
+    const sinContacto: Array<[ItemCampana["resultado"], number, number]> = [
+      ["no_contesto", MAX_INTENTOS, 0],
+      ["pidio_recontacto", 2, 52],
+      ["no_contesto", MAX_INTENTOS, 0],
+      ["contesto_tercero", 2, 31],
+      ["no_contesto", MAX_INTENTOS, 0],
+      ["colgo", 2, 14],
+    ];
+    return sinContacto[i % sinContacto.length];
+  }
+
+  return {
+    id: "camp-ayer",
+    nombre: "Mora 31 a 90, corte de agosto",
+    estado: "terminada",
+    creada: `${ayer}T14:02:00.000Z`,
+    iniciada: `${ayer}T14:02:00.000Z`,
+    terminada: `${ayer}T17:38:00.000Z`,
+    assistantId: "bde8ad93-9bbb-45b2-9a50-534772855458",
+    phoneNumberId: "",
+    concurrencia: 10,
+    maxIntentos: MAX_INTENTOS,
+    minutosEntreIntentos: 120,
+    ventana: { horaInicio: 8, horaFin: 18, dias: [1, 2, 3, 4, 5, 6] },
+    simulada: true,
+    // TODOS cierran en "terminada" porque la campaña ya termino; los que no
+    // contestaron lo hacen tras agotar los intentos, que es justo lo que deja
+    // cerrarItem. Dejarlos en "reprogramada" pintaria una campaña terminada
+    // con cola pendiente: dos cosas que no pueden ser ciertas a la vez.
+    items: elegidos.map((d, i) => {
+      const [resultado, intentos, duracion] = resultadoDe(d, i);
+      return {
+        id: `it${i}`,
+        deudorId: d.id,
+        nombre: d.nombre,
+        telefono: d.telefono,
+        estado: "terminada" as const,
+        intentos,
+        resultado,
+        duracionSeg: duracion,
+        costo: Math.round(duracion * 0.0009 * 10000) / 10000,
+        actualizado: `${ayer}T${15 + (i % 3)}:${String(10 + i * 4).padStart(2, "0")}:00.000Z`,
+      };
+    }),
+  };
+}
+
 const g = globalThis as unknown as { __cobrosAlmacen?: Almacen };
-const almacen: Almacen = (g.__cobrosAlmacen ??= {
-  deudores: sembrar(),
-  campanas: new Map(),
-});
+const almacen: Almacen = (g.__cobrosAlmacen ??= (() => {
+  const deudores = sembrar();
+  const campanas = new Map<string, Campana>();
+  const ayer = campanaDeAyer(deudores);
+  if (ayer.items.length > 0) campanas.set(ayer.id, ayer);
+  return { deudores, campanas };
+})());
 
 const MAX_CAMPANAS = 20;
 const MAX_DEUDORES = 25000;
@@ -187,4 +268,8 @@ export function resumirCampana(c: Campana, promesas?: { cuenta: number; monto: n
 export function reiniciarCobros(): void {
   almacen.deudores = sembrar();
   almacen.campanas.clear();
+  // Vuelve a dejar la campaña sembrada: reiniciar es volver al estado inicial,
+  // no dejar la pantalla en blanco.
+  const ayer = campanaDeAyer(almacen.deudores);
+  if (ayer.items.length > 0) almacen.campanas.set(ayer.id, ayer);
 }

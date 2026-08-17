@@ -100,10 +100,49 @@ export async function getContacto(from: string): Promise<Contacto | null> {
   return (data as Contacto | null) ?? null;
 }
 
+// --- Siembra de la pestaña Contactos en modo demo ---
+//
+// Sin Supabase, `wa_contacts` arranca vacío y la pestaña Contactos se ve en
+// blanco hasta que alguien escriba por WhatsApp. En un demo eso es una pantalla
+// muerta justo cuando la están enseñando. Así que la primera vez que se pide la
+// lista de un cliente, se copian los contactos de su seed.
+//
+// Solo aplica en memoria: con Supabase configurado manda la base y esto no
+// corre, porque ahí los contactos son de gente real.
+const sembrados = new Set<string>();
+
+async function sembrarDesdeSeed(tenant: string): Promise<void> {
+  if (sembrados.has(tenant)) return;
+  sembrados.add(tenant);
+
+  const { TENANTS, isTenantId } = await import("./tenants");
+  if (!isTenantId(tenant)) return;
+
+  for (const c of TENANTS[tenant].seed.contacts) {
+    // La ficha se identifica por teléfono. Los contactos que solo tienen
+    // handle de Instagram o Facebook no entran: no hay con qué llavearlos, y
+    // meterlos con un id falso los dejaría sin poder abrirse.
+    const from = (c.telefono ?? "").replace(/\D/g, "");
+    if (from.length < 8 || memContactos.has(from)) continue;
+
+    const partes = c.nombre.trim().split(/\s+/);
+    memContactos.set(from, {
+      wa_from: from,
+      nombre: partes[0] ?? c.nombre,
+      apellido: partes.slice(1).join(" ") || null,
+      correo: c.correo ?? null,
+      notas: c.notas ?? null,
+      tags: c.tags ?? [],
+      tenant,
+    });
+  }
+}
+
 // Lista los contactos de un tenant (para la pestaña Contactos).
 export async function listContactos(tenant?: string): Promise<Contacto[]> {
   const sb = getSupabase();
   if (!sb) {
+    if (tenant) await sembrarDesdeSeed(tenant);
     return [...memContactos.values()].filter((c) => !tenant || c.tenant === tenant);
   }
   let q = sb.from("wa_contacts").select(COLS).order("updated_at", { ascending: false });

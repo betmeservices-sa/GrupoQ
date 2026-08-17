@@ -107,7 +107,11 @@ export function Sidebar({
         <Reloj />
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      {/* min-h-0 + scroll: con diez modulos en el menu y un monitor bajo, el
+          menu crecia hasta empujar fuera de pantalla el "Ver como" y el boton
+          de cerrar sesion, que viven al pie. Ahora scrollea el menu y el pie
+          se queda clavado. */}
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {visibles.map(({ id, href, label, Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (

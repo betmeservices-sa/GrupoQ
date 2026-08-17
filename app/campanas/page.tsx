@@ -617,7 +617,7 @@ export default function CampanasPage() {
               <div className="mt-2 flex items-baseline justify-between text-[11.5px]">
                 <span className="text-[var(--text-3)]">{x.progreso.completadoPct}% completado</span>
                 <span className="font-bold text-[var(--text)]">
-                  {x.progreso.promesas} promesas
+                  {x.progreso.promesas} {x.progreso.promesas === 1 ? "promesa" : "promesas"}
                 </span>
               </div>
             </button>

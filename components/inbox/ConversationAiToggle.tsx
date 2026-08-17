@@ -64,14 +64,14 @@ export function ConversationAiToggle({
           : "Tú llevas este chat. Toca para que lo responda la IA."
       }
       className={cn(
-        "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition",
+        "flex w-full items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition",
         activa
           ? "border-emerald-200 bg-emerald-50 text-[#2f9e2f]"
           : "border-line bg-card text-[var(--text-2)] hover:border-[var(--border-2)]",
       )}
     >
       <Bot size={13} />
-      <span className="hidden md:inline">IA {activa ? "activa" : "en pausa"}</span>
+      <span>IA {activa ? "activa" : "en pausa"}</span>
       <span
         className={cn(
           "relative inline-flex h-3.5 w-6 items-center rounded-full transition",

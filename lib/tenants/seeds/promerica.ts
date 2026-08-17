@@ -25,13 +25,27 @@ export const promericaSeed: TenantSeed = {
     { id: "s6", nombre: "Fátima Argueta", rol: "recepcion", departamento: "atencion", iniciales: "FA" },
     { id: "s7", nombre: "Nadia Quintanilla", rol: "marketing", departamento: "ventas", iniciales: "NQ" },
   ],
+  // Los seis primeros son los que tienen conversación abierta en la bandeja; el
+  // resto llena la pestaña Contactos, que es la libreta del área de cobranza y
+  // se vería vacía con solo seis.
   contacts: [
-    { id: "c1", nombre: "Luis Alberto Menjívar", telefono: "50378541209", canal: "whatsapp", notas: "Tarjeta con 34 días de mora. Promesa para el viernes.", tags: ["Promesa de pago"] },
-    { id: "c2", nombre: "Rosa Elena Portillo", telefono: "50370119088", canal: "whatsapp", notas: "Sin empleo desde junio. Pide convenio.", tags: ["Pide convenio"] },
-    { id: "c3", nombre: "Herman Portillo Guevara", handle: "Herman Portillo", canal: "facebook", notas: "Reclama cobro de seguro no contratado.", tags: ["Reclamo de cobro"] },
+    { id: "c1", nombre: "Luis Alberto Menjívar", telefono: "50378541209", correo: "lmenjivar@gmail.com", canal: "whatsapp", notas: "Tarjeta con 34 días de mora. Promesa para el viernes, cuando le depositan la quincena.", tags: ["Promesa de pago"] },
+    { id: "c2", nombre: "Rosa Elena Portillo", telefono: "50370119088", correo: "relena.portillo@gmail.com", canal: "whatsapp", notas: "Sin empleo desde junio. Puede abonar 200 al mes, no la cuota completa.", tags: ["Pide convenio", "No puede pagar"] },
+    { id: "c3", nombre: "Herman Portillo Guevara", handle: "Herman Portillo", canal: "facebook", notas: "Reclama cobro de un seguro que dice no haber contratado. No cobrarle hasta resolverlo.", tags: ["Reclamo de cobro"] },
     { id: "c4", nombre: "Marielos Guzmán", handle: "@marielos.gzmn", canal: "instagram", tags: ["Consulta de saldo"] },
-    { id: "c5", nombre: "Sandra Melgar", telefono: "50376113420", canal: "whatsapp", notas: "Abonó la mitad, completa a fin de mes.", tags: ["Abono parcial"] },
-    { id: "c6", nombre: "Jorge Alberto Henríquez", telefono: "50370338826", canal: "whatsapp", notas: "Crédito de vivienda, quiere refinanciar.", tags: ["Pide convenio"] },
+    { id: "c5", nombre: "Sandra Melgar", telefono: "50376113420", correo: "smelgar.ayala@hotmail.com", canal: "whatsapp", notas: "Abonó la mitad por banca en línea, completa a fin de mes.", tags: ["Abono parcial", "Promesa de pago"] },
+    { id: "c6", nombre: "Jorge Alberto Henríquez", telefono: "50370338826", correo: "jhenriquez@outlook.com", canal: "whatsapp", notas: "Crédito de vivienda con 132 días. Dispuesto a firmar convenio, pide ver la cuota antes.", tags: ["Pide convenio"] },
+
+    { id: "c7", nombre: "Carlos Ernesto Sibrián", telefono: "50372338814", canal: "whatsapp", notas: "Tercera promesa incumplida en el crédito de auto. Ya no entra en campaña automática.", tags: ["Promesa de pago"] },
+    { id: "c8", nombre: "Karla Vanessa Bonilla", telefono: "50370125566", correo: "kbonilla@gmail.com", canal: "whatsapp", notas: "Solo 8 días de atraso. Suele pagar sola antes de que la llamen.", tags: ["Consulta de saldo"] },
+    { id: "c9", nombre: "Douglas Antonio Menjívar", telefono: "50379334412", canal: "whatsapp", notas: "Crédito de vivienda. Dos llamadas sin contestar; probar después de las 6.", tags: [] },
+    { id: "c10", nombre: "Nelson Adalberto Cruz", telefono: "50371193358", correo: "nelson.cruz@gmail.com", canal: "whatsapp", notas: "Pidió que NO lo llamen. Solo comunicación por escrito.", tags: ["No puede pagar"] },
+    { id: "c11", nombre: "Silvia Lorena Cáceres", telefono: "50378112360", canal: "whatsapp", notas: "Tarjeta con 103 días. Monto chico pero mora vieja.", tags: [] },
+    { id: "c12", nombre: "Ernesto Alfredo Quintanilla", telefono: "50371450098", correo: "equintanilla@pymesv.com", canal: "whatsapp", notas: "Crédito PYME, cliente de años. Se atrasa cuando le pagan tarde sus clientes.", tags: ["Consulta de saldo"] },
+    { id: "c13", nombre: "Xiomara Cruz de Peña", telefono: "50374882031", correo: "xiomara.cruz@gmail.com", canal: "whatsapp", notas: "Llamó ella al call center. Paga las dos cuotas el 25.", tags: ["Promesa de pago"] },
+    { id: "c14", nombre: "Víctor Manuel Escobar", telefono: "50372208831", canal: "whatsapp", notas: "Crédito de auto. Pidió que le llamen el lunes por la tarde.", tags: [] },
+    { id: "c15", nombre: "Claudia Patricia Alfaro", telefono: "50376990412", correo: "cpalfaro@gmail.com", canal: "whatsapp", notas: "Primer atraso en dos años. Trato preferente.", tags: ["Consulta de saldo"] },
+    { id: "c16", nombre: "Julio César Barahona", telefono: "50377340192", canal: "whatsapp", notas: "122 días de mora. Dice que no puede pagar nada este mes, sin fecha alterna.", tags: ["No puede pagar"] },
   ],
   conversations: [
     { id: "v1", canal: "whatsapp", contactId: "c1", departamento: "cobranza", estado: "en_progreso", asignadoA: "s2", noLeidos: 1, ultimoMensajeTs: "2026-08-17T09:41:00" },

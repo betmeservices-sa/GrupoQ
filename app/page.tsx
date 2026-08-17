@@ -166,7 +166,6 @@ export default function BandejaPage() {
             <Thread
               key={activa.id}
               conversation={activa}
-              aiRefresh={aiRefresh}
               ventanaCerrada={ventanaCerrada}
               contact={contactoActivo}
               messages={mensajesActivos}
@@ -376,6 +375,7 @@ export default function BandejaPage() {
               conversation={activa}
               contact={contactoActivo}
               ultimoEntranteTs={ultimoEntranteTs}
+              aiRefresh={aiRefresh}
               onAsignar={(staffId) => {
                 dispatch({ type: "ASSIGN", conversationId: activa.id, staffId });
                 if (activa.canal === "whatsapp" && contactoActivo.telefono) {
@@ -408,6 +408,7 @@ export default function BandejaPage() {
               conversation={activa}
               contact={contactoActivo}
               ultimoEntranteTs={ultimoEntranteTs}
+              aiRefresh={aiRefresh}
               onClose={() => setCtxOpen(false)}
               onAsignar={(staffId) => {
                 dispatch({ type: "ASSIGN", conversationId: activa.id, staffId });

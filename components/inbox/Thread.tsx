@@ -8,7 +8,6 @@ import { Avatar, inicialesDe } from "@/components/ui/Avatar";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { MessageBubble } from "./MessageBubble";
 import { Composer, type EnvioPlantilla } from "./Composer";
-import { ConversationAiToggle } from "./ConversationAiToggle";
 import type { Contact, Conversation, Message } from "@/lib/data/types";
 
 export function Thread({
@@ -26,7 +25,6 @@ export function Thread({
   onReact,
   onAttach,
   onSendTemplate,
-  aiRefresh,
   ventanaCerrada,
   escribiendo,
 }: {
@@ -45,7 +43,6 @@ export function Thread({
   onReact?: (messageId: string, emoji: string) => void;
   onAttach?: (file: File) => void | Promise<void>;
   onSendTemplate?: (t: EnvioPlantilla) => void | Promise<void>;
-  aiRefresh?: number;
   ventanaCerrada?: boolean;
 }) {
   const finRef = useRef<HTMLDivElement>(null);
@@ -58,8 +55,8 @@ export function Thread({
   return (
     <div className="flex h-full min-w-0 flex-col bg-surface">
       {/* Header */}
-      <div className="flex items-center justify-between gap-6 border-b border-line bg-card px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex items-center justify-between gap-3 border-b border-line bg-card px-4 py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             type="button"
             onClick={onBack}
@@ -71,10 +68,10 @@ export function Thread({
           <Avatar iniciales={inicialesDe(contact.nombre)} size={40} color={d.color} />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-[var(--text)]">{contact.nombre}</p>
-            <div className="mt-0.5 flex items-center gap-1.5">
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
               <ChannelBadge channel={conversation.canal} showLabel />
-              <span className="text-[11px] text-[var(--text-3)]">·</span>
-              <span className="text-[11px] font-medium" style={{ color: d.color }}>
+              <span className="shrink-0 text-[11px] text-[var(--text-3)]">·</span>
+              <span className="truncate text-[11px] font-medium" style={{ color: d.color }}>
                 {d.nombre}
               </span>
             </div>
@@ -82,11 +79,10 @@ export function Thread({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <ConversationAiToggle
-            from={contact.telefono}
-            visible={conversation.canal === "whatsapp"}
-            refreshKey={aiRefresh}
-          />
+          {/* El interruptor de IA por chat vive en la tarjeta del contacto
+              (ContextPanel). Acá se le encimaba al nombre y al canal: son cinco
+              controles peleando por el mismo renglón, y el nombre del cliente
+              pierde siempre. */}
           {!esMia && (
             <button
               type="button"
@@ -123,7 +119,6 @@ export function Thread({
               className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-2 py-1.5 text-[12.5px] font-semibold text-[var(--text-2)] transition hover:border-[#a32923] hover:bg-red-50 hover:text-[#a32923] sm:px-2.5"
             >
               <Ban size={15} />
-              <span className="hidden sm:inline">Bloquear</span>
             </button>
           )}
           <button
@@ -138,7 +133,9 @@ export function Thread({
       </div>
 
       {/* Mensajes */}
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      {/* min-h-0: sin esto el hilo se niega a encoger y empuja el composer
+          fuera de la pantalla en monitores bajos. */}
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.map((m, i) => (
           <MessageBubble
             key={m.id}

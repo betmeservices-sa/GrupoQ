@@ -6,6 +6,7 @@ import { depto } from "@/lib/format";
 import { telefonoBonito } from "@/lib/phone";
 import { Avatar, inicialesDe } from "@/components/ui/Avatar";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
+import { ConversationAiToggle } from "./ConversationAiToggle";
 import { VentanaIndicator } from "./VentanaIndicator";
 import type {
   Contact,
@@ -28,6 +29,7 @@ export function ContextPanel({
   onDepartamento,
   onClose,
   ultimoEntranteTs,
+  aiRefresh,
 }: {
   conversation: Conversation;
   contact: Contact;
@@ -36,6 +38,7 @@ export function ContextPanel({
   onDepartamento: (deptId: DepartmentId) => void;
   onClose?: () => void;
   ultimoEntranteTs?: string;
+  aiRefresh?: number;
 }) {
   const d = depto(conversation.departamento);
 
@@ -56,6 +59,13 @@ export function ContextPanel({
         <p className="mt-2.5 text-[15px] font-bold text-[var(--text)]">{contact.nombre}</p>
         <div className="mt-1">
           <ChannelBadge channel={contact.canal} showLabel />
+        </div>
+        <div className="mt-3">
+          <ConversationAiToggle
+            from={contact.telefono}
+            visible={contact.canal === "whatsapp"}
+            refreshKey={aiRefresh ?? 0}
+          />
         </div>
       </div>
 
