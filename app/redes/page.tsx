@@ -1,17 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PenSquare, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { PostComposer } from "@/components/social/PostComposer";
 import { ColumnaRed } from "@/components/social/ColumnaRed";
 import { PreviewModal } from "@/components/social/PreviewModal";
 import { imagenesDe, ordenarCuentas } from "@/lib/social";
-import { activeTenant } from "@/lib/tenants/active";
+import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import type { SocialPost, SocialStats as SocialStatsT } from "@/lib/data/types";
 
 export default function RedesPage() {
   const { state, dispatch } = useStore();
+  const router = useRouter();
+
+  // El banco no publica en redes: su tablero es de cobranza. El menú ya no
+  // muestra el módulo, y esto cierra la puerta de escribir la URL a mano.
+  const vePublicacion = activeTenantId() !== "promerica";
+  useEffect(() => {
+    if (!vePublicacion) router.replace("/");
+  }, [vePublicacion, router]);
 
   // Stats reales de las cuentas conectadas por OAuth (si el tenant conectó su
   // página). demo:true = sin conexión, se queda el seed del tenant.
@@ -63,6 +72,8 @@ export default function RedesPage() {
     }
     return mapa;
   }, [cuentas, state.socialPosts]);
+
+  if (!vePublicacion) return <div className="flex-1 bg-surface" />;
 
   return (
     <div className="flex h-full flex-col">

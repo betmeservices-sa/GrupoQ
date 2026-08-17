@@ -68,6 +68,9 @@ export function Sidebar({
   const veHotel = tenant === "hotel";
   const veInmobiliaria = tenant === "inmobiliaria";
   const veCobros = tenant === "promerica";
+  // El banco es un centro de COBRANZA: no publica en redes. Recibe mensajes de
+  // Instagram y Facebook (eso sigue en la bandeja), pero no programa contenido.
+  const veRedes = tenant !== "promerica";
   const visibles = NAV.filter(
     (item) =>
       def.ve.includes(item.id) &&
@@ -81,7 +84,8 @@ export function Sidebar({
       (item.id !== "cartera" || veInmobiliaria) &&
       (item.id !== "publicacion" || veInmobiliaria) &&
       (item.id !== "cobros" || veCobros) &&
-      (item.id !== "campanas" || veCobros),
+      (item.id !== "campanas" || veCobros) &&
+      (item.id !== "redes" || veRedes),
   );
 
   return (

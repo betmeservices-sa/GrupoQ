@@ -1,5 +1,6 @@
 // Datos semilla del tenant "promerica" (Banco Promerica, El Salvador).
-// Conversaciones, equipo y redes de DEMOSTRACIÓN. La cartera de mora vive
+// Conversaciones y equipo de DEMOSTRACIÓN. Sin redes sociales: este cliente es
+// un centro de cobranza, no publica contenido. La cartera de mora vive
 // aparte, en lib/cobros-datos.ts, porque la usan también las rutas de API.
 // Las personas son inventadas. Timestamps fijos para que el demo se vea igual
 // siempre.
@@ -14,7 +15,6 @@ export const promericaSeed: TenantSeed = {
     { id: "cobranza", nombre: "Cobranza", color: "#00693c" },
     { id: "atencion", nombre: "Servicio al Cliente", color: "#549820" },
     { id: "legal", nombre: "Legal", color: "#8a5300" },
-    { id: "ventas", nombre: "Productos", color: "#5c6a62" },
   ],
   staff: [
     { id: ME, nombre: "Jefe de Cobranza", rol: "gerente_marketing", departamento: "cobranza", iniciales: "JC" },
@@ -23,7 +23,7 @@ export const promericaSeed: TenantSeed = {
     { id: "s4", nombre: "Karla Bonilla", rol: "medico", departamento: "cobranza", iniciales: "KB" },
     { id: "s5", nombre: "Rodrigo Escalante", rol: "jefe", departamento: "legal", iniciales: "RE" },
     { id: "s6", nombre: "Fátima Argueta", rol: "recepcion", departamento: "atencion", iniciales: "FA" },
-    { id: "s7", nombre: "Nadia Quintanilla", rol: "marketing", departamento: "ventas", iniciales: "NQ" },
+    { id: "s7", nombre: "Nadia Quintanilla", rol: "marketing", departamento: "cobranza", iniciales: "NQ" },
   ],
   // Los seis primeros son los que tienen conversación abierta en la bandeja; el
   // resto llena la pestaña Contactos, que es la libreta del área de cobranza y
@@ -89,16 +89,11 @@ export const promericaSeed: TenantSeed = {
     { id: "im6", channelId: "dm1", staffId: "s5", texto: "El reclamo del seguro de Portillo hay que resolverlo antes de volver a cobrarle.", ts: "2026-08-17T09:00:00" },
     { id: "im7", channelId: "dm1", staffId: ME, texto: "Sí, lo saqué de la campaña mientras tanto.", ts: "2026-08-17T09:05:00" },
   ],
-  socialPosts: [
-    { id: "sp1", red: "facebook", estado: "publicado", texto: "Ponerse al día es más fácil de lo que parece. Acércate a cualquier agencia y conversemos sobre las opciones que tenemos para ti.", fecha: "2026-08-12T10:00:00", engagement: { alcance: 24800, meGusta: 412, comentarios: 63, compartidos: 88 } },
-    { id: "sp2", red: "instagram", estado: "publicado", texto: "Tres cosas que sí puedes hacer si te atrasaste con un pago este mes.", fecha: "2026-08-10T17:30:00", engagement: { alcance: 16400, meGusta: 921, comentarios: 47, compartidos: 74, guardados: 380 } },
-    { id: "sp3", red: "facebook", estado: "programado", texto: "Recuerda que puedes revisar el detalle de tu cuenta desde la banca en línea, sin hacer fila.", fecha: "2026-08-19T09:00:00" },
-    { id: "sp4", red: "instagram", estado: "borrador", texto: "Qué es una promesa de pago y por qué conviene cumplirla.", fecha: "2026-08-21T12:00:00" },
-  ],
-  socialStats: [
-    { red: "facebook", handle: "Banco Promerica El Salvador", seguidores: 318400, nuevosSeguidores: 4120, crecimientoPct: 1.3, alcance30d: 1284000, vistas30d: 1830000, interacciones30d: 42800 },
-    { red: "instagram", handle: "@promericasv", seguidores: 96200, nuevosSeguidores: 2810, crecimientoPct: 3.0, alcance30d: 486000, vistas30d: 712000, interacciones30d: 31500 },
-  ],
+  // Sin publicaciones ni estadísticas de redes: este cliente no publica, cobra.
+  // El módulo está apagado para el banco (ver Sidebar) y dejar los datos aquí
+  // solo serviría para que alguien los encienda por error.
+  socialPosts: [],
+  socialStats: [],
   metrics: [
     { label: "Llamadas de cobro hoy", valor: 412, delta: 18 },
     { label: "Contacto efectivo", valor: "38%", delta: 6 },

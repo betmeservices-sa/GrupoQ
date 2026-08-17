@@ -44,7 +44,7 @@ export interface RoleDef {
 const TODO: ModuleId[] = ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
   recepcion: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "interno"],
-  marketing: ["bandeja", "contactos", "cartera", "publicacion", "redes"],
+  marketing: ["bandeja", "contactos", "cartera", "publicacion", "cobros", "redes"],
   gerente_marketing: TODO,
   medico: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno"],
   jefe: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "interno", "dashboard"],

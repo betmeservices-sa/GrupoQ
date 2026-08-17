@@ -62,6 +62,34 @@ describe("tenant promerica", () => {
     const ids = new Set(TENANTS.promerica.seed.departments.map((d) => d.id));
     expect(ids.has(TENANTS.promerica.defaultDepartment)).toBe(true);
   });
+
+  it("todas las conversaciones caen en un departamento que existe", () => {
+    const ids = new Set(TENANTS.promerica.seed.departments.map((d) => d.id));
+    for (const c of TENANTS.promerica.seed.conversations) {
+      expect(ids.has(c.departamento)).toBe(true);
+    }
+  });
+
+  it("cada quien del equipo está en un departamento que existe", () => {
+    const ids = new Set(TENANTS.promerica.seed.departments.map((d) => d.id));
+    for (const s of TENANTS.promerica.seed.staff) {
+      expect(ids.has(s.departamento)).toBe(true);
+    }
+  });
+
+  // El banco es un centro de cobranza: no publica en redes. El módulo está
+  // apagado en el Sidebar; dejar los datos sembrados solo serviría para que
+  // alguien lo encienda por error y se encuentre una pantalla que no va.
+  it("no trae datos de redes sociales", () => {
+    expect(TENANTS.promerica.seed.socialPosts).toHaveLength(0);
+    expect(TENANTS.promerica.seed.socialStats).toHaveLength(0);
+  });
+
+  it("los otros clientes SÍ conservan sus redes", () => {
+    for (const t of ["grupoq", "hospital", "inmobiliaria"] as const) {
+      expect(TENANTS[t].seed.socialPosts.length).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe("el módulo de voz del banco", () => {
