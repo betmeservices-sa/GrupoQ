@@ -114,6 +114,16 @@ La logica pura (cola, concurrencia, ventana horaria, reintentos, lectura del
 archivo, como se mueve la ficha) esta separada de la red y cubierta por tests:
 `lib/__tests__/cobros-*.test.ts`.
 
+Lo unico que los tests no pueden cubrir es la llamada al modelo. Para eso:
+
+```bash
+node scripts/probar-analisis-cobros.mjs
+```
+
+Toma una transcripcion real de la cartera semilla, la manda a Claude por el
+mismo camino que usa el webhook, e imprime el JSON que devolvio y como queda la
+ficha. No marca telefonos ni escribe en el almacen del demo.
+
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · lucide-react ·
