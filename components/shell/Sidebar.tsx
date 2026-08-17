@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BedDouble, Bot, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, Settings, Share2, X, type LucideIcon } from "lucide-react";
+import { BarChart3, BedDouble, Bot, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -30,6 +30,8 @@ const NAV: NavItem[] = [
   { id: "visitas", href: "/visitas", label: "Visitas", Icon: CalendarClock },
   { id: "cartera", href: "/cartera", label: "Cartera", Icon: Building2 },
   { id: "publicacion", href: "/publicacion", label: "Publicación", Icon: Share2 },
+  { id: "cobros", href: "/cobros", label: "Cartera de mora", Icon: HandCoins },
+  { id: "campanas", href: "/campanas", label: "Campañas", Icon: PhoneOutgoing },
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },
@@ -58,11 +60,14 @@ export function Sidebar({
   // hotel: solo el hotel.
   // "pipeline", "visitas", "cartera" y "publicacion" son el tablero del agente
   // inmobiliario: solo la inmobiliaria.
+  // "cobros" y "campanas" son la cartera en mora y el marcador por lotes del
+  // banco: solo Promerica.
   const tenant = activeTenantId();
   const veLlamadas = veModuloVoz(tenant);
   const veAgentes = veLlamadas;
   const veHotel = tenant === "hotel";
   const veInmobiliaria = tenant === "inmobiliaria";
+  const veCobros = tenant === "promerica";
   const visibles = NAV.filter(
     (item) =>
       def.ve.includes(item.id) &&
@@ -74,7 +79,9 @@ export function Sidebar({
       (item.id !== "pipeline" || veInmobiliaria) &&
       (item.id !== "visitas" || veInmobiliaria) &&
       (item.id !== "cartera" || veInmobiliaria) &&
-      (item.id !== "publicacion" || veInmobiliaria),
+      (item.id !== "publicacion" || veInmobiliaria) &&
+      (item.id !== "cobros" || veCobros) &&
+      (item.id !== "campanas" || veCobros),
   );
 
   return (

@@ -3,6 +3,7 @@
 
 import { HeartPulse, CarFront, Bot, Hotel, Building2 } from "lucide-react";
 import { activeTenant } from "@/lib/tenants/active";
+import { PromericaLogo } from "@/components/ui/PromericaLogo";
 
 const WORDMARK_ICONS = { HeartPulse, CarFront, Bot, Hotel, Building2 } as const;
 
@@ -11,6 +12,9 @@ const WORDMARK_ICONS = { HeartPulse, CarFront, Bot, Hotel, Building2 } as const;
 // hay sesión y [data-tenant] está fijado.
 export function Brand({ compact = false }: { compact?: boolean }) {
   const { brand } = activeTenant();
+
+  // Logos dibujados en SVG: ganan sobre logoSrc y sobre el wordmark genérico.
+  if (brand.logoComponent === "promerica") return <PromericaLogo compact={compact} />;
 
   if (brand.logoSrc) {
     return (

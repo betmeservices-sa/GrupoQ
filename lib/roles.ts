@@ -14,6 +14,8 @@ export type ModuleId =
   | "visitas"
   | "cartera"
   | "publicacion"
+  | "cobros"
+  | "campanas"
   | "interno"
   | "redes"
   | "dashboard"
@@ -39,13 +41,13 @@ export interface RoleDef {
 // inmobiliaria: el pipeline y las visitas son de quien vende (marketing no ve
 // los leads ni la agenda), y la publicación la arman tanto el asesor como
 // marketing, porque los dos suben anuncios.
-const TODO: ModuleId[] = ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
+const TODO: ModuleId[] = ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "dashboard", "llamadas", "agentes", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
   recepcion: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "interno"],
   marketing: ["bandeja", "contactos", "cartera", "publicacion", "redes"],
   gerente_marketing: TODO,
-  medico: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "interno"],
-  jefe: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "interno", "dashboard"],
+  medico: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno"],
+  jefe: ["bandeja", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "interno", "dashboard"],
   admin: TODO,
 };
 
@@ -73,6 +75,8 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   visitas: "/visitas",
   cartera: "/cartera",
   publicacion: "/publicacion",
+  cobros: "/cobros",
+  campanas: "/campanas",
   interno: "/interno",
   redes: "/redes",
   dashboard: "/dashboard",
@@ -92,6 +96,8 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname.startsWith("/visitas")) return "visitas";
   if (pathname.startsWith("/cartera")) return "cartera";
   if (pathname.startsWith("/publicacion")) return "publicacion";
+  if (pathname.startsWith("/cobros")) return "cobros";
+  if (pathname.startsWith("/campanas")) return "campanas";
   if (pathname.startsWith("/interno")) return "interno";
   if (pathname.startsWith("/redes")) return "redes";
   if (pathname.startsWith("/dashboard")) return "dashboard";

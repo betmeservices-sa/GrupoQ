@@ -34,7 +34,9 @@ export type DepartmentId =
   | "conserjeria"
   // Inmobiliaria (Terrazul): captación de propiedades y trámites de escritura
   | "captacion"
-  | "legal";
+  | "legal"
+  // Banco Promerica: gestión de cartera en mora
+  | "cobranza";
 
 export type RoleId = "recepcion" | "marketing" | "gerente_marketing" | "medico" | "jefe" | "admin";
 

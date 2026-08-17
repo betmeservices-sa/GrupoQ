@@ -53,6 +53,9 @@ valor real se commitea). Sin las de un módulo, ese módulo cae a datos demo.
 | `VAPI_PRIVATE_KEY` | Módulo de llamadas. |
 | `CLOUDBEDS_API_KEY` | Sistema de reservas del hotel (Cloudbeds), **solo lectura**. |
 | `CLOUDBEDS_PROPERTY_ID` | Id de la propiedad del hotel en ese sistema. |
+| `VAPI_WEBHOOK_SECRET` | Secreto compartido del webhook de cobros. **Sin ella el webhook queda cerrado**: es una ruta publica y sin secreto cualquiera podria inventar llamadas. |
+| `COBROS_AI_MODEL` | Modelo que lee los transcripts de cobranza. Por defecto `claude-opus-5`; para una base grande donde manda el costo por llamada, `claude-haiku-4-5`. |
+| `COBROS_IA_EN_SIMULACION` | `1` hace que las llamadas simuladas tambien pasen por el modelo, para probar el analisis sin telefonia. Cuesta dinero por llamada simulada. |
 
 Ninguna lleva prefijo `NEXT_PUBLIC_`: todas se leen en el servidor y no pueden
 terminar en el bundle del navegador.
@@ -68,6 +71,48 @@ inventario real del hotel en los canales de venta.
 Cuando el agente cierra una reserva, se guarda como **simulada** en
 `lib/hotel-reservas.ts` y el panel la pinta aparte de las reales. La llave del
 sistema de reservas caduca si pasan 30 días sin usarse.
+
+### Cliente "promerica" — cobranza con agente de voz
+
+Banco Promerica es el primer tenant cuyo centro no es la bandeja sino la
+**cartera en mora**. Entra con `demoagentia` / `miagentiacobros` y suma tres
+piezas que los demas clientes no tienen:
+
+- **Cartera de mora** (`/cobros`): las cuentas atrasadas con su tramo (1-30,
+  31-60, 61-90, +90), promesas de pago vigentes y vencidas, y la ficha de cada
+  cliente con su historial de gestion y la transcripcion de cada llamada.
+- **Campanas** (`/campanas`): marcado por lotes. Se sube un archivo de contactos
+  (CSV, hasta 20,000) o se filtra la cartera, se elige cuantas llamadas puede
+  haber vivas a la vez, y el motor mantiene ese numero: cuando una termina,
+  entra la siguiente. Con horario permitido, reintentos y estimacion de cuanto
+  va a tardar.
+- **Agente de cobros** (Vapi): el script vive versionado en
+  `lib/cobros-agente.ts` y se sube con `node scripts/crear-agente-cobros.mjs`.
+  Verifica identidad antes de decir una palabra del saldo, no amenaza, no
+  promete arreglos y cuelga si el cliente pide que no lo llamen.
+
+**El ciclo completo.** Al terminar cada llamada llega el transcript (por webhook
+en produccion, o consultando a Vapi mientras la pantalla esta abierta) y Claude
+lo lee con **salida estructurada**: devuelve el JSON exacto de la ficha, no un
+parrafo que despues haya que interpretar. Con eso la tarjeta del cliente se
+mueve sola: cambia de estado, guarda la promesa con monto y fecha, anota el
+riesgo, y **apaga las llamadas** si la persona pidio que no la contacten.
+
+Dos cosas que el modulo hace a proposito:
+
+1. **Marcar de verdad es una casilla aparte, apagada por defecto.** La cartera
+   sembrada del demo lleva telefonos inventados; que basta con tener la llave de
+   Vapi puesta para empezar a llamar seria la forma mas facil de cold-callear a
+   cientos de personas que no tienen nada que ver. Sin esa casilla, la campana
+   simula las llamadas y las fichas se mueven igual.
+2. **Una llamada que no conecto no pasa por el modelo.** El resultado sale del
+   motivo de corte de la telefonia. En una base de 10,000 eso es casi la mitad
+   de los intentos, y es la diferencia entre una demo que se puede correr y una
+   factura de IA por llamadas donde nadie contesto.
+
+La logica pura (cola, concurrencia, ventana horaria, reintentos, lectura del
+archivo, como se mueve la ficha) esta separada de la red y cubierta por tests:
+`lib/__tests__/cobros-*.test.ts`.
 
 ## Stack
 

@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,wght@0,400;0,600;0,700;0,800;1,800&display=swap');
 @import "tailwindcss";
 
 /* ── Tema por cliente (tenant) ──
@@ -150,6 +151,42 @@
 /* La barra de scroll clara de Terrazul. */
 [data-tenant="inmobiliaria"] ::-webkit-scrollbar-thumb:hover {
   background: #9fb0c4;
+}
+
+/* Banco Promerica va en CLARO: blanco de banco sobre un verde muy tenue, con
+   los verdes REALES de su design system (leídos de promerica.com.sv:
+   Verde Primario 70 #00693C, Verde Primario 80 #003F24, Verde Secundario 70
+   #69BE28) y su tipografía, Nunito Sans. El lima #69BE28 solo se usa como
+   relleno o en la estrella del logo: sobre blanco da 2.3:1 y no es legible
+   como texto. Va DESPUÉS del bloque de marca unificada para ganarle con la
+   misma especificidad.
+   Contraste medido sobre el fondo #F1F5F2: tinta #13251C 14.6:1, secundario
+   #435049 7.7:1, terciario #5C6A62 5.2:1; sobre blanco, verde de marca
+   #00693C 6.8:1, rojo #B3261E 6.5:1 y ámbar #8A5300 6.3:1. Todos por encima
+   del 4.5:1 que pide WCAG AA para texto normal. Lo cubre promerica-tema.test.ts. */
+[data-tenant="promerica"] {
+  --brand-blue: #00693c;
+  --brand-blue-dark: #003f24;
+  --brand-green: #00693c;
+  --brand-red: #b3261e;
+  --brand-accent: #8a5300;
+  --brand-accent-soft: #fdf3e3;
+
+  --surface: #f1f5f2;
+  --surface-2: #e4ebe6;
+  --card: #ffffff;
+  --border: #dce5df;
+  --border-2: #c3d0c7;
+  --text: #13251c;
+  --text-2: #435049;
+  --text-3: #5c6a62;
+
+  --font-app: 'Nunito Sans', system-ui, sans-serif;
+}
+
+/* La barra de scroll clara de Promerica. */
+[data-tenant="promerica"] ::-webkit-scrollbar-thumb:hover {
+  background: #9fb3a6;
 }
 
 @theme inline {

@@ -7,12 +7,16 @@ import {
   CalendarSearch,
   CheckCircle2,
   Clock,
+  HandCoins,
   Inbox,
   Megaphone,
   MessageSquare,
+  PhoneCall,
   Smile,
   Timer,
+  TrendingUp,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -37,6 +41,10 @@ const ICONS: Record<string, LucideIcon> = {
   CalendarSearch,
   CalendarCheck,
   Users,
+  PhoneCall,
+  HandCoins,
+  Wallet,
+  TrendingUp,
 };
 
 // Estados de conversación. Colores por CSS var para que sigan la marca del tenant.
