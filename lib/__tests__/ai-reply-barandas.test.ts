@@ -103,8 +103,9 @@ vi.mock("@/lib/ai", () => ({
 }));
 
 // Casi sin espera: el debounce real haría que cada turno tardara segundos.
-// OJO: tiene que ser "1" y no "0", porque ai-reply usa `Number(env) || 3000` y
-// el 0 es falsy, así que un 0 se cae al default de 3 segundos.
+// OJO: tiene que ser "1" y no "0", porque ai-reply usa `Number(env) || 5000` y
+// el 0 es falsy, así que un 0 se cae al default de 5 segundos.
+// Con min == max el segundo tramo queda en 0 y la espera total es de 1ms.
 vi.stubEnv("AI_DELAY_MIN_MS", "1");
 vi.stubEnv("AI_DELAY_MAX_MS", "1");
 

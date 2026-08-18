@@ -4,9 +4,11 @@
 // Este archivo EJECUTA; quien DECIDE es lib/sucursal-gate.ts (funciones puras).
 // El orden del turno es siempre el mismo:
 //   1. ¿la IA está encendida para este chat?
-//   2. ¿sigo siendo el último mensaje? (si no, otro handler contesta)
-//   3. ¿qué toca según las barandas? (sucursal obligatoria / tope de mensajes)
-//   4. si toca responder: se baja la imagen (si hay), se llama a Claude y se
+//   2. silencio (MIN) y ¿sigo siendo el último mensaje? (si no, otro contesta)
+//   3. "escribiendo..." y el resto de la espera, aleatorio hasta MAX
+//   4. ¿sigo siendo el último? (pudo llegar otro durante ese resto)
+//   5. ¿qué toca según las barandas? (sucursal obligatoria / tope de mensajes)
+//   6. si toca responder: se baja la imagen (si hay), se llama a Claude y se
 //      registra el consumo en tokens y en dinero.
 import { addOutbound, getSince, type WaInbound } from "./wa-store";
 import { getChatAiActiva, setChatOverride } from "./ai-store";
@@ -24,21 +26,52 @@ import { registrarConsumo } from "./tokens-store";
 import { TENANTS, DEFAULT_TENANT } from "./tenants";
 import type { TenantId } from "./tenants/types";
 
-// Espera ALEATORIA antes de responder, para que se sienta humano (a veces
-// contesta rapido, a veces se tarda). Rango 3-9s: en Vercel Pro la funcion del
-// webhook corre hasta 60s (maxDuration=60), asi que la espera + consultas +
-// Claude + envio caben de sobra. Ajustable con AI_DELAY_MIN_MS / AI_DELAY_MAX_MS.
-const DELAY_MIN_MS = Number(process.env.AI_DELAY_MIN_MS) || 3000;
-const DELAY_MAX_MS = Number(process.env.AI_DELAY_MAX_MS) || 9000;
+// La espera antes de responder va en DOS tramos, a proposito:
+//
+//   1. MIN en SILENCIO (5s), sin mostrarle nada al cliente. Es la ventana para
+//      que el que escribe de a poco termine su idea: si llega otro mensaje,
+//      este turno se retira sin haber dado señales. Mostrar "escribiendo..."
+//      aqui seria contraproducente, porque al verlo la gente deja de escribir
+//      y se pierde justo lo que queriamos esperar.
+//   2. "escribiendo..." y el RESTO, aleatorio, hasta completar MAX (12s).
+//
+// El total sigue cayendo uniforme en [MIN, MAX], asi que se siente humano: a
+// veces contesta rapido, a veces se tarda. Ajustable con AI_DELAY_MIN_MS y
+// AI_DELAY_MAX_MS.
+//
+// Dos techos que este reparto respeta: el "escribiendo..." de Meta se cae solo
+// a los 25s, y aqui vive como mucho (MAX - MIN) mas lo que tarde Claude, o sea
+// ~7s mas unos pocos; y la funcion del webhook en Vercel Pro corre hasta 60s
+// (maxDuration=60), donde MAX + consultas + Claude + envio caben de sobra.
+const DELAY_MIN_MS = Number(process.env.AI_DELAY_MIN_MS) || 5000;
+const DELAY_MAX_MS = Number(process.env.AI_DELAY_MAX_MS) || 12000;
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function esperaAleatoria(): number {
-  const min = Math.min(DELAY_MIN_MS, DELAY_MAX_MS);
-  const max = Math.max(DELAY_MIN_MS, DELAY_MAX_MS);
-  return min + Math.floor(Math.random() * (max - min + 1));
+// Sobrante aleatorio DESPUES del tramo de silencio. Si alguien invierte las dos
+// variables (MAX menor que MIN), queda en 0 en vez de mandarle un negativo a
+// setTimeout.
+function restoAleatorio(): number {
+  const extra = Math.max(DELAY_MAX_MS - DELAY_MIN_MS, 0);
+  return Math.floor(Math.random() * (extra + 1));
+}
+
+// ¿El mensaje que me disparo sigue siendo el ultimo de la conversacion? Si
+// llego otro (el cliente seguia escribiendo) o ya contesto alguien, este handler
+// se retira y responde el mas nuevo. Cubre tambien que un humano haya tomado el
+// chat: su mensaje saliente seria el ultimo, con direccion "out".
+async function sigoSiendoElUltimo(
+  from: string,
+  triggerWamid: string,
+  tenant?: TenantId,
+): Promise<boolean> {
+  const ultimo = (await getSince(0, tenant))
+    .filter((m) => m.from === from)
+    .sort((a, b) => a.seq - b.seq)
+    .at(-1);
+  return Boolean(ultimo && ultimo.waId === triggerWamid && ultimo.direccion === "in");
 }
 
 // Tras un hueco largo (default 4h) la conversacion se trata como NUEVA: la IA
@@ -78,16 +111,22 @@ export async function programarRespuestaIA(opts: {
     // Activa si: override del chat (si existe) o, si no, el interruptor global.
     if (!(await getChatAiActiva(opts.from))) return;
 
-    await sleep(esperaAleatoria());
+    // Tramo 1: silencio. Le damos tiempo a que termine sin mostrarle nada.
+    await sleep(DELAY_MIN_MS);
+    if (!(await sigoSiendoElUltimo(opts.from, opts.triggerWamid, opts.tenant))) return;
 
-    // ¿Sigo siendo el último mensaje de esta conversación? Si llegó uno más nuevo
-    // (otra parte de la ráfaga) o ya hay respuesta, me retiro: otro handler responde.
+    // Recien ahora aparece el "escribiendo...". Va aqui y no antes porque Meta
+    // pide no mostrarlo si no vas a responder, y hasta este punto no lo sabiamos.
+    // Ojo: mostrarlo tambien marca el mensaje como leido (doble check azul).
+    await mostrarEscribiendo(opts.triggerWamid);
+
+    // Tramo 2: el resto de la espera, ya con el indicador puesto.
+    await sleep(restoAleatorio());
+
     const conv = (await getSince(0, opts.tenant))
       .filter((m) => m.from === opts.from)
       .sort((a, b) => a.seq - b.seq);
-    // Si el ultimo mensaje ya no es mi disparador (llego otro o ya hay respuesta),
-    // me retiro. Esto tambien cubre que un humano haya tomado el chat (su mensaje
-    // saliente seria el ultimo, con direccion "out").
+    // Se vuelve a mirar: pudo llegar otro mensaje durante el segundo tramo.
     const ultimo = conv.at(-1);
     if (!ultimo || ultimo.waId !== opts.triggerWamid || ultimo.direccion !== "in") return;
 
@@ -151,9 +190,6 @@ export async function programarRespuestaIA(opts: {
     // foto recién enviada.
     const imagenes = await imagenesDelUltimo(ultimo, cfg.ai.imagenes === true);
     if (imagenes.length) historial[historial.length - 1].imagenes = imagenes;
-
-    // "escribiendo..." mientras Claude redacta.
-    await mostrarEscribiendo(opts.triggerWamid);
 
     const respuesta = await generarRespuesta(
       historial,
