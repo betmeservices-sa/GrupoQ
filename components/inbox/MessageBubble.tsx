@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FileText, Smile } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { horaDe, nombreStaff } from "@/lib/format";
+import { captionDeMedia, horaDe, nombreStaff } from "@/lib/format";
 import type { Message, MessageMedia } from "@/lib/data/types";
 
 const EMOJIS = ["👍", "❤️", "🙏", "😊", "😮"];
@@ -50,6 +50,7 @@ export function MessageBubble({
   onReact?: (messageId: string, emoji: string) => void;
 }) {
   const esStaff = message.autor === "staff";
+  const caption = message.media ? captionDeMedia(message.texto) : null;
   const [abierto, setAbierto] = useState(false);
   const [reaccion, setReaccion] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -92,7 +93,16 @@ export function MessageBubble({
             reaccion && !esStaff && "mb-3",
           )}
         >
-          {message.media ? <MediaContenido media={message.media} /> : message.texto}
+          {message.media ? (
+            <>
+              <MediaContenido media={message.media} />
+              {/* El caption va DEBAJO del archivo, como en WhatsApp. Antes esto
+                  era un o/o y el texto que venía con la foto se perdía. */}
+              {caption && <p className="mt-1.5 whitespace-pre-wrap">{caption}</p>}
+            </>
+          ) : (
+            message.texto
+          )}
         </div>
 
         {/* Boton de reaccionar (solo mensajes del cliente) */}

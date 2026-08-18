@@ -91,3 +91,21 @@ export function staffMeta(id: string) {
     color: deptById.get(s.departamento)?.color ?? "#64748b",
   };
 }
+
+// El caption de una foto o un video de WhatsApp NO viaja en un campo propio: el
+// webhook lo guarda pegado a una marca dentro del texto del mensaje, así:
+//   "[imagen] Tengo estos productos también"
+// La burbuja pinta el archivo, así que la marca sobra (se ve la foto) pero el
+// caption NO: es lo que el cliente escribió. Esto devuelve solo esa parte, o
+// null si no hay nada que pintar debajo del archivo.
+//
+// "[documento: x.pdf]" devuelve null a propósito: el nombre del archivo ya es el
+// texto del enlace, repetirlo abajo sería decir dos veces lo mismo.
+const MARCA_MEDIA = /^\[(?:imagen|video|audio|sticker|documento(?::[^\]]*)?)\]/i;
+
+export function captionDeMedia(texto: string | undefined | null): string | null {
+  if (!texto) return null;
+  const m = MARCA_MEDIA.exec(texto);
+  if (!m) return texto.trim() || null;
+  return texto.slice(m[0].length).trim() || null;
+}
