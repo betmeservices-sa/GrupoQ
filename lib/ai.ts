@@ -13,13 +13,23 @@ import {
 } from "./hotel-agente";
 import { activeTenant } from "./tenants/active";
 import { TENANTS } from "./tenants";
-import type { TenantId } from "./tenants/types";
+import type { SucursalTenant, TenantId } from "./tenants/types";
+import { contextoSucursal } from "./sucursal-gate";
+import { sumarUso, USO_CERO, type UsoTokens } from "./tokens-precios";
+import type { MimeImagenIA } from "./wa-media";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Modelo. Haiku 4.5 es el mas rapido y barato (ideal para Vercel Hobby, donde la
-// funcion topa a 10s). Cambia con AI_MODEL: "claude-sonnet-4-6" u "claude-opus-4-8".
+// funcion topa a 10s). Cambia con AI_MODEL: "claude-sonnet-5" u "claude-opus-5".
+// OJO: cada registro de consumo guarda ESTE valor, porque cambiarlo mañana
+// invalidaria el calculo del historico (ver lib/tokens-store.ts).
 const MODEL = process.env.AI_MODEL || "claude-haiku-4-5";
+
+/** El modelo con el que responde el agente (lo lee el panel de consumo). */
+export function modeloActivo(): string {
+  return MODEL;
+}
 
 // La persona (system prompt) depende del tenant. En el webhook real se pasa el
 // tenantId (derivado del phone_number_id); si no, se usa el tenant activo.
@@ -32,9 +42,17 @@ function systemPromptFor(tenantId?: TenantId): string {
   return t.ai.systemPrompt + clasificacion;
 }
 
+/** Imagen que el contacto mandó por WhatsApp, ya lista para el modelo. */
+export interface ImagenIA {
+  base64: string;
+  mime: MimeImagenIA;
+}
+
 export interface TurnoIA {
   autor: "cliente" | "staff";
   texto: string;
+  /** Solo en turnos del cliente: fotos que se le pasan al modelo para que las vea. */
+  imagenes?: ImagenIA[];
 }
 
 interface AccionesIA {
@@ -282,33 +300,135 @@ export function herramientasDeTenant(tenantId?: TenantId): string[] {
   return [toolGuardarContacto(tenantId), ...toolsPara(tenantId)].map((t) => t.name);
 }
 
+// Arma el contenido de un turno del cliente. Con imágenes, primero los bloques
+// `image` y después el texto: es el orden que recomienda Anthropic, porque el
+// modelo responde mejor cuando ve la foto antes de leer la pregunta.
+function contenidoDeTurno(t: TurnoIA): Anthropic.MessageParam["content"] {
+  const texto = t.texto || "[imagen]"; // la API rechaza un bloque de texto vacío
+  if (!t.imagenes || t.imagenes.length === 0) return texto;
+  const bloques: Anthropic.ContentBlockParam[] = t.imagenes.map((img) => ({
+    type: "image",
+    source: { type: "base64", media_type: img.mime, data: img.base64 },
+  }));
+  bloques.push({ type: "text", text: texto });
+  return bloques;
+}
+
+function sinImagenes(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  return messages.map((m) => {
+    if (typeof m.content === "string") return m;
+    const limpio = m.content.filter((b) => b.type !== "image");
+    // El bloque de texto siempre viaja junto a la imagen (ver contenidoDeTurno),
+    // así que `limpio` nunca queda vacío; el fallback es solo defensivo.
+    return { ...m, content: limpio.length ? limpio : "[imagen]" };
+  });
+}
+
+/**
+ * Cuántos tokens aportan las IMÁGENES de un envío.
+ *
+ * Las imágenes no se facturan aparte: entran como tokens de entrada y quedan
+ * mezcladas con el texto en `usage.input_tokens`. Para poder separarlas (que es
+ * justo lo que se quiere ver en el dashboard) se cuenta el MISMO contenido dos
+ * veces con count_tokens, con y sin los bloques de imagen, y se resta.
+ *
+ * A propósito NO se estima con tiktoken ni por caracteres: subestima los tokens
+ * de Claude. Si count_tokens falla, se devuelve 0 y el turno se contabiliza
+ * entero como texto (nunca se inventa un número).
+ */
+async function medirTokensImagen(
+  system: string,
+  tools: Anthropic.Tool[],
+  messages: Anthropic.MessageParam[],
+): Promise<number> {
+  const hayImagen = messages.some(
+    (m) => typeof m.content !== "string" && m.content.some((b) => b.type === "image"),
+  );
+  if (!hayImagen) return 0;
+  try {
+    const [con, sin] = await Promise.all([
+      client.messages.countTokens({ model: MODEL, system, tools, messages }),
+      client.messages.countTokens({
+        model: MODEL,
+        system,
+        tools,
+        messages: sinImagenes(messages),
+      }),
+    ]);
+    return Math.max(con.input_tokens - sin.input_tokens, 0);
+  } catch (e) {
+    console.error("IA: no se pudo medir el peso de la imagen", e);
+    return 0;
+  }
+}
+
+// El `usage` de la API trae los campos de caché como `number | null` (null =
+// no se usó caché en esa llamada). Se normaliza a 0 aquí para que el resto del
+// sistema trabaje siempre con los cuatro números.
+function usoDeRespuesta(u: Anthropic.Usage): UsoTokens {
+  return {
+    input_tokens: u.input_tokens ?? 0,
+    output_tokens: u.output_tokens ?? 0,
+    cache_creation_input_tokens: u.cache_creation_input_tokens ?? 0,
+    cache_read_input_tokens: u.cache_read_input_tokens ?? 0,
+  };
+}
+
+export interface RespuestaIA {
+  texto: string;
+  /** `usage` acumulado de todas las llamadas del turno (los cuatro campos). */
+  uso: UsoTokens;
+  /** Modelo con el que se generó. Se guarda con el consumo, no se infiere después. */
+  modelo: string;
+  /** Llamadas al modelo que hizo este turno (el bucle de herramientas puede dar varias). */
+  llamadas: number;
+  /** Tokens de entrada que aportaron las imágenes en TODO el turno. */
+  tokensImagen: number;
+  /** Cuántas imágenes se le pasaron al modelo. */
+  imagenes: number;
+}
+
 // Genera la respuesta de la IA. Usa tool use para guardar datos del contacto y
 // para reaccionar; ejecuta esas acciones vía los callbacks de `acciones`.
+// Devuelve también el consumo, porque es el único punto donde se conoce.
 export async function generarRespuesta(
   historial: TurnoIA[],
   acciones?: AccionesIA,
-  contexto?: { telefono?: string; tenantId?: TenantId },
-): Promise<string> {
+  contexto?: { telefono?: string; tenantId?: TenantId; sucursal?: SucursalTenant | null },
+): Promise<RespuestaIA> {
   const messages: Anthropic.MessageParam[] = historial.map((t) => ({
     role: t.autor === "cliente" ? "user" : "assistant",
-    content: t.texto,
+    content: contenidoDeTurno(t),
   }));
 
-  const systemPrompt = systemPromptFor(contexto?.tenantId);
+  const system = `${systemPromptFor(contexto?.tenantId)}${contextoSucursal(
+    contexto?.sucursal ?? null,
+  )}\n\n${contextoTemporal(contexto?.tenantId)}`;
   const tools: Anthropic.Tool[] = [
     toolGuardarContacto(contexto?.tenantId),
     ...toolsPara(contexto?.tenantId),
   ];
 
+  const imagenes = historial.reduce((n, t) => n + (t.imagenes?.length ?? 0), 0);
+  // Se mide UNA vez, sobre el envío inicial. Las imágenes se quedan en
+  // `messages` durante todo el bucle de herramientas, así que viajan (y se
+  // cobran) en cada llamada: por eso al final se multiplica por `llamadas`.
+  const tokensImagenPorLlamada = await medirTokensImagen(system, tools, messages);
+
+  let uso: UsoTokens = { ...USO_CERO };
+  let llamadas = 0;
   let texto = "";
+
   for (let i = 0; i < 4; i++) {
     const res = await client.messages.create({
       model: MODEL,
       max_tokens: 500,
-      system: `${systemPrompt}\n\n${contextoTemporal(contexto?.tenantId)}`,
+      system,
       tools,
       messages,
     });
+    llamadas++;
+    uso = sumarUso(uso, usoDeRespuesta(res.usage));
 
     const t = res.content
       .map((b) => (b.type === "text" ? b.text : ""))
@@ -336,5 +456,12 @@ export async function generarRespuesta(
     messages.push({ role: "user", content: resultados });
   }
 
-  return texto || "Disculpe, ¿me lo puede repetir por favor?";
+  return {
+    texto: texto || "Disculpe, ¿me lo puede repetir por favor?",
+    uso,
+    modelo: MODEL,
+    llamadas,
+    tokensImagen: tokensImagenPorLlamada * Math.max(llamadas, 1),
+    imagenes,
+  };
 }

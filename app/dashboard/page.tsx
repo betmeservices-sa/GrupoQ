@@ -26,6 +26,7 @@ import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
 import { CallsPanel } from "@/components/dashboard/CallsPanel";
 import { HotelOcupacion } from "@/components/dashboard/HotelOcupacion";
 import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
+import { ConsumoIA } from "@/components/dashboard/ConsumoIA";
 
 // Íconos disponibles para las tarjetas del dashboard (referenciados por nombre
 // desde la config del tenant).
@@ -101,6 +102,10 @@ export default function DashboardPage() {
         </div>
 
         <OrigenCanales conversations={state.conversations} />
+
+        {/* Lo que cuesta el agente de IA: tokens y dinero, texto e imágenes.
+            Va en TODOS los clientes: el consumo se mide igual en todos. */}
+        <ConsumoIA />
 
         {esHotel && <HotelOcupacion />}
 

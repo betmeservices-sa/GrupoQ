@@ -9,6 +9,7 @@ import { miagentiaTenant } from "./miagentia";
 import { hotelTenant } from "./hotel";
 import { inmobiliariaTenant } from "./inmobiliaria";
 import { promericaTenant } from "./promerica";
+import { yalyTenant } from "./yaly";
 
 export type { TenantConfig, TenantId } from "./types";
 
@@ -20,6 +21,7 @@ export const TENANTS: Record<TenantId, TenantConfig> = {
   hotel: hotelTenant,
   inmobiliaria: inmobiliariaTenant,
   promerica: promericaTenant,
+  yaly: yalyTenant,
 };
 
 // Tenant por defecto (SSR / antes de login). No es visible: la UI se pinta tras
@@ -34,7 +36,8 @@ export function isTenantId(v: string | null | undefined): v is TenantId {
     v === "miagentia" ||
     v === "hotel" ||
     v === "inmobiliaria" ||
-    v === "promerica"
+    v === "promerica" ||
+    v === "yaly"
   );
 }
 
@@ -62,6 +65,7 @@ export const DEMO_LOGINS: DemoLogin[] = [
   { usuario: "demoagentia", password: "miagentiahotel", tenant: "hotel" },
   { usuario: "demoagentia", password: "miagentiabienes", tenant: "inmobiliaria" },
   { usuario: "demoagentia", password: "miagentiacobros", tenant: "promerica" },
+  { usuario: "demoagentia", password: "miagentiayaly", tenant: "yaly" },
   // Acceso directo al dashboard de llamadas (tenant miagentia).
   // OJO: esta clave queda visible mientras el repo sea publico. Para cerrarla,
   // hacer el repo privado o mover las credenciales a la env LOGIN_PASSWORDS.

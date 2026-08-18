@@ -6,6 +6,7 @@
 // vivo, un switch global decide a qué cliente entran los mensajes. Así cada
 // dashboard filtra y muestra solo lo suyo, y la IA usa el guion de ese cliente.
 import { getSupabase } from "./supabase";
+import { borrarConsumo } from "./tokens-store";
 
 export type Direccion = "in" | "out"; // in = del cliente, out = de la empresa
 
@@ -126,17 +127,30 @@ export async function getSince(after: number, tenant?: string): Promise<WaInboun
 
 // Borra el historial de conversaciones (para reiniciar el demo). Si se pasa
 // `tenant`, solo el de ese cliente.
+//
+// Se lleva también el CONSUMO de la IA de ese cliente: es el botón de reiniciar
+// el demo, y dejar el panel de costos con cifras de conversaciones que ya no
+// están en la bandeja confunde más de lo que informa.
 export async function clearHistory(tenant?: string): Promise<void> {
   const sb = getSupabase();
   if (!sb) {
     for (let i = mem.length - 1; i >= 0; i--) {
       if (!tenant || mem[i].tenant === tenant) mem.splice(i, 1);
     }
+    await borrarConsumo(tenant);
     return;
   }
   const base = sb.from("wa_messages").delete();
   const { error } = await (tenant ? base.eq("tenant", tenant) : base.neq("id", 0));
   if (error) console.error("Supabase clear WA:", error.message);
+
+  const sucursales = sb.from("wa_sucursal").delete();
+  const { error: errSuc } = await (tenant
+    ? sucursales.eq("tenant", tenant)
+    : sucursales.neq("wa_from", ""));
+  if (errSuc) console.error("Supabase clear wa_sucursal:", errSuc.message);
+
+  await borrarConsumo(tenant);
 }
 
 // Borra TODO lo de UN número (mensajes, adjuntos, contacto, metadatos y estado
@@ -150,7 +164,15 @@ export async function borrarConversacionCompleta(from: string): Promise<void> {
     }
     return;
   }
-  const tablas = ["wa_messages", "wa_adjuntos", "wa_contacts", "wa_conversaciones", "ai_paused"];
+  const tablas = [
+    "wa_messages",
+    "wa_adjuntos",
+    "wa_contacts",
+    "wa_conversaciones",
+    "ai_paused",
+    "wa_sucursal", // la sede que había elegido: si vuelve, se le pregunta de nuevo
+    "ai_uso_tokens", // su consumo de IA
+  ];
   for (const t of tablas) {
     const { error } = await sb.from(t).delete().eq("wa_from", from);
     if (error) console.error(`Supabase borrar ${t} de ${from}:`, error.message);

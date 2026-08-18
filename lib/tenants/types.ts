@@ -27,7 +27,8 @@ export type TenantId =
   | "miagentia"
   | "hotel"
   | "inmobiliaria"
-  | "promerica";
+  | "promerica"
+  | "yaly";
 
 // Datos semilla (mock) de un tenant. Misma forma que el antiguo lib/data/seed.
 export interface TenantSeed {
@@ -121,6 +122,38 @@ export interface TenantSimulacion {
   contactos: ContactoSimulado[];
 }
 
+// --- Sucursales: pregunta obligatoria de apertura ---
+// Un tenant con varias sedes no puede contestar nada útil sin saber a cuál le
+// escriben. Cuando el tenant declara `sucursales`, el PRIMER mensaje del agente
+// es siempre esta pregunta, y se manda SIN llamar al modelo (cuesta 0 tokens).
+// Recién con la sucursal identificada arranca la conversación con la IA.
+export interface SucursalTenant {
+  id: string; // llave estable con la que se guarda la elección (no cambiarla)
+  nombre: string; // como se le muestra al huésped
+  letra: string; // atajo para responder ("A", "B", "C")
+  alias: string[]; // formas en que el huésped la puede escribir (en minúsculas, sin acentos)
+}
+
+export interface TenantSucursales {
+  pregunta: string; // primer mensaje, textual
+  reintento: string; // reformulación cuando no se entendió la respuesta
+  maxReintentos: number; // cuántas veces se reformula antes de pasar a una persona
+  handoff: string; // mensaje final si nunca se identificó la sucursal
+  opciones: SucursalTenant[];
+}
+
+// --- Agente de IA del tenant ---
+export interface TenantAi {
+  systemPrompt: string;
+  // Tope DURO de mensajes que el agente manda en una conversación. Al llegar,
+  // se envía un cierre y el chat pasa a una persona. Default: LIMITE_MENSAJES_IA_DEFAULT.
+  limiteMensajes?: number;
+  // Si el agente puede VER las imágenes que le mandan por WhatsApp. Cuesta
+  // tokens de entrada, y el guion del tenant tiene que decirlo (los guiones que
+  // hoy dicen "no puedo abrir archivos" seguirían mintiendo). Default: false.
+  imagenes?: boolean;
+}
+
 export interface TenantConfig {
   id: TenantId;
   brand: TenantBrand;
@@ -136,7 +169,10 @@ export interface TenantConfig {
   seed: TenantSeed;
   // Guion de la bandeja en vivo del demo (solo simulación en el navegador).
   simulacion: TenantSimulacion;
-  ai: { systemPrompt: string };
+  ai: TenantAi;
+  // Sedes del cliente. Si está, el agente pregunta por la sucursal ANTES de
+  // cualquier otra cosa (ver lib/sucursal-gate.ts).
+  sucursales?: TenantSucursales;
   dashboard: DashboardCard[];
   // Plantillas de WhatsApp demo (modo FAKE, sin credenciales). En modo real se
   // listan desde la WABA del cliente.

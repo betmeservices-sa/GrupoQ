@@ -4,6 +4,7 @@ import { addInbound } from "@/lib/wa-store";
 import { addAdjunto } from "@/lib/contacts-store";
 import { programarRespuestaIA } from "@/lib/ai-reply";
 import { getWaTenant } from "@/lib/wa-routing";
+import { TENANTS } from "@/lib/tenants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +76,10 @@ export async function POST(req: Request) {
   // A qué cliente entra el número en vivo (switch global). Etiqueta cada mensaje
   // y decide con qué guion responde la IA.
   const tenantActivo = await getWaTenant();
+  // Si el agente de este cliente ve fotos, una imagen también dispara la IA
+  // (se la baja y se la manda al modelo en lib/ai-reply). Si no, la imagen se
+  // guarda y la atiende una persona, como siempre.
+  const veImagenes = TENANTS[tenantActivo].ai.imagenes === true;
 
   const entrantes: Array<{ from: string; wamid: string }> = [];
   try {
@@ -147,9 +152,10 @@ export async function POST(req: Request) {
             });
           }
 
-          // Solo el TEXTO dispara a la IA. Imágenes, PDF, audios y stickers los
-          // atiende un humano (la IA no puede verlos ni escucharlos).
-          if (m.type === "text") {
+          // Qué dispara a la IA: el TEXTO siempre, y la IMAGEN cuando el
+          // cliente tiene la visión encendida. PDF, audios y stickers los sigue
+          // atendiendo un humano (el agente no puede abrirlos ni escucharlos).
+          if (m.type === "text" || (m.type === "image" && veImagenes)) {
             entrantes.push({ from: m.from, wamid: m.id });
           }
         }
