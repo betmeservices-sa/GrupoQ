@@ -25,6 +25,7 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
 import { CallsPanel } from "@/components/dashboard/CallsPanel";
 import { HotelOcupacion } from "@/components/dashboard/HotelOcupacion";
+import { YaliDashboard } from "@/components/dashboard/YaliDashboard";
 import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
 import { ConsumoIA } from "@/components/dashboard/ConsumoIA";
 
@@ -61,6 +62,9 @@ export default function DashboardPage() {
   // El hotel es el único tenant con sistema de reservas conectado: su dashboard
   // suma la ocupación y las tarifas leídas en vivo.
   const esHotel = activeTenantId() === "hotel";
+  // Yali Hospitality tiene tres sedes y su propio libro de ocupación: su panel
+  // arma la foto de los tres hoteles juntos.
+  const esYali = activeTenantId() === "yaly";
 
   const stats = useMemo(() => {
     const total = state.conversations.length;
@@ -69,6 +73,11 @@ export default function DashboardPage() {
     const pct = total === 0 ? 0 : Math.round((resueltas / total) * 100);
     return { total, resueltas, sinAsignar, pct };
   }, [state.conversations]);
+
+  // Yali tiene tablero propio: pestañas por hotel y las mismas cifras
+  // separadas sede por sede. Se devuelve entero para no llenar esta pantalla de
+  // condicionales. Va DESPUÉS de los hooks, que corren siempre.
+  if (esYali) return <YaliDashboard />;
 
   return (
     <div className="flex h-full flex-col">
@@ -104,10 +113,11 @@ export default function DashboardPage() {
         <OrigenCanales conversations={state.conversations} />
 
         {/* Lo que cuesta el agente de IA: tokens y dinero, texto e imágenes.
-            Va en TODOS los clientes: el consumo se mide igual en todos. */}
+            Yali no llega hasta acá (tiene su propio tablero) y es a propósito: el
+            consumo de tokens es cuenta nuestra, no del hotel. */}
         <ConsumoIA />
 
-        {esHotel && <HotelOcupacion />}
+        {esHotel && <HotelOcupacion />}
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <DeptBreakdown conversations={state.conversations} />

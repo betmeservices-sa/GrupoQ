@@ -59,7 +59,7 @@ export interface TenantBrand {
   // Logo dibujado en SVG dentro del componente, para marcas cuyo logotipo no
   // sobrevive a un <img> (fondo blanco quemado, baja resolución) y que además
   // necesitan la tipografía de la app. Gana sobre logoSrc y wordmark.
-  logoComponent?: "promerica";
+  logoComponent?: "promerica" | "yali";
   wordmark?: {
     icon: "HeartPulse" | "CarFront" | "Bot" | "Hotel" | "Building2";
     titulo: string;
@@ -86,6 +86,10 @@ export interface DashboardCard {
 // enruta por phone_number_id → tenant. En modo demo/FAKE queda vacío.
 export interface TenantWhatsApp {
   phoneNumberId?: string;
+  // Número tal como lo marca un cliente, con código de país. Es el que se usa
+  // para armar los links `wa.me` que el negocio pone en la bio de cada perfil
+  // (ver lib/origen-sede.ts). No es el phoneNumberId, que es un id interno.
+  numeroPublico?: string;
 }
 
 // Agente de voz del tenant. La cuenta de voz es UNA sola y tiene agentes de
@@ -152,6 +156,11 @@ export interface TenantAi {
   // tokens de entrada, y el guion del tenant tiene que decirlo (los guiones que
   // hoy dicen "no puedo abrir archivos" seguirían mintiendo). Default: false.
   imagenes?: boolean;
+  // Si las notas de voz se pasan a texto antes de que el agente las lea
+  // (lib/transcribir.ts, con la Gemini API). Vale lo mismo que `imagenes`: el
+  // guion del tenant tiene que decir que SÍ escucha, o se contradice cuando le
+  // manden un audio. Default: false, y sin GEMINI_API_KEY tampoco corre.
+  audios?: boolean;
 }
 
 export interface TenantConfig {

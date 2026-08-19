@@ -107,6 +107,16 @@ export default function BandejaPage() {
     dispatch({ type: "MARK_READ", conversationId: id });
   }
 
+  // "Abrir en la bandeja" desde Mis chats: la conversación ya existe, solo hay
+  // que seleccionarla.
+  useEffect(() => {
+    const id = sessionStorage.getItem("ccg.abrirConv");
+    if (!id) return;
+    sessionStorage.removeItem("ccg.abrirConv");
+    setActivaId(id);
+    dispatch({ type: "MARK_READ", conversationId: id });
+  }, [dispatch]);
+
   // "Iniciar conversación" desde la pestaña Contactos: abre (o crea) el chat.
   useEffect(() => {
     const raw = sessionStorage.getItem("ccg.iniciarConv");

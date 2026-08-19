@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BedDouble, Bot, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
+import { BadgePercent, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -22,6 +22,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { id: "bandeja", href: "/", label: "Bandeja", Icon: Inbox },
+  { id: "mis-chats", href: "/mis-chats", label: "Mis chats", Icon: BotOff },
   { id: "hoy", href: "/hoy", label: "Hoy", Icon: ConciergeBell },
   { id: "contactos", href: "/contactos", label: "Contactos", Icon: Contact },
   { id: "habitaciones", href: "/habitaciones", label: "Habitaciones", Icon: BedDouble },
@@ -34,6 +35,8 @@ const NAV: NavItem[] = [
   { id: "campanas", href: "/campanas", label: "Campañas", Icon: PhoneOutgoing },
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
+  { id: "promociones", href: "/promociones", label: "Promociones", Icon: BadgePercent },
+  { id: "perfil", href: "/perfil", label: "Perfil del agente", Icon: IdCard },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },
   { id: "llamadas", href: "/llamadas", label: "Llamadas", Icon: PhoneCall },
   { id: "agentes", href: "/agentes", label: "Agentes", Icon: Bot },
@@ -68,6 +71,10 @@ export function Sidebar({
   const veHotel = tenant === "hotel";
   const veInmobiliaria = tenant === "inmobiliaria";
   const veCobros = tenant === "promerica";
+  // "promociones" y "perfil" son el tablero con el que Yali maneja a su agente:
+  // lo que enciende en Promociones es lo único que el agente puede ofrecer, y
+  // Perfil le muestra en cuatro tarjetas cómo está configurado.
+  const veYali = tenant === "yaly";
   // El banco es un centro de COBRANZA: no publica en redes. Recibe mensajes de
   // Instagram y Facebook (eso sigue en la bandeja), pero no programa contenido.
   const veRedes = tenant !== "promerica";
@@ -85,7 +92,10 @@ export function Sidebar({
       (item.id !== "publicacion" || veInmobiliaria) &&
       (item.id !== "cobros" || veCobros) &&
       (item.id !== "campanas" || veCobros) &&
-      (item.id !== "redes" || veRedes),
+      (item.id !== "redes" || veRedes) &&
+      (item.id !== "mis-chats" || veYali) &&
+      (item.id !== "promociones" || veYali) &&
+      (item.id !== "perfil" || veYali),
   );
 
   return (

@@ -189,6 +189,40 @@
   background: #9fb3a6;
 }
 
+/* Yali Hospitality va en BLANCO Y AZUL: el azul es el del logotipo del hotel
+   (#1C415D, medido sobre el archivo que publican) y el cobre es la barra que
+   lleva el logotipo bajo la A. Fondo casi blanco con un punto de azul, para que
+   las fotos de playa y las tarjetas respiren como en su sitio. Va DESPUÉS del
+   bloque de marca unificada para ganarle con la misma especificidad.
+   Contraste medido sobre el fondo #F4F6F8: tinta #16232F 14.6:1, secundario
+   #41505E 7.5:1, terciario #5A6A78 5.0:1, azul oscuro #142E42 12.6:1 y cobre
+   #8A5F36 5.1:1; sobre la tarjeta blanca todos suben. Por encima del 4.5:1 que
+   pide WCAG AA para texto normal. Lo cubre yali-tema.test.ts. */
+[data-tenant="yaly"] {
+  --brand-blue: #1c415d;
+  --brand-blue-dark: #142e42;
+  --brand-green: #17694f;
+  --brand-red: #a3372b;
+  --brand-accent: #8a5f36;
+  --brand-accent-soft: #f7efe6;
+
+  --surface: #f4f6f8;
+  --surface-2: #e7ecf1;
+  --card: #ffffff;
+  --border: #dde3ea;
+  --border-2: #c5d0da;
+  --text: #16232f;
+  --text-2: #41505e;
+  --text-3: #5a6a78;
+
+  --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* La barra de scroll clara de Yali. */
+[data-tenant="yaly"] ::-webkit-scrollbar-thumb:hover {
+  background: #a8b4c0;
+}
+
 @theme inline {
   --font-sans: var(--font-app);
   --color-brand: var(--brand-blue);

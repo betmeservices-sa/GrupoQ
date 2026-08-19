@@ -5,6 +5,9 @@ import { addAdjunto } from "@/lib/contacts-store";
 import { programarRespuestaIA } from "@/lib/ai-reply";
 import { getWaTenant } from "@/lib/wa-routing";
 import { TENANTS } from "@/lib/tenants";
+import { origenDelContacto, type ReferralWa } from "@/lib/origen-sede";
+import { getEstadoSucursal, guardarSucursal } from "@/lib/sucursal-store";
+import { hayTranscripcion, textoDeAudio, transcribirAudioWa } from "@/lib/transcribir";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +54,10 @@ interface WaMessage {
   audio?: WaMedia;
   sticker?: WaMedia;
   video?: WaMedia;
+  // Solo llega cuando el clic vino de un anuncio de click to WhatsApp: trae el
+  // id del anuncio, su titular y su cuerpo. Con eso se sabe de qué hotel viene
+  // sin preguntárselo (ver lib/origen-sede.ts).
+  referral?: ReferralWa;
 }
 
 // 2) Recepción: Meta hace POST con los mensajes entrantes.
@@ -80,6 +87,10 @@ export async function POST(req: Request) {
   // (se la baja y se la manda al modelo en lib/ai-reply). Si no, la imagen se
   // guarda y la atiende una persona, como siempre.
   const veImagenes = TENANTS[tenantActivo].ai.imagenes === true;
+  // Y si escucha las notas de voz: se transcriben ANTES de guardarlas, así el
+  // agente lee texto igual que si el huésped lo hubiera escrito. Necesita la
+  // llave de Gemini; sin ella el audio sigue quedando para una persona.
+  const oyeAudios = TENANTS[tenantActivo].ai.audios === true && hayTranscripcion();
 
   const entrantes: Array<{ from: string; wamid: string }> = [];
   try {
@@ -101,6 +112,10 @@ export async function POST(req: Request) {
           // muestra como una marca en el hilo (la IA no puede abrirlo).
           let texto: string | null = null;
           let adjunto: { tipo: string; media?: WaMedia } | null = null;
+          // Una nota de voz que sí se pudo transcribir cuenta como texto para
+          // todo lo que sigue (dispara al agente y sirve para saber de qué sede
+          // viene, igual que un mensaje escrito).
+          let transcrito = false;
           if (m.type === "text" && m.text?.body) {
             texto = m.text.body;
           } else if (m.type === "image") {
@@ -112,6 +127,16 @@ export async function POST(req: Request) {
           } else if (m.type === "audio") {
             texto = "[audio]";
             adjunto = { tipo: "audio", media: m.audio };
+            // La nota de voz se pasa a texto acá, antes de guardarla, para que
+            // el hilo y el agente vean lo mismo. Si falla, se queda en "[audio]"
+            // y lo atiende una persona: nunca se inventa lo que dijo el huésped.
+            if (oyeAudios && m.audio?.id) {
+              const t = await transcribirAudioWa(m.audio.id);
+              if (t) {
+                texto = textoDeAudio(t.texto);
+                transcrito = true;
+              }
+            }
           } else if (m.type === "sticker") {
             texto = "[sticker]";
             adjunto = { tipo: "sticker", media: m.sticker };
@@ -152,10 +177,31 @@ export async function POST(req: Request) {
             });
           }
 
+          // De dónde viene: si el mensaje trae el referral de un anuncio, o si
+          // el texto prellenado del link de la bio nombra un hotel, la sede se
+          // guarda ACÁ y el agente ya no la pregunta. Solo la primera vez: si el
+          // contacto ya eligió sede, no se le pisa por un anuncio nuevo.
+          const sucursalesTenant = TENANTS[tenantActivo].sucursales;
+          if (sucursalesTenant && texto) {
+            const yaTiene = (await getEstadoSucursal(m.from)).sucursalId;
+            if (!yaTiene) {
+              const origen = origenDelContacto({ texto, referral: m.referral }, sucursalesTenant);
+              if (origen) {
+                await guardarSucursal(
+                  m.from,
+                  tenantActivo,
+                  origen.sede.id,
+                  origen.sede.nombre,
+                  origen.enlace?.codigo ?? null,
+                );
+              }
+            }
+          }
+
           // Qué dispara a la IA: el TEXTO siempre, y la IMAGEN cuando el
           // cliente tiene la visión encendida. PDF, audios y stickers los sigue
           // atendiendo un humano (el agente no puede abrirlos ni escucharlos).
-          if (m.type === "text" || (m.type === "image" && veImagenes)) {
+          if (m.type === "text" || transcrito || (m.type === "image" && veImagenes)) {
             entrantes.push({ from: m.from, wamid: m.id });
           }
         }

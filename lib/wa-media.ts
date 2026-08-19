@@ -32,8 +32,15 @@ export type ResultadoMedia =
   | { ok: true; res: Response; mime: string }
   | { ok: false; error: string; status: number };
 
-/** Resuelve el media_id y devuelve la respuesta con los bytes, sin consumirla. */
-export async function abrirMediaWa(id: string): Promise<ResultadoMedia> {
+/**
+ * Resuelve el media_id y devuelve la respuesta con los bytes, sin consumirla.
+ *
+ * `rango` es la cabecera Range que mandó el navegador, si vino. Se reenvía tal
+ * cual al CDN de Meta y su respuesta (206 + Content-Range) se devuelve entera.
+ * Sin esto, un `<audio>` no puede adelantar ni retroceder la nota de voz: el
+ * reproductor solo sabe seguir de largo.
+ */
+export async function abrirMediaWa(id: string, rango?: string | null): Promise<ResultadoMedia> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   if (!token) return { ok: false, error: "Faltan credenciales de WhatsApp", status: 500 };
   if (!id) return { ok: false, error: "Falta el id del archivo", status: 400 };
@@ -48,8 +55,15 @@ export async function abrirMediaWa(id: string): Promise<ResultadoMedia> {
   if (!meta.url) return { ok: false, error: "Meta no devolvio URL del archivo", status: 502 };
 
   // 2. Bajar los bytes (la URL de Meta también pide el token).
-  const fileRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!fileRes.ok || !fileRes.body) {
+  const fileRes = await fetch(meta.url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(rango ? { Range: rango } : {}),
+    },
+  });
+  // 206 es un ok: es la respuesta parcial de un Range. `res.ok` solo cubre 2xx,
+  // así que 206 entra, pero se deja explícito para que nadie lo "arregle".
+  if ((!fileRes.ok && fileRes.status !== 206) || !fileRes.body) {
     return { ok: false, error: "No se pudo descargar el archivo", status: 502 };
   }
   return { ok: true, res: fileRes, mime: meta.mime_type || "application/octet-stream" };

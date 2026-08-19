@@ -69,6 +69,11 @@ export interface EstadoTurno {
   intentos: number;
   /** Último texto que escribió el contacto (con el que se intenta identificar). */
   textoCliente: string;
+  /**
+   * Sede deducida del ORIGEN del contacto (anuncio o link de la bio de un
+   * perfil), sin habérsela preguntado. Ver lib/origen-sede.ts.
+   */
+  origenSede?: SucursalTenant | null;
 }
 
 /** Mensajes que consumen presupuesto, según PREGUNTA_SUCURSAL_CUENTA. */
@@ -107,8 +112,18 @@ export function decidirTurno(e: EstadoTurno): DecisionTurno {
     : null;
   if (yaElegida) return { tipo: "responder_ia", sucursal: yaElegida, recienElegida: false };
 
-  // Nunca se preguntó: la pregunta es el primer mensaje, pase lo que pase.
-  if (e.intentos === 0) return { tipo: "preguntar_sucursal", texto: e.sucursales.pregunta };
+  // Nunca se preguntó. Antes de gastar el primer mensaje en la pregunta, se
+  // mira si YA sabemos de dónde viene: el link de la bio de cada perfil de
+  // Instagram trae el nombre de su hotel prellenado, y los anuncios traen el
+  // referral de Meta (ver lib/origen-sede.ts). Preguntar algo que el huésped ya
+  // dijo en su primer mensaje es la forma más rápida de que se sienta un robot.
+  if (e.intentos === 0) {
+    const sinPreguntar = e.origenSede ?? interpretarSucursal(e.textoCliente, e.sucursales);
+    if (sinPreguntar) {
+      return { tipo: "responder_ia", sucursal: sinPreguntar, recienElegida: true };
+    }
+    return { tipo: "preguntar_sucursal", texto: e.sucursales.pregunta };
+  }
 
   // Ya se preguntó: ¿la respuesta identifica una sucursal?
   const elegida = interpretarSucursal(e.textoCliente, e.sucursales);

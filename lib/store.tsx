@@ -41,7 +41,7 @@ export interface StoreState {
 
 export type StoreAction =
   | { type: "SEND_MESSAGE"; conversationId: string; texto: string; staffId: string; waId?: string }
-  | { type: "ASSIGN"; conversationId: string; staffId: string }
+  | { type: "ASSIGN"; conversationId: string; staffId: string | null }
   | { type: "SET_STATUS"; conversationId: string; estado: ConversationStatus }
   | { type: "SET_DEPARTMENT"; conversationId: string; departamento: Conversation["departamento"] }
   | { type: "MARK_READ"; conversationId: string }
@@ -162,15 +162,17 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
       };
     }
     case "ASSIGN":
+      // staffId null = el chat vuelve a no tener dueño, o sea vuelve a manos del
+      // agente de IA. Es lo que hace el botón "Devolver a Sofía" en Mis chats.
       return {
         ...state,
         conversations: state.conversations.map((c) =>
           c.id === action.conversationId
             ? {
                 ...c,
-                asignadoA: action.staffId,
+                asignadoA: action.staffId ?? undefined,
                 // Asignarse = atender: deja de ser "nuevo".
-                estado: c.estado === "nuevo" ? "en_progreso" : c.estado,
+                estado: action.staffId && c.estado === "nuevo" ? "en_progreso" : c.estado,
               }
             : c,
         ),

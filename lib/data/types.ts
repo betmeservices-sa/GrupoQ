@@ -71,6 +71,9 @@ export interface MessageMedia {
   tipo: string; // image | document | audio | sticker | video
   mime?: string;
   filename?: string;
+  // Archivo servido por nosotros en vez de bajado de Meta. Solo lo usan las
+  // piezas de DEMOSTRACIÓN de las semillas, que no tienen media_id real.
+  url?: string;
 }
 
 export interface Message {
@@ -92,6 +95,10 @@ export interface Conversation {
   asignadoA?: string; // StaffUser.id
   noLeidos: number;
   ultimoMensajeTs: string; // ISO 8601
+  // Sede a la que escribe el contacto, en los clientes con varias (hoy solo
+  // Yali). Sale de la pregunta de apertura del agente, y con ella el dashboard
+  // puede separar las conversaciones hotel por hotel.
+  sucursalId?: string;
 }
 
 export interface InternalChannel {

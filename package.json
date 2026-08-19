@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "costo:imagenes": "tsx scripts/costo-imagenes.ts",
+    "costo:medir": "node --env-file=.env.local node_modules/tsx/dist/cli.mjs scripts/medir-costo-tokens.ts",
+    "costo:simular": "tsx scripts/simular-conversacion.ts",
+    "costo:live": "node --env-file=.env.local node_modules/tsx/dist/cli.mjs scripts/correr-conversacion-live.ts",
+    "costo:estimar": "tsx scripts/estimador-costo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
@@ -31,6 +36,7 @@
     "eslint-config-next": "16.2.1",
     "pg": "^8.22.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5",
     "vitest": "^4.1.9"
   }

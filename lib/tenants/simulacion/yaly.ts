@@ -1,46 +1,51 @@
-// Guion de bandeja en vivo de Hotel Yaly (3 sucursales).
+// Guion de bandeja en vivo de Yali Hospitality (tres hoteles de playa).
 // Lo que marca la diferencia con el resto de guiones: la PRIMERA respuesta del
-// agente es siempre la pregunta de sucursal, y varios turnos muestran cómo se
-// contesta ya sabiendo a cuál sede le escriben. También hay un turno de foto,
-// porque este agente sí ve las imágenes.
+// agente es siempre la pregunta de sede, y varios turnos muestran cómo se
+// contesta ya sabiendo a cuál le escriben. También hay un turno de foto, porque
+// este agente sí ve las imágenes.
+//
+// Los datos que se afirman acá son los que publica el hotel (check in a las
+// 3 p.m., piscina, restaurante, parqueo, habitaciones por sede). Lo que no
+// está confirmado (desayuno, salones, day pass) el agente lo deja al equipo,
+// igual que en su guion real.
 import type { TenantSimulacion } from "../types";
 import { yalySucursales } from "../yaly-sucursales";
 
-const [SUC_A, SUC_B, SUC_C] = yalySucursales.opciones.map((o) => o.nombre);
+const [SEDE_A, SEDE_B, SEDE_C] = yalySucursales.opciones.map((o) => o.nombre);
 
 export const yalySimulacion: TenantSimulacion = {
   turnos: [
     {
       entra: "Buenas, quiero información de habitaciones",
       responde:
-        "¡Hola! Le saluda Renata, de Hotel Yaly. Para atenderle bien, ¿a cuál de nuestras sucursales se comunica: A, B o C?",
+        "¡Hola! Le saluda Sofía, de Yali Hospitality. Para atenderle bien, ¿a cuál de nuestros hoteles se comunica: A, B o C?",
     },
     {
       entra: "La A",
-      responde: `Perfecto, ${SUC_A}. ¿Para qué fechas necesita la habitación?`,
+      responde: `Perfecto, ${SEDE_A}. ¿Para qué fechas necesita la habitación?`,
     },
     {
-      entra: "¿Cuánto sale la noche para dos personas?",
+      entra: "Del viernes al domingo, somos dos",
       responde:
-        "Para dos personas la habitación doble sale a la tarifa de temporada. ¿Se la reservo para esas fechas?",
+        "Con gusto. Para esas noches tengo Planta Alta vista al mar y Bungalow disponibles. ¿Le paso las dos con precio?",
     },
     {
       entra: "Le mando foto del cuarto que vi en Instagram",
       responde:
-        "Ya la vi, es la habitación con balcón y vista al jardín. La tenemos en esa sede, ¿para qué noche la quiere?",
+        "Ya la vi, es la Planta Alta frente al mar. Esa la tenemos en El Sunzal, ¿para qué noche la quiere?",
     },
     {
-      entra: "¿Tienen salón para un evento de 60 personas?",
-      responde: `En ${SUC_B} el salón recibe hasta 80 personas. ¿Qué día sería el evento?`,
+      entra: "¿Tienen algo para un grupo de 6?",
+      responde: `Sí, el Bungalow Familiar recibe hasta 6. En ${SEDE_B} la Familiar también. ¿En cuál prefiere?`,
     },
     {
-      entra: "¿Cuál de las tres queda más cerca del centro?",
-      responde: `${SUC_C} es la más céntrica. ¿Le paso disponibilidad de esa sede?`,
+      entra: "¿Cuál queda más cerca de San Salvador?",
+      responde: `${SEDE_C} está sobre la Carretera Litoral, es la más rápida de llegar. ¿Le reviso disponibilidad ahí?`,
     },
     {
       entra: "¿El desayuno viene incluido?",
       responde:
-        "Sí, el desayuno va incluido en todas nuestras sedes. ¿Le confirmo la reserva?",
+        "Se lo confirma el equipo hoy mismo para no darle un dato equivocado. Mientras tanto, ¿le aparto las fechas?",
     },
     {
       entra: "Necesito factura a nombre de la empresa",
@@ -55,17 +60,17 @@ export const yalySimulacion: TenantSimulacion = {
     {
       entra: "Good morning, do you have rooms for next week?",
       responde:
-        "Good morning! Yes, we do. Which of our three locations are you writing about: A, B or C?",
+        "Good morning! Yes, we do. Which of our three hotels are you writing about: A, B or C?",
     },
     {
       entra: "¿Puedo hacer check in temprano?",
       responde:
-        "El check in es desde la 1:00 p.m.; si llega antes le guardamos el equipaje. ¿A qué hora llegaría?",
+        "El check in es desde las 3:00 p.m.; si llega antes le guardamos el equipaje. ¿A qué hora llegaría?",
     },
     {
-      entra: "Somos 5 y queremos quedarnos juntos",
+      entra: "Perfecto, resérvemela",
       responde:
-        "Tenemos habitaciones conectadas para grupos. ¿Para qué fechas las necesita?",
+        "Listo, su reserva quedó tomada y le llega la confirmación por aquí. ¡Le esperamos en la playa!",
     },
   ],
   contactos: [

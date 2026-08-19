@@ -11,10 +11,18 @@ import {
   type InputDisponibilidadHotel,
   type InputReservaHotel,
 } from "./hotel-agente";
+import {
+  consultarDisponibilidadYali,
+  reservarHabitacionYali,
+  type InputDisponibilidadYali,
+  type InputReservaYali,
+} from "./yali-agente";
 import { activeTenant } from "./tenants/active";
 import { TENANTS } from "./tenants";
 import type { SucursalTenant, TenantId } from "./tenants/types";
 import { contextoSucursal } from "./sucursal-gate";
+import { bloquePromociones, usaPromos } from "./promos";
+import { listarPromos } from "./promos-store";
 import { sumarUso, USO_CERO, type UsoTokens } from "./tokens-precios";
 import type { MimeImagenIA } from "./wa-media";
 
@@ -206,8 +214,67 @@ const TOOLS_HOTEL: Anthropic.Tool[] = [
   },
 ];
 
+// Herramientas del tenant "yaly" (Yali Hospitality, tres sedes). Distintas de
+// las del hotel de Antigua a propósito: aquí la sede sale del contexto de la
+// conversación, no del modelo, y la reserva se toma en el demo del grupo.
+const TOOLS_YALI: Anthropic.Tool[] = [
+  {
+    name: "consultar_habitaciones",
+    description:
+      "Consulta las habitaciones libres de la sede del huésped, con su tarifa por noche y el total de la estadía. Llámala SIEMPRE antes de hablar de disponibilidad o de precios, en cuanto tengas llegada, salida y cuántas personas. Ofrece SOLO lo que devuelva.",
+    input_schema: {
+      type: "object",
+      properties: {
+        llegada: { type: "string", description: "Fecha de entrada en formato AAAA-MM-DD" },
+        salida: { type: "string", description: "Fecha de salida en formato AAAA-MM-DD" },
+        adultos: { type: "number", description: "Cuántos adultos se hospedan (mínimo 1)" },
+        ninos: { type: "number", description: "Cuántos niños se hospedan (0 si no hay)" },
+        sede: {
+          type: "string",
+          description:
+            "Solo si el huésped pregunta por una sede distinta a la suya (Yalí, Costa del Surf o Playa Linda). Si se omite, se usa la sede que ya eligió.",
+        },
+      },
+      required: ["llegada", "salida", "adultos"],
+    },
+  },
+  {
+    name: "reservar_estadia",
+    description:
+      "Toma la reserva de una habitación devuelta por consultar_habitaciones. Llámala SOLO cuando el huésped ya eligió habitación y fechas y te dio su nombre completo. Devuelve el número de reserva.",
+    input_schema: {
+      type: "object",
+      properties: {
+        nombre: { type: "string", description: "Nombre completo del huésped" },
+        habitacion: {
+          type: "string",
+          description: "Nombre exacto de la habitación, tal como lo devolvió la consulta",
+        },
+        llegada: { type: "string", description: "Fecha de entrada en formato AAAA-MM-DD" },
+        salida: { type: "string", description: "Fecha de salida en formato AAAA-MM-DD" },
+        adultos: { type: "number", description: "Cuántos adultos se hospedan (mínimo 1)" },
+        ninos: { type: "number", description: "Cuántos niños se hospedan (0 si no hay)" },
+        sede: { type: "string", description: "Solo si la reserva es en una sede distinta a la del huésped" },
+      },
+      required: ["nombre", "habitacion", "llegada", "salida", "adultos"],
+    },
+  },
+  {
+    name: "reaccionar",
+    description:
+      "Reacciona al último mensaje del contacto con un solo emoji (por ejemplo 👍, ❤️, 🙏). Úsalo con moderación, como complemento cálido; NO reemplaza tu respuesta de texto.",
+    input_schema: {
+      type: "object",
+      properties: { emoji: { type: "string", description: "Un solo emoji" } },
+      required: ["emoji"],
+    },
+  },
+];
+
 function toolsPara(tenantId?: TenantId): Anthropic.Tool[] {
-  return tenantId === "hotel" ? TOOLS_HOTEL : TOOLS_BASE;
+  if (tenantId === "hotel") return TOOLS_HOTEL;
+  if (tenantId === "yaly") return TOOLS_YALI;
+  return TOOLS_BASE;
 }
 
 // Zona horaria del negocio de cada tenant. Guatemala y El Salvador comparten
@@ -216,6 +283,36 @@ function zonaDe(tenantId?: TenantId): { tz: string; etiqueta: string } {
   return tenantId === "hotel"
     ? { tz: "America/Guatemala", etiqueta: "Guatemala" }
     : { tz: "America/El_Salvador", etiqueta: "El Salvador" };
+}
+
+/** Hoy (AAAA-MM-DD) en la zona del negocio, para vencer promociones a tiempo. */
+function hoyDeTenant(tenantId?: TenantId): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: zonaDe(tenantId).tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+/**
+ * Las promociones que el cliente tiene encendidas AHORA. Se leen en cada
+ * respuesta a propósito: apagar una promo tiene que sacarla de la conversación
+ * al instante, sin volver a desplegar.
+ *
+ * Si la lectura falla, se manda el bloque de "ninguna". Un error de base nunca
+ * puede terminar en el agente inventando una oferta.
+ */
+async function contextoPromociones(tenantId?: TenantId): Promise<string> {
+  const tenant = tenantId ?? activeTenant().id;
+  if (!usaPromos(tenant)) return "";
+  const hoy = hoyDeTenant(tenantId);
+  try {
+    return bloquePromociones(await listarPromos(tenant), hoy);
+  } catch (err) {
+    console.error("promociones para el guion:", err);
+    return bloquePromociones([], hoy);
+  }
 }
 
 // Fecha y hora actual del negocio, para que la IA agende con sentido (no
@@ -251,7 +348,7 @@ export async function ejecutarHerramienta(
   nombre: string,
   input: unknown,
   acciones?: AccionesIA,
-  contexto?: { telefono?: string },
+  contexto?: { telefono?: string; tenantId?: TenantId; sucursal?: SucursalTenant | null },
 ): Promise<string> {
   if (nombre === "guardar_datos_contacto") {
     await acciones?.onGuardarContacto?.(
@@ -289,6 +386,24 @@ export async function ejecutarHerramienta(
         ...(input as InputReservaHotel),
         telefono: contexto?.telefono,
       }),
+    );
+  }
+  // Yali Hospitality: la sede sale del contexto de la conversación (el sistema
+  // ya se la preguntó al huésped), no de lo que suponga el modelo.
+  if (nombre === "consultar_habitaciones") {
+    return JSON.stringify(
+      await consultarDisponibilidadYali(
+        input as InputDisponibilidadYali,
+        contexto?.sucursal?.id ?? null,
+      ),
+    );
+  }
+  if (nombre === "reservar_estadia") {
+    return JSON.stringify(
+      await reservarHabitacionYali(
+        { ...(input as InputReservaYali), telefono: contexto?.telefono },
+        contexto?.sucursal?.id ?? null,
+      ),
     );
   }
   return "Listo.";
@@ -403,7 +518,7 @@ export async function generarRespuesta(
 
   const system = `${systemPromptFor(contexto?.tenantId)}${contextoSucursal(
     contexto?.sucursal ?? null,
-  )}\n\n${contextoTemporal(contexto?.tenantId)}`;
+  )}${await contextoPromociones(contexto?.tenantId)}\n\n${contextoTemporal(contexto?.tenantId)}`;
   const tools: Anthropic.Tool[] = [
     toolGuardarContacto(contexto?.tenantId),
     ...toolsPara(contexto?.tenantId),

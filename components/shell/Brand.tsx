@@ -4,6 +4,7 @@
 import { HeartPulse, CarFront, Bot, Hotel, Building2 } from "lucide-react";
 import { activeTenant } from "@/lib/tenants/active";
 import { PromericaLogo } from "@/components/ui/PromericaLogo";
+import { YaliLogo } from "@/components/ui/YaliLogo";
 
 const WORDMARK_ICONS = { HeartPulse, CarFront, Bot, Hotel, Building2 } as const;
 
@@ -15,6 +16,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
 
   // Logos dibujados en SVG: ganan sobre logoSrc y sobre el wordmark genérico.
   if (brand.logoComponent === "promerica") return <PromericaLogo compact={compact} />;
+  if (brand.logoComponent === "yali") return <YaliLogo compact={compact} />;
 
   if (brand.logoSrc) {
     return (

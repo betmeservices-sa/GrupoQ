@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { FileText, Smile } from "lucide-react";
+import { NotaDeVoz } from "./NotaDeVoz";
 import { cn } from "@/lib/cn";
 import { captionDeMedia, horaDe, nombreStaff } from "@/lib/format";
 import type { Message, MessageMedia } from "@/lib/data/types";
@@ -11,10 +12,10 @@ const EMOJIS = ["👍", "❤️", "🙏", "😊", "😮"];
 // Reproduce/muestra el archivo recibido. El src va al proxy server-side que lo
 // baja de Meta con el token (el navegador no puede usar el token directo).
 function MediaContenido({ media }: { media: MessageMedia }) {
-  const src = `/api/whatsapp/media/${media.id}`;
-  if (media.tipo === "audio") {
-    return <audio controls preload="none" src={src} className="w-[230px] max-w-full" />;
-  }
+  // Las semillas de demostración traen el archivo servido por nosotros; lo que
+  // llega de WhatsApp pasa por el proxy, que es quien tiene el token.
+  const src = media.url ?? `/api/whatsapp/media/${media.id}`;
+  if (media.tipo === "audio") return <NotaDeVoz src={src} />;
   if (media.tipo === "video") {
     return <video controls preload="none" src={src} className="max-h-64 max-w-full rounded-lg" />;
   }
