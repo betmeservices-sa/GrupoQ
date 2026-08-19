@@ -9,26 +9,26 @@
 // panel avisa mientras se esté guardando en memoria.
 
 import { getSupabase } from "./supabase";
-import { tablaFaltante } from "./tabla-faltante";
+import { latchDeTabla, tablaFaltante } from "./tabla-faltante";
 import type { Promocion, PromocionNueva } from "./promos";
 
 const COLS =
   "id, tenant, nombre, descripcion, precio, restricciones, desde, hasta, activa, actualizada";
 
 const mem = new Map<string, Promocion>();
-// Se enciende la primera vez que Supabase responde "esa tabla no existe". A
-// partir de ahí no se vuelve a intentar en esta instancia: el error sería el
-// mismo en cada consulta y el agente responde en caliente.
-let faltaTabla = false;
+// Se enciende cuando Supabase responde "esa tabla no existe", y se apaga sola
+// a los minutos: así, correr la migración alcanza para que se enganche, sin
+// tener que redesplegar.
+const faltaTabla = latchDeTabla();
 
 /** true si estamos guardando solo en memoria (lo pinta el panel como aviso). */
 export function promosEnMemoria(): boolean {
-  return getSupabase() === null || faltaTabla;
+  return getSupabase() === null || faltaTabla.activo();
 }
 
 /** true si hay base pero le falta la migración (el aviso es distinto). */
 export function promosSinTabla(): boolean {
-  return getSupabase() !== null && faltaTabla;
+  return getSupabase() !== null && faltaTabla.activo();
 }
 
 function nuevoId(): string {
@@ -55,7 +55,7 @@ function deMemoria(tenant: string): Promocion[] {
 
 export async function listarPromos(tenant: string): Promise<Promocion[]> {
   const sb = getSupabase();
-  if (!sb || faltaTabla) return deMemoria(tenant);
+  if (!sb || faltaTabla.activo()) return deMemoria(tenant);
 
   const { data, error } = await sb
     .from("promos")
@@ -64,7 +64,7 @@ export async function listarPromos(tenant: string): Promise<Promocion[]> {
     .order("actualizada", { ascending: false });
   if (error) {
     if (tablaFaltante(error)) {
-      faltaTabla = true;
+      faltaTabla.marcar();
       return deMemoria(tenant);
     }
     // Un error de lectura NO se convierte en "no hay promociones": eso haría
@@ -84,14 +84,14 @@ export async function crearPromo(tenant: string, entrada: PromocionNueva): Promi
     actualizada: new Date().toISOString(),
   };
   const sb = getSupabase();
-  if (!sb || faltaTabla) {
+  if (!sb || faltaTabla.activo()) {
     mem.set(promo.id, promo);
     return promo;
   }
   const { data, error } = await sb.from("promos").insert(promo).select(COLS).single();
   if (error) {
     if (tablaFaltante(error)) {
-      faltaTabla = true;
+      faltaTabla.marcar();
       mem.set(promo.id, promo);
       return promo;
     }
@@ -123,7 +123,7 @@ export async function actualizarPromo(
   };
 
   const sb = getSupabase();
-  if (!sb || faltaTabla) return enMemoria();
+  if (!sb || faltaTabla.activo()) return enMemoria();
 
   const { data, error } = await sb
     .from("promos")
@@ -134,7 +134,7 @@ export async function actualizarPromo(
     .maybeSingle();
   if (error) {
     if (tablaFaltante(error)) {
-      faltaTabla = true;
+      faltaTabla.marcar();
       return enMemoria();
     }
     throw new Error(error.message);
@@ -144,7 +144,7 @@ export async function actualizarPromo(
 
 export async function borrarPromo(tenant: string, id: string): Promise<void> {
   const sb = getSupabase();
-  if (!sb || faltaTabla) {
+  if (!sb || faltaTabla.activo()) {
     const actual = mem.get(id);
     if (actual?.tenant === tenant) mem.delete(id);
     return;
@@ -152,7 +152,7 @@ export async function borrarPromo(tenant: string, id: string): Promise<void> {
   const { error } = await sb.from("promos").delete().eq("id", id).eq("tenant", tenant);
   if (error) {
     if (tablaFaltante(error)) {
-      faltaTabla = true;
+      faltaTabla.marcar();
       mem.delete(id);
       return;
     }

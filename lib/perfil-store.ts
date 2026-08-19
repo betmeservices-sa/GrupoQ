@@ -10,7 +10,7 @@
 // tabla existe, y si no, memoria del proceso.
 
 import { getSupabase } from "./supabase";
-import { tablaFaltante } from "./tabla-faltante";
+import { latchDeTabla, tablaFaltante } from "./tabla-faltante";
 import type { CampoPerfilId } from "./perfil-agente";
 
 export interface SolicitudPerfil {
@@ -24,7 +24,8 @@ export interface SolicitudPerfil {
 
 const COLS = "numero, tenant, campo, texto, estado, creada";
 const mem: SolicitudPerfil[] = [];
-let faltaTabla = false;
+// Se apaga sola a los minutos (ver latchDeTabla): correr la migración alcanza.
+const faltaTabla = latchDeTabla();
 
 function guardarEnMemoria(s: SolicitudPerfil): SolicitudPerfil {
   mem.unshift(s);
@@ -37,7 +38,7 @@ export async function crearSolicitud(
 ): Promise<SolicitudPerfil> {
   const solicitud: SolicitudPerfil = { ...s, estado: "recibida", creada: new Date().toISOString() };
   const sb = getSupabase();
-  if (!sb || faltaTabla) return guardarEnMemoria(solicitud);
+  if (!sb || faltaTabla.activo()) return guardarEnMemoria(solicitud);
 
   const { data, error } = await sb
     .from("perfil_solicitudes")
@@ -46,7 +47,7 @@ export async function crearSolicitud(
     .single();
   if (error) {
     if (tablaFaltante(error)) {
-      faltaTabla = true;
+      faltaTabla.marcar();
       return guardarEnMemoria(solicitud);
     }
     throw new Error(error.message);
@@ -56,7 +57,7 @@ export async function crearSolicitud(
 
 export async function listarSolicitudes(tenant: string): Promise<SolicitudPerfil[]> {
   const sb = getSupabase();
-  if (!sb || faltaTabla) return mem.filter((s) => s.tenant === tenant);
+  if (!sb || faltaTabla.activo()) return mem.filter((s) => s.tenant === tenant);
 
   const { data, error } = await sb
     .from("perfil_solicitudes")
@@ -66,7 +67,7 @@ export async function listarSolicitudes(tenant: string): Promise<SolicitudPerfil
     .limit(50);
   if (error) {
     if (tablaFaltante(error)) {
-      faltaTabla = true;
+      faltaTabla.marcar();
       return mem.filter((s) => s.tenant === tenant);
     }
     throw new Error(error.message);

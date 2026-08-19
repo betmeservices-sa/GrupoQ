@@ -13,6 +13,29 @@ interface ErrorSupabase {
   message?: string;
 }
 
+/**
+ * Recuerda que una tabla no existía, PERO SE OLVIDA sola al rato.
+ *
+ * La primera versión de esto era un booleano que se encendía para siempre. El
+ * problema apareció en producción: se corrió la migración y la app siguió
+ * guardando en memoria, porque cada instancia que ya había visto el error no
+ * volvía a intentar nunca. Había que redesplegar para algo que ya estaba
+ * arreglado en la base.
+ *
+ * Con la espera, correr la migración alcanza: a los pocos minutos cada instancia
+ * reintenta sola y se engancha a la tabla nueva. Mientras tanto no castiga con
+ * un error por consulta, que era lo que el booleano quería evitar.
+ */
+export function latchDeTabla(minutos = 3) {
+  let esperarHasta = 0;
+  return {
+    activo: () => Date.now() < esperarHasta,
+    marcar: () => {
+      esperarHasta = Date.now() + minutos * 60_000;
+    },
+  };
+}
+
 export function tablaFaltante(error: unknown): boolean {
   const e = error as ErrorSupabase | null;
   if (!e) return false;

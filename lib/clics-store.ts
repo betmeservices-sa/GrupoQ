@@ -8,7 +8,7 @@
 // no, memoria del proceso.
 
 import { getSupabase } from "./supabase";
-import { tablaFaltante } from "./tabla-faltante";
+import { latchDeTabla, tablaFaltante } from "./tabla-faltante";
 
 export interface ClicBio {
   tenant: string;
@@ -31,17 +31,18 @@ export interface ResumenClics {
 
 const COLS = "tenant, codigo, utm_source, utm_medium, utm_campaign, referer, ts";
 const mem: ClicBio[] = [];
-let faltaTabla = false;
+// Se apaga sola a los minutos (ver latchDeTabla): correr la migración alcanza.
+const faltaTabla = latchDeTabla();
 
 const MAX_MEM = 500;
 
 export function clicsEnMemoria(): boolean {
-  return getSupabase() === null || faltaTabla;
+  return getSupabase() === null || faltaTabla.activo();
 }
 
 export async function registrarClic(c: ClicBio): Promise<void> {
   const sb = getSupabase();
-  if (!sb || faltaTabla) {
+  if (!sb || faltaTabla.activo()) {
     mem.unshift(c);
     if (mem.length > MAX_MEM) mem.length = MAX_MEM;
     return;
@@ -49,7 +50,7 @@ export async function registrarClic(c: ClicBio): Promise<void> {
   const { error } = await sb.from("clics_bio").insert(c);
   if (error) {
     if (tablaFaltante(error)) {
-      faltaTabla = true;
+      faltaTabla.marcar();
       mem.unshift(c);
       return;
     }
@@ -77,7 +78,7 @@ function resumir(clics: ClicBio[]): ResumenClics[] {
 /** Clics por link, desde una fecha (ISO). */
 export async function resumenClics(tenant: string, desde: string): Promise<ResumenClics[]> {
   const sb = getSupabase();
-  if (!sb || faltaTabla) {
+  if (!sb || faltaTabla.activo()) {
     return resumir(mem.filter((c) => c.tenant === tenant && c.ts >= desde));
   }
   const { data, error } = await sb
@@ -88,7 +89,7 @@ export async function resumenClics(tenant: string, desde: string): Promise<Resum
     .limit(5000);
   if (error) {
     if (tablaFaltante(error)) {
-      faltaTabla = true;
+      faltaTabla.marcar();
       return resumir(mem.filter((c) => c.tenant === tenant && c.ts >= desde));
     }
     throw new Error(error.message);
