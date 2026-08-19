@@ -212,11 +212,33 @@ export function resumirFilas(filas: FilaConsumo[]): ResumenConsumo {
 }
 
 /** Consumo de un cliente (tenant). Sin tenant, el de todos. */
+/**
+ * Las filas crudas, una por respuesta del agente. El resumen sirve para el
+ * total del mes; esto sirve para la pregunta que aparece siempre en cuanto se
+ * mira el gasto en serio: cuánto costó ESTA respuesta.
+ */
+export async function detalleConsumo(tenant?: string, tope = 50): Promise<FilaConsumo[]> {
+  const sb = getSupabase();
+  if (!sb) {
+    return mem.filter((f) => !tenant || f.tenant === tenant).slice(0, tope);
+  }
+  const filas = await leerFilas(tenant, tope);
+  return filas;
+}
+
 export async function resumenConsumo(tenant?: string): Promise<ResumenConsumo> {
   const sb = getSupabase();
   if (!sb) {
     return resumirFilas(mem.filter((f) => !tenant || f.tenant === tenant));
   }
+
+  return resumirFilas(await leerFilas(tenant, 1000));
+}
+
+// Lectura cruda de la tabla, compartida por el resumen y el detalle.
+async function leerFilas(tenant: string | undefined, tope: number): Promise<FilaConsumo[]> {
+  const sb = getSupabase();
+  if (!sb) return mem.filter((f) => !tenant || f.tenant === tenant).slice(0, tope);
 
   let q = sb
     .from("ai_uso_tokens")
@@ -224,13 +246,13 @@ export async function resumenConsumo(tenant?: string): Promise<ResumenConsumo> {
       "ts, tenant, wa_from, wa_id, modelo, input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, tokens_texto, tokens_imagen, imagenes, llamadas, costo_entrada, costo_salida, costo_cache_escritura, costo_cache_lectura, costo_texto, costo_imagen, costo_total",
     )
     .order("ts", { ascending: false })
-    .limit(1000);
+    .limit(tope);
   if (tenant) q = q.eq("tenant", tenant);
 
   const { data, error } = await q;
   if (error) {
     console.error("ai_uso_tokens select:", error.message);
-    return resumirFilas([]);
+    return [];
   }
 
   // Se leen los costos GUARDADOS (snapshot con la tarifa del día), no se
@@ -265,7 +287,7 @@ export async function resumenConsumo(tenant?: string): Promise<ResumenConsumo> {
       costoTexto: Number(r.costo_texto ?? 0),
     };
   });
-  return resumirFilas(filas);
+  return filas;
 }
 
 /** Borra el consumo de un cliente (lo llama el "Borrar historial" del demo). */
