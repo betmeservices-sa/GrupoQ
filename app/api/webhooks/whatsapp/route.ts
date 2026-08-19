@@ -8,6 +8,8 @@ import { TENANTS } from "@/lib/tenants";
 import { origenDelContacto, type ReferralWa } from "@/lib/origen-sede";
 import { getEstadoSucursal, guardarSucursal } from "@/lib/sucursal-store";
 import { hayTranscripcion, textoDeAudio, transcribirAudioWa } from "@/lib/transcribir";
+import { registrarConsumo } from "@/lib/tokens-store";
+import { USO_CERO } from "@/lib/tokens-precios";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -135,6 +137,21 @@ export async function POST(req: Request) {
               if (t) {
                 texto = textoDeAudio(t.texto);
                 transcrito = true;
+                // Lo que costó pasar el audio a texto queda medido, no
+                // estimado: Gemini devuelve sus tokens en cada respuesta y
+                // tirarlos obligaba a calcular el costo a mano después.
+                await registrarConsumo({
+                  ts,
+                  tenant: tenantActivo,
+                  waFrom: m.from,
+                  waId: m.id,
+                  modelo: t.modelo,
+                  uso: { ...USO_CERO, input_tokens: t.tokensEntrada, output_tokens: t.tokensSalida },
+                  tokensImagen: 0,
+                  imagenes: 0,
+                  llamadas: 1,
+                  tipo: "transcripcion",
+                });
               }
             }
           } else if (m.type === "sticker") {

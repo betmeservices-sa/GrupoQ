@@ -36,6 +36,12 @@ export const PRECIOS_POR_MILLON: Record<string, TarifaModelo> = {
   "claude-haiku-4-5": { input: 1.0, output: 5.0 },
   "claude-sonnet-5": { input: 3.0, output: 15.0 },
   "claude-opus-5": { input: 5.0, output: 25.0 },
+  // Gemini transcribe las notas de voz (lib/transcribir.ts). Vive en la misma
+  // tabla porque la pregunta que importa es cuánto costó ATENDER un mensaje, y
+  // eso incluye pasarlo a texto. Cada fila guarda su modelo, así que el
+  // histórico no se mezcla.
+  "gemini-3.5-flash-lite": { input: 0.3, output: 2.5 },
+  "gemini-3.6-flash": { input: 0.75, output: 3.75 },
 };
 
 /** Promo introductoria de Sonnet 5: hasta el 31 de agosto de 2026 inclusive. */

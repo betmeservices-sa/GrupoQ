@@ -32,6 +32,13 @@ export interface RegistroConsumo {
   imagenes: number;
   /** Llamadas al modelo del turno (el bucle de herramientas puede dar varias). */
   llamadas: number;
+  /**
+   * Qué se pagó. "respuesta" es el agente contestando; "transcripcion" es pasar
+   * una nota de voz a texto, que es otro modelo y otro precio. Se separan para
+   * que el conteo de respuestas no se infle con los audios y para poder ver
+   * cuánto pesa cada cosa. Default: respuesta.
+   */
+  tipo?: "respuesta" | "transcripcion";
 }
 
 interface FilaConsumo extends RegistroConsumo {
@@ -79,6 +86,7 @@ export async function registrarConsumo(r: RegistroConsumo): Promise<void> {
     tokens_imagen: fila.tokensImagen,
     imagenes: fila.imagenes,
     llamadas: fila.llamadas,
+    tipo: fila.tipo ?? "respuesta",
     costo_entrada: fila.costo.entrada,
     costo_salida: fila.costo.salida,
     costo_cache_escritura: fila.costo.cacheEscritura,
@@ -93,7 +101,10 @@ export async function registrarConsumo(r: RegistroConsumo): Promise<void> {
 // ── Lectura para el dashboard ──
 
 export interface TotalesConsumo {
-  respuestas: number; // turnos con respuesta de la IA
+  respuestas: number; // turnos con respuesta de la IA (NO cuenta transcripciones)
+  /** Notas de voz pasadas a texto, y lo que costaron aparte. */
+  transcripciones: number;
+  costoTranscripcion: number;
   llamadas: number; // llamadas al modelo (incluye el bucle de herramientas)
   imagenes: number;
   tokensPrompt: number;
@@ -125,6 +136,8 @@ export interface ResumenConsumo {
 function totalesVacios(): TotalesConsumo {
   return {
     respuestas: 0,
+    transcripciones: 0,
+    costoTranscripcion: 0,
     llamadas: 0,
     imagenes: 0,
     tokensPrompt: 0,
@@ -143,6 +156,19 @@ function totalesVacios(): TotalesConsumo {
 }
 
 function acumular(t: TotalesConsumo, f: FilaConsumo): void {
+  // Una transcripción NO es una respuesta: contarla como tal inflaría el número
+  // que mira el dueño para saber cuántas veces contestó el agente.
+  if (f.tipo === "transcripcion") {
+    t.transcripciones += 1;
+    t.costoTranscripcion += f.costo.total;
+    t.costoTotal += f.costo.total;
+    t.tokensPrompt += tokensPrompt(f.uso);
+    t.tokensSalida += f.uso.output_tokens;
+    t.inputTokens += f.uso.input_tokens;
+    t.costoEntrada += f.costo.entrada;
+    t.costoSalida += f.costo.salida;
+    return;
+  }
   t.respuestas += 1;
   t.llamadas += f.llamadas;
   t.imagenes += f.imagenes;
@@ -162,6 +188,7 @@ function acumular(t: TotalesConsumo, f: FilaConsumo): void {
 
 function redondear(t: TotalesConsumo): void {
   for (const k of [
+    "costoTranscripcion",
     "costoTotal",
     "costoTexto",
     "costoImagen",
@@ -190,6 +217,8 @@ export function resumirFilas(filas: FilaConsumo[]): ResumenConsumo {
     if (!c.modelos.includes(f.modelo)) c.modelos.push(f.modelo);
     if (f.ts > c.ultimo) c.ultimo = f.ts;
 
+    // El corte por modelo sí cuenta las transcripciones: ahí se quiere ver qué
+    // pesa cada modelo, Claude y Gemini incluidos.
     const m = porModelo.get(f.modelo) ?? { respuestas: 0, tokens: 0, costo: 0 };
     m.respuestas += 1;
     m.tokens += tokensPrompt(f.uso) + f.uso.output_tokens;
@@ -243,7 +272,7 @@ async function leerFilas(tenant: string | undefined, tope: number): Promise<Fila
   let q = sb
     .from("ai_uso_tokens")
     .select(
-      "ts, tenant, wa_from, wa_id, modelo, input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, tokens_texto, tokens_imagen, imagenes, llamadas, costo_entrada, costo_salida, costo_cache_escritura, costo_cache_lectura, costo_texto, costo_imagen, costo_total",
+      "ts, tenant, wa_from, wa_id, modelo, input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, tokens_texto, tokens_imagen, imagenes, llamadas, tipo, costo_entrada, costo_salida, costo_cache_escritura, costo_cache_lectura, costo_texto, costo_imagen, costo_total",
     )
     .order("ts", { ascending: false })
     .limit(tope);
@@ -274,6 +303,9 @@ async function leerFilas(tenant: string | undefined, tope: number): Promise<Fila
       tokensImagen: Number(r.tokens_imagen ?? 0),
       imagenes: Number(r.imagenes ?? 0),
       llamadas: Number(r.llamadas ?? 1),
+      tipo: ((r.tipo as string) === "transcripcion" ? "transcripcion" : "respuesta") as
+        | "respuesta"
+        | "transcripcion",
       tokensTexto: Number(r.tokens_texto ?? 0),
       costo: {
         entrada: Number(r.costo_entrada ?? 0),
