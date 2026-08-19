@@ -125,6 +125,24 @@ export async function conversacionesPorOrigen(tenant: string): Promise<Record<st
   return cuenta;
 }
 
+/**
+ * Borra el estado de sede de TODOS los números de un cliente.
+ *
+ * Va junto con vaciar el historial: si se borra la conversación pero queda el
+ * contador de intentos, el agente arranca la charla nueva creyendo que ya
+ * preguntó dos veces, y pasa el chat a una persona al primer mensaje. Reiniciar
+ * el demo tiene que dejarlo como recién salido de fábrica.
+ */
+export async function borrarEstadosSucursalDeTenant(tenant: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) {
+    mem.clear();
+    return;
+  }
+  const { error } = await sb.from("wa_sucursal").delete().eq("tenant", tenant);
+  if (error) console.error("wa_sucursal delete por tenant:", error.message);
+}
+
 /** Reinicia el estado de un número (lo usa el borrado de conversación). */
 export async function borrarEstadoSucursal(from: string): Promise<void> {
   const sb = getSupabase();
