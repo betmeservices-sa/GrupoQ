@@ -5,7 +5,7 @@
 //   - la baranda de siempre: un cliente que escucha tiene que DECIRLO en su
 //     guion, y uno que no escucha no puede prometer que sí.
 import { describe, it, expect, afterEach } from "vitest";
-import { hayTranscripcion, textoDeAudio } from "@/lib/transcribir";
+import { hayTranscripcion, textoDeAudio, vocabularioDeTenant } from "@/lib/transcribir";
 import { TENANTS } from "@/lib/tenants";
 import { captionDeMedia } from "@/lib/format";
 
@@ -50,6 +50,36 @@ describe("interruptor por configuración", () => {
   it("con la llave puesta, encendida", () => {
     process.env.GEMINI_API_KEY = "de-prueba";
     expect(hayTranscripcion()).toBe(true);
+  });
+});
+
+// El modelo que transcribe no tiene por qué conocer tres hoteles de una playa
+// de El Salvador. Se le pasan los nombres propios, o escribe lo que le suena:
+// un caso real llegó como "Jalip Playel Sunsal" por "Yalí, Playa El Sunzal", y
+// después nadie pudo reconocer de qué hotel hablaban.
+describe("vocabulario que se le pasa a la transcripción", () => {
+  it("incluye los nombres de las sedes sin que haya que repetirlos", () => {
+    const v = vocabularioDeTenant("yaly");
+    for (const o of TENANTS.yaly.sucursales!.opciones) {
+      expect(v).toContain(o.nombre);
+    }
+  });
+
+  it("incluye las habitaciones y los lugares del cliente", () => {
+    const v = vocabularioDeTenant("yaly");
+    for (const termino of ["Bungalow", "El Sunzal", "Tamanique", "Ocean View"]) {
+      expect(v, termino).toContain(termino);
+    }
+  });
+
+  it("no repite términos", () => {
+    const v = vocabularioDeTenant("yaly");
+    expect(new Set(v).size).toBe(v.length);
+  });
+
+  it("un cliente sin nada declarado no manda vocabulario", () => {
+    expect(vocabularioDeTenant("hospital")).toEqual([]);
+    expect(vocabularioDeTenant(undefined)).toEqual([]);
   });
 });
 

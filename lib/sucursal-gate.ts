@@ -43,12 +43,20 @@ export const CIERRE_POR_LIMITE =
 export type DecisionTurno =
   /** Mandar la pregunta de sucursal (primer mensaje). Sin modelo, 0 tokens. */
   | { tipo: "preguntar_sucursal"; texto: string }
-  /** No se entendió la sucursal: reformular. Sin modelo, 0 tokens. */
-  | { tipo: "reintentar_sucursal"; texto: string }
-  /** Se agotaron los reintentos: avisar y pasar a una persona. */
+  /** Se agotaron los intentos: avisar y pasar a una persona. */
   | { tipo: "handoff_sucursal"; texto: string }
-  /** Responder con la IA. `sucursal` es null si el tenant no maneja sedes. */
-  | { tipo: "responder_ia"; sucursal: SucursalTenant | null; recienElegida: boolean }
+  /**
+   * Responder con la IA. `sucursal` es null si el tenant no maneja sedes O si
+   * todavía no sabemos cuál es; en ese segundo caso `pedirSede` va en true y el
+   * modelo se encarga: deduce el hotel de lo que dijo el huésped (aunque venga
+   * mal escrito o mal transcrito) o lo pregunta con naturalidad.
+   */
+  | {
+      tipo: "responder_ia";
+      sucursal: SucursalTenant | null;
+      recienElegida: boolean;
+      pedirSede?: boolean;
+    }
   /** Se llegó al tope: mandar el cierre y pasar a una persona. */
   | { tipo: "cerrar_por_limite"; texto: string }
   /** Ya se cerró antes. No mandar nada (ni gastar un token). */
@@ -112,38 +120,49 @@ export function decidirTurno(e: EstadoTurno): DecisionTurno {
     : null;
   if (yaElegida) return { tipo: "responder_ia", sucursal: yaElegida, recienElegida: false };
 
-  // Nunca se preguntó. Antes de gastar el primer mensaje en la pregunta, se
-  // mira si YA sabemos de dónde viene: el link de la bio de cada perfil de
-  // Instagram trae el nombre de su hotel prellenado, y los anuncios traen el
-  // referral de Meta (ver lib/origen-sede.ts). Preguntar algo que el huésped ya
-  // dijo en su primer mensaje es la forma más rápida de que se sienta un robot.
-  if (e.intentos === 0) {
-    const sinPreguntar = e.origenSede ?? interpretarSucursal(e.textoCliente, e.sucursales);
-    if (sinPreguntar) {
-      return { tipo: "responder_ia", sucursal: sinPreguntar, recienElegida: true };
-    }
+  // ¿Se puede saber la sede sin preguntar? El link de la bio de cada perfil de
+  // Instagram trae el nombre de su hotel prellenado, los anuncios traen el
+  // referral de Meta (lib/origen-sede.ts), y muchas veces el huésped lo dice
+  // solo. Preguntar algo que ya dijo es la forma más rápida de sonar a robot.
+  const sinPreguntar = e.origenSede ?? interpretarSucursal(e.textoCliente, e.sucursales);
+  if (sinPreguntar) {
+    return { tipo: "responder_ia", sucursal: sinPreguntar, recienElegida: true };
+  }
+
+  // Agotados los intentos, pasa a una persona. Es la red de seguridad para el
+  // caso raro en que ni el modelo logra sacar de qué hotel hablan.
+  if (e.intentos > e.sucursales.maxReintentos) {
+    return { tipo: "handoff_sucursal", texto: e.sucursales.handoff };
+  }
+
+  // Primer mensaje y un saludo pelado ("hola", "buenas"): no hay nada que
+  // entender ni que responder, así que va la pregunta fija. Cuesta 0 tokens y
+  // es el caso más común.
+  if (e.intentos === 0 && esSaludoPelado(e.textoCliente)) {
     return { tipo: "preguntar_sucursal", texto: e.sucursales.pregunta };
   }
 
-  // Ya se preguntó: ¿la respuesta identifica una sucursal?
-  const elegida = interpretarSucursal(e.textoCliente, e.sucursales);
-  if (elegida) return { tipo: "responder_ia", sucursal: elegida, recienElegida: true };
-
-  if (e.intentos <= e.sucursales.maxReintentos) {
-    return { tipo: "reintentar_sucursal", texto: e.sucursales.reintento };
-  }
-  return { tipo: "handoff_sucursal", texto: e.sucursales.handoff };
+  // El huésped dijo algo con contenido (fechas, personas, un nombre mal
+  // escrito) pero no logramos identificar la sede. Acá NO va un menú: contestar
+  // "responda A, B o C" a quien acaba de dar sus fechas es justo lo que hace
+  // sentir que del otro lado hay una máquina. Responde el modelo, que puede
+  // deducir el hotel o preguntarlo dentro de una frase normal.
+  return { tipo: "responder_ia", sucursal: null, recienElegida: false, pedirSede: true };
 }
 
 // ── Identificar la sucursal en lo que escribió el contacto ──
 
+// OJO: el rango de acentos y el de espacios van con escape de verdad. Una
+// versión anterior de este archivo perdió las barras invertidas y quedó
+// `/s+/g`, que reemplaza la letra "s" por un espacio: "sunzal" se convertía en
+// " unzal". Funcionaba de casualidad, porque el alias sufría lo mismo.
 function normalizar(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "") // quita los acentos (marcas combinantes)
-    .replace(/[^a-z0-9s]/g, " ") // signos fuera: "a)" -> "a"
-    .replace(/s+/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ") // signos fuera: "a)" -> "a"
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -155,14 +174,32 @@ function normalizar(s: string): string {
  */
 export const MAX_PALABRAS_RESPUESTA_CORTA = 4;
 
+// Ordinales: una palabra, y aparecen en cualquier frase ("la primera vez").
+// Como los alias de una letra o un número, solo cuentan si el mensaje es corto.
+const ORDINALES = new Set(["primera", "segunda", "tercera", "primero", "segundo", "tercero"]);
+
+/**
+ * ¿Este alias es una "respuesta a la pregunta" y no un nombre?
+ *
+ * Las letras, los números y los ordinales aparecen en cualquier frase, así que
+ * solo valen en mensajes cortos. Un NOMBRE PROPIO ("sunzal", "tamanique") vale
+ * siempre: nadie lo escribe de casualidad, y quien lo menciona en medio de una
+ * frase larga está diciendo a qué hotel le escribe.
+ */
+function esRespuestaCorta(alias: string): boolean {
+  const partes = alias.split(" ").filter(Boolean);
+  if (partes.length !== 1) return false; // "la b", "opcion c": no salen por azar
+  return ORDINALES.has(alias) || alias.length < 4;
+}
+
 // Un alias calza si sus palabras aparecen SEGUIDAS y completas en el mensaje.
 // Nada de substring crudo: "hola buenas tardes" contiene "la b" y elegiría la
-// sucursal B. Y los alias de una sola palabra solo valen en mensajes cortos.
-// Los dos casos los cazan pruebas en sucursal-gate.test.ts.
+// sucursal B. Los dos casos los cazan pruebas en sucursal-gate.test.ts.
 function coincide(palabras: string[], alias: string): boolean {
-  const partes = normalizar(alias).split(" ").filter(Boolean);
+  const norm = normalizar(alias);
+  const partes = norm.split(" ").filter(Boolean);
   if (partes.length === 0) return false;
-  if (partes.length === 1 && palabras.length > MAX_PALABRAS_RESPUESTA_CORTA) return false;
+  if (esRespuestaCorta(norm) && palabras.length > MAX_PALABRAS_RESPUESTA_CORTA) return false;
   for (let i = 0; i + partes.length <= palabras.length; i++) {
     if (partes.every((parte, j) => palabras[i + j] === parte)) return true;
   }
@@ -170,9 +207,70 @@ function coincide(palabras: string[], alias: string): boolean {
 }
 
 /**
+ * Distancia de edición, cortada en `tope`. Es Levenshtein normal; el corte solo
+ * evita seguir contando cuando ya sabemos que se pasó.
+ */
+export function distancia(a: string, b: string, tope: number): number {
+  if (Math.abs(a.length - b.length) > tope) return tope + 1;
+  let fila = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const siguiente = [i];
+    let mejor = i;
+    for (let j = 1; j <= b.length; j++) {
+      const costo = a[i - 1] === b[j - 1] ? 0 : 1;
+      const v = Math.min(fila[j] + 1, siguiente[j - 1] + 1, fila[j - 1] + costo);
+      siguiente.push(v);
+      if (v < mejor) mejor = v;
+    }
+    if (mejor > tope) return tope + 1; // toda la fila se pasó: no hay vuelta
+    fila = siguiente;
+  }
+  return fila[b.length];
+}
+
+/** Cuánto error se le tolera a una palabra según su largo. */
+function tolerancia(palabra: string): number {
+  if (palabra.length >= 8) return 2;
+  if (palabra.length >= 5) return 1;
+  return 0; // palabras cortas: exacto o nada
+}
+
+/**
+ * Palabras que identifican a UNA sola sede.
+ *
+ * De todos los alias se sacan las palabras largas y se descartan las que
+ * comparte más de una sede: "playa" está en las tres y no dice nada, pero
+ * "sunzal", "tamanique" o "flores" apuntan a una sola. Son las únicas con las
+ * que se puede arriesgar una comparación tolerante.
+ */
+function palabrasPropias(sucursales: TenantSucursales): Map<string, string[]> {
+  const porPalabra = new Map<string, Set<string>>();
+  for (const o of sucursales.opciones) {
+    for (const alias of [o.nombre, ...o.alias]) {
+      for (const p of normalizar(alias).split(" ")) {
+        if (p.length < 5) continue;
+        const set = porPalabra.get(p) ?? new Set<string>();
+        set.add(o.id);
+        porPalabra.set(p, set);
+      }
+    }
+  }
+  const salida = new Map<string, string[]>();
+  for (const [palabra, sedes] of porPalabra) {
+    if (sedes.size === 1) salida.set(palabra, [...sedes]);
+  }
+  return salida;
+}
+
+/**
  * Devuelve la sucursal que el contacto nombró, o null si no está claro.
  * Si el texto calza con MÁS de una, devuelve null: preferimos volver a
  * preguntar antes que mandarlo a la sede equivocada.
+ *
+ * Dos pasadas. La primera exige la palabra exacta. La segunda tolera errores de
+ * tipeo y de transcripción, y es la que importa desde que el agente escucha
+ * notas de voz: "Sunsal" en vez de "Sunzal" no puede costarle al huésped un
+ * "responda A, B o C".
  */
 export function interpretarSucursal(
   texto: string,
@@ -181,12 +279,44 @@ export function interpretarSucursal(
   const palabras = normalizar(texto ?? "").split(" ").filter(Boolean);
   if (palabras.length === 0) return null;
 
-  const candidatas = sucursales.opciones.filter((o) => {
-    const propios = [o.letra, o.nombre, ...o.alias];
-    return propios.some((alias) => coincide(palabras, alias));
-  });
-  return candidatas.length === 1 ? candidatas[0] : null;
+  const exactas = sucursales.opciones.filter((o) =>
+    [o.letra, o.nombre, ...o.alias].some((alias) => coincide(palabras, alias)),
+  );
+  if (exactas.length === 1) return exactas[0];
+  // Más de una calza exacto: ambiguo, y adivinar sería mandarlo al hotel
+  // equivocado. Ni siquiera se intenta la pasada tolerante.
+  if (exactas.length > 1) return null;
+
+  const propias = palabrasPropias(sucursales);
+  const parecidas = new Set<string>();
+  for (const palabra of palabras) {
+    const tope = tolerancia(palabra);
+    if (tope === 0) continue;
+    for (const [clave, sedes] of propias) {
+      if (distancia(palabra, clave, tope) <= tope) sedes.forEach((s) => parecidas.add(s));
+    }
+  }
+  if (parecidas.size !== 1) return null;
+  return sucursales.opciones.find((o) => o.id === [...parecidas][0]) ?? null;
 }
+
+// Saludos sueltos. Un "hola" no trae nada que entender ni que responder, así
+// que ahí la pregunta fija de sede es lo correcto: es instantánea y cuesta 0
+// tokens. En cambio "hola, somos 3 del 22 al 26" ya merece una respuesta de
+// verdad, no un menú.
+const SALUDOS = new Set([
+  "hola", "holaa", "holaaa", "ola", "buenas", "buenos", "buen", "dia", "dias",
+  "tardes", "noches", "tarde", "noche", "hey", "saludos", "que", "tal", "hi",
+  "hello", "good", "morning", "afternoon", "evening", "gracias", "por", "favor",
+]);
+
+export function esSaludoPelado(texto: string): boolean {
+  const palabras = normalizar(texto ?? "").split(" ").filter(Boolean);
+  if (palabras.length === 0) return true;
+  if (palabras.length > 6) return false;
+  return palabras.every((p) => SALUDOS.has(p) || p.length <= 2);
+}
+
 
 /** Línea que se le inyecta al system prompt una vez identificada la sede. */
 export function contextoSucursal(s: SucursalTenant | null): string {

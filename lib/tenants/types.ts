@@ -161,6 +161,14 @@ export interface TenantAi {
   // guion del tenant tiene que decir que SÍ escucha, o se contradice cuando le
   // manden un audio. Default: false, y sin GEMINI_API_KEY tampoco corre.
   audios?: boolean;
+  /**
+   * Nombres propios que la transcripción tiene que escribir bien: habitaciones,
+   * playas, municipios. Sin esto, un modelo que nunca oyó hablar del cliente
+   * escribe lo que le suena ("Jalip Playel Sunsal" por "Yalí, Playa El Sunzal")
+   * y después nadie reconoce de qué hotel hablan. Los nombres de las sedes se
+   * agregan solos, no hace falta repetirlos acá.
+   */
+  vocabulario?: string[];
 }
 
 export interface TenantConfig {

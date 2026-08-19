@@ -4,6 +4,7 @@
 import { describe, it, expect } from "vitest";
 import {
   CIERRE_POR_LIMITE,
+  distancia,
   LIMITE_MENSAJES_IA_DEFAULT,
   PREGUNTA_SUCURSAL_CUENTA,
   contextoSucursal,
@@ -29,26 +30,36 @@ function estado(over: Partial<EstadoTurno> = {}): EstadoTurno {
   };
 }
 
-describe("la pregunta de sucursal es el primer mensaje, siempre", () => {
-  it("con la conversación en blanco, lo primero es preguntar la sucursal", () => {
-    const d = decidirTurno(estado({ textoCliente: "hola, quiero una habitación" }));
-    expect(d.tipo).toBe("preguntar_sucursal");
-    if (d.tipo === "preguntar_sucursal") expect(d.texto).toBe(yalySucursales.pregunta);
-  });
-
-  it("no importa qué escriba el contacto primero: igual se pregunta", () => {
-    for (const texto of [
-      "quiero reservar del 12 al 15 para 4 personas",
-      "¿cuánto cuesta?",
-      "hola",
-      "",
-    ]) {
-      expect(decidirTurno(estado({ textoCliente: texto })).tipo).toBe("preguntar_sucursal");
+describe("antes de responder hay que saber a cuál hotel le escriben", () => {
+  it("a un saludo pelado se le pregunta con el texto fijo, sin gastar un token", () => {
+    for (const texto of ["hola", "buenas tardes", "hola, buenas", ""]) {
+      const d = decidirTurno(estado({ textoCliente: texto }));
+      expect(d.tipo, texto).toBe("preguntar_sucursal");
+      if (d.tipo === "preguntar_sucursal") expect(d.texto).toBe(yalySucursales.pregunta);
     }
   });
 
-  it("ese primer mensaje NO llama al modelo (sale del guion, no de Claude)", () => {
-    const d = decidirTurno(estado());
+  // REGRESIÓN: el huésped mandó dos notas de voz con fechas y cantidad de
+  // personas, y el agente respondió con un menú de letras sin acusar recibo de
+  // nada. Eso no es un agente, es un formulario. Ahora responde el modelo, que
+  // puede contestar lo que preguntó Y pedir el hotel en la misma frase.
+  it("si el primer mensaje trae contenido, responde el modelo y no un menú", () => {
+    for (const texto of [
+      "quiero reservar del 12 al 15 para 4 personas",
+      "¿cuánto cuesta la noche?",
+      "hola, somos 3 del 22 al 26 de agosto",
+    ]) {
+      const d = decidirTurno(estado({ textoCliente: texto }));
+      expect(d.tipo, texto).toBe("responder_ia");
+      if (d.tipo === "responder_ia") {
+        expect(d.sucursal, texto).toBeNull();
+        expect(d.pedirSede, texto).toBe(true);
+      }
+    }
+  });
+
+  it("el saludo pelado NO llama al modelo (sale del guion, no de Claude)", () => {
+    const d = decidirTurno(estado({ textoCliente: "hola" }));
     // Si la decisión trae texto, el envío es determinista: cero tokens.
     expect(d).toHaveProperty("texto");
     expect(d.tipo).not.toBe("responder_ia");
@@ -72,13 +83,12 @@ describe("la pregunta de sucursal es el primer mensaje, siempre", () => {
     }
   });
 
-  it("una respuesta que no se entiende se reformula, no se ignora", () => {
+  it("una respuesta que no se entiende pasa al modelo, no a otro menú", () => {
     const d = decidirTurno(estado({ intentos: 1, mensajesAgente: 1, textoCliente: "no sé" }));
-    expect(d.tipo).toBe("reintentar_sucursal");
-    if (d.tipo === "reintentar_sucursal") {
-      expect(d.texto).toBe(yalySucursales.reintento);
-      // La reformulación no es un copiar y pegar de la pregunta.
-      expect(d.texto).not.toBe(yalySucursales.pregunta);
+    expect(d.tipo).toBe("responder_ia");
+    if (d.tipo === "responder_ia") {
+      expect(d.sucursal).toBeNull();
+      expect(d.pedirSede).toBe(true);
     }
   });
 
@@ -160,6 +170,47 @@ describe("identificar la sucursal en lo que escribe el contacto", () => {
     );
   });
 
+  // REGRESIÓN REAL (2026-08-19): una nota de voz que decía "Yalí, Playa El
+  // Sunzal" se transcribió como "Jalip Playel Sunsal". El comparador exigía la
+  // palabra exacta, no la reconoció, y el huésped recibió un menú de letras
+  // después de haber dado sus fechas.
+  it("aguanta los errores de transcripción y de tipeo", () => {
+    const casos: [string, string][] = [
+      ["Estoy interesado en Jalip Playel Sunsal, vamos del 22 al 26 y somos cuatro", "a"],
+      ["quiero ir al sunsal", "a"],
+      ["me interesa costa del surff", "b"],
+      ["están en tamanike verdad?", "c"],
+      ["quiero playa linda por favor", "c"],
+    ];
+    for (const [texto, esperado] of casos) {
+      expect(interpretarSucursal(texto, yalySucursales)?.id, texto).toBe(esperado);
+    }
+  });
+
+  // Un nombre propio dicho en medio de una frase larga SÍ identifica la sede.
+  // Antes solo contaba en mensajes de hasta cuatro palabras, y por eso se
+  // perdía justo en los mensajes que más contenido traían.
+  it("un nombre propio cuenta aunque la frase sea larga", () => {
+    const largo =
+      "buenas tardes, andamos buscando algo para el fin de semana en el Sunzal con la familia";
+    expect(interpretarSucursal(largo, yalySucursales)?.id).toBe("a");
+  });
+
+  // La tolerancia no puede volverse adivinanza: si lo que dijo apunta a más de
+  // una sede, se sigue devolviendo null y se pregunta.
+  it("no adivina cuando lo que dijo sirve para varias sedes", () => {
+    expect(interpretarSucursal("quiero una playa bonita", yalySucursales)).toBeNull();
+    expect(interpretarSucursal("busco un hotel frente al mar", yalySucursales)).toBeNull();
+    expect(interpretarSucursal("cual playa me recomiendan", yalySucursales)).toBeNull();
+  });
+
+  it("distancia de edición: cuenta bien y corta cuando se pasa", () => {
+    expect(distancia("sunzal", "sunsal", 1)).toBe(1);
+    expect(distancia("sunzal", "sunzal", 1)).toBe(0);
+    expect(distancia("hotel", "sunzal", 1)).toBeGreaterThan(1);
+    expect(distancia("a", "playa linda", 2)).toBeGreaterThan(2);
+  });
+
   it("la sede identificada se le inyecta al guion de la IA", () => {
     const s = yalySucursales.opciones[0];
     const ctx = contextoSucursal(s);
@@ -216,7 +267,7 @@ describe("tope duro de mensajes por conversación", () => {
         estado({ limite, mensajesAgente: enviados, intentos, textoCliente: "hmm" }),
       );
       if (d.tipo === "silencio") break;
-      if (d.tipo === "preguntar_sucursal" || d.tipo === "reintentar_sucursal") intentos++;
+      if (d.tipo === "preguntar_sucursal" || (d.tipo === "responder_ia" && d.pedirSede)) intentos++;
       enviados++;
     }
     expect(enviados).toBeLessThanOrEqual(limite);

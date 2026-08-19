@@ -132,11 +132,21 @@ beforeEach(async () => {
 });
 
 describe("el primer mensaje siempre es la pregunta de sucursal", () => {
-  it("aunque el huésped pregunte otra cosa, y sin gastar un token", async () => {
-    await turno("Hola, quiero una habitación para el sábado");
+  it("a un saludo pelado, la pregunta fija y sin gastar un token", async () => {
+    await turno("Hola, buenas tardes");
     expect(enviados).toEqual([yalySucursales.pregunta]);
     expect(llamadasIA).toHaveLength(0); // no se llamó al modelo
     expect(consumos).toHaveLength(0); // por lo tanto no hay consumo
+  });
+
+  // REGRESIÓN: contestarle un menú de letras a quien acaba de dar sus fechas es
+  // lo que hace sentir que del otro lado hay una máquina. Si el mensaje trae
+  // contenido, responde el modelo (y se le avisa que falta la sede).
+  it("si el mensaje trae contenido, contesta el modelo en vez de un menú", async () => {
+    await turno("Hola, quiero una habitación para el sábado");
+    expect(enviados[0]).not.toBe(yalySucursales.pregunta);
+    expect(llamadasIA).toHaveLength(1);
+    expect(llamadasIA[0].sucursal).toBeNull();
   });
 
   it("con la sucursal contestada, recién ahí entra la IA y se le pasa la sede", async () => {
@@ -157,17 +167,19 @@ describe("el primer mensaje siempre es la pregunta de sucursal", () => {
     expect(llamadasIA.every((l) => l.sucursal === "a")).toBe(true);
   });
 
-  it("una respuesta que no se entiende se reformula y después pasa a una persona", async () => {
+  it("lo que no se entiende lo intenta el modelo, y si no, pasa a una persona", async () => {
     await turno("Hola");
     await turno("mmm");
     await turno("no sé");
     await turno("ninguna idea");
+    // El primero es la pregunta fija (saludo pelado). Los dos siguientes ya son
+    // del modelo, con el aviso de que falta la sede. El cuarto es el handoff:
+    // nadie queda dando vueltas para siempre.
     expect(enviados[0]).toBe(yalySucursales.pregunta);
-    expect(enviados[1]).toBe(yalySucursales.reintento);
-    expect(enviados[2]).toBe(yalySucursales.reintento);
+    expect(llamadasIA).toHaveLength(2);
+    expect(llamadasIA.every((l) => l.sucursal === null)).toBe(true);
     expect(enviados[3]).toBe(yalySucursales.handoff);
     expect(chatApagado).toHaveBeenCalledWith("50370000001", false);
-    expect(llamadasIA).toHaveLength(0);
   });
 });
 

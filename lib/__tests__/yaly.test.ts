@@ -145,6 +145,9 @@ describe("el guion de Sofía no contradice las barandas", () => {
     }
     expect(herramientasDeTenant("yaly").sort()).toEqual([
       "consultar_habitaciones",
+      // Con esta el modelo registra la sede cuando la deduce (una transcripción
+      // mala no puede terminar en "responda A, B o C").
+      "elegir_hotel",
       "guardar_datos_contacto",
       "reaccionar",
       "reservar_estadia",

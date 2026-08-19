@@ -148,8 +148,10 @@ export async function programarRespuestaIA(opts: {
 
     if (decision.tipo === "silencio") return;
 
-    // Pregunta de sucursal y reintentos: texto fijo, CERO tokens.
-    if (decision.tipo === "preguntar_sucursal" || decision.tipo === "reintentar_sucursal") {
+    // Pregunta de sucursal: texto fijo, CERO tokens. Solo sale cuando el
+    // huésped no dijo nada más que un saludo; si trajo contenido, responde el
+    // modelo (ver decidirTurno).
+    if (decision.tipo === "preguntar_sucursal") {
       await enviarYGuardar(opts.from, decision.texto, tenantId);
       await marcarPreguntaSucursal(opts.from, tenantId, estado.intentos);
       return;
@@ -165,6 +167,13 @@ export async function programarRespuestaIA(opts: {
         `IA: chat ${opts.from} pasa a una persona (${decision.tipo}). Tope: ${limiteDe(cfg.ai.limiteMensajes)} mensajes.`,
       );
       return;
+    }
+
+    // Todavía no sabemos la sede y la va a resolver el modelo: se cuenta como
+    // un intento igual, para que la red de seguridad del handoff siga contando y
+    // nadie quede dando vueltas para siempre.
+    if (decision.pedirSede) {
+      await marcarPreguntaSucursal(opts.from, tenantId, estado.intentos);
     }
 
     // El contacto acaba de decir su sucursal: se guarda ANTES de responder, para
@@ -205,8 +214,18 @@ export async function programarRespuestaIA(opts: {
           });
         },
         onReaccionar: (emoji) => enviarReaccion(opts.from, opts.triggerWamid, emoji),
+        // El modelo dedujo de qué hotel habla el huésped: se guarda igual que si
+        // lo hubiera contestado a la pregunta fija, para no volver a pedirlo.
+        onElegirHotel: async (sede) => {
+          await guardarSucursal(opts.from, tenantId, sede.id, sede.nombre);
+        },
       },
-      { telefono: opts.from, tenantId: opts.tenant, sucursal: decision.sucursal },
+      {
+        telefono: opts.from,
+        tenantId: opts.tenant,
+        sucursal: decision.sucursal,
+        pedirSede: decision.pedirSede === true,
+      },
     );
 
     const env = await enviarTextoWa(opts.from, respuesta.texto);

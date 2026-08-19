@@ -18,6 +18,8 @@
 // y lo atiende una persona, que es exactamente lo que pasaba antes.
 
 import { abrirMediaWa } from "./wa-media";
+import { TENANTS } from "./tenants";
+import type { TenantId } from "./tenants/types";
 
 const MODELO = process.env.GEMINI_MODEL_AUDIO || "gemini-3.5-flash-lite";
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -38,6 +40,29 @@ const PROMPT =
   "sin comillas, sin comentarios y sin describir el audio. Respeta el idioma " +
   "en que habla la persona. Si no se entiende nada, responde exactamente: SIN_AUDIBLE";
 
+/**
+ * Los nombres propios del cliente, para que la transcripción no los invente.
+ *
+ * Esto salió de un caso real: el huésped dijo "Yalí, Playa El Sunzal" en una
+ * nota de voz y llegó escrito "Jalip Playel Sunsal". El modelo no tiene por qué
+ * conocer tres hoteles de una playa de El Salvador, pero con la lista delante
+ * los escribe bien, y de ahí en adelante todo lo que depende de reconocer la
+ * sede funciona.
+ */
+export function vocabularioDeTenant(tenantId?: TenantId): string[] {
+  const t = tenantId && TENANTS[tenantId] ? TENANTS[tenantId] : null;
+  if (!t) return [];
+  const sedes = t.sucursales?.opciones.map((o) => o.nombre) ?? [];
+  return [...new Set([...sedes, ...(t.ai.vocabulario ?? [])])];
+}
+
+function promptCon(vocabulario: string[]): string {
+  if (vocabulario.length === 0) return PROMPT;
+  return `${PROMPT}
+
+NOMBRES PROPIOS que pueden aparecer y que debes escribir EXACTAMENTE así: ${vocabulario.join(", ")}. Si oyes algo parecido a uno de estos, escríbelo como está en la lista.`;
+}
+
 export interface Transcripcion {
   texto: string;
   modelo: string;
@@ -55,7 +80,10 @@ export function hayTranscripcion(): boolean {
  * pudo (sin llave, formato raro, pesa de más, el modelo no entendió nada o
  * falló la red). Nunca lanza: quien llama sigue su curso con "[audio]".
  */
-export async function transcribirAudioWa(mediaId: string): Promise<Transcripcion | null> {
+export async function transcribirAudioWa(
+  mediaId: string,
+  tenantId?: TenantId,
+): Promise<Transcripcion | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
 
@@ -84,7 +112,7 @@ export async function transcribirAudioWa(mediaId: string): Promise<Transcripcion
         contents: [
           {
             parts: [
-              { text: PROMPT },
+              { text: promptCon(vocabularioDeTenant(tenantId)) },
               { inline_data: { mime_type: mime, data: buf.toString("base64") } },
             ],
           },

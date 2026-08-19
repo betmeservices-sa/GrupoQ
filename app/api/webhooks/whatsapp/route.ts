@@ -131,7 +131,7 @@ export async function POST(req: Request) {
             // el hilo y el agente vean lo mismo. Si falla, se queda en "[audio]"
             // y lo atiende una persona: nunca se inventa lo que dijo el huésped.
             if (oyeAudios && m.audio?.id) {
-              const t = await transcribirAudioWa(m.audio.id);
+              const t = await transcribirAudioWa(m.audio.id, tenantActivo);
               if (t) {
                 texto = textoDeAudio(t.texto);
                 transcrito = true;

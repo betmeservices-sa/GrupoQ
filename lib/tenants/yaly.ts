@@ -160,6 +160,23 @@ export const yalyTenant: TenantConfig = {
     // En un hotel de playa media conversación entra por audio, así que sin esto
     // el agente se queda mudo justo cuando el huésped está más apurado.
     audios: true,
+    // Lo que la transcripción tiene que escribir bien. Los nombres de las tres
+    // sedes se agregan solos; acá van las habitaciones y los lugares.
+    vocabulario: [
+      "Bungalow",
+      "Bungalow Familiar",
+      "Planta Baja",
+      "Planta Alta",
+      "Garden View",
+      "Ocean View",
+      "El Sunzal",
+      "Las Flores",
+      "Carretera Litoral",
+      "Tamanique",
+      "La Libertad",
+      "Usulután",
+      "Sunzal Beach Club",
+    ],
   },
   sucursales: yalySucursales,
   dashboard: [

@@ -20,7 +20,7 @@ import {
 import { activeTenant } from "./tenants/active";
 import { TENANTS } from "./tenants";
 import type { SucursalTenant, TenantId } from "./tenants/types";
-import { contextoSucursal } from "./sucursal-gate";
+import { contextoSucursal, interpretarSucursal } from "./sucursal-gate";
 import { bloquePromociones, usaPromos } from "./promos";
 import { listarPromos } from "./promos-store";
 import { sumarUso, USO_CERO, type UsoTokens } from "./tokens-precios";
@@ -71,6 +71,8 @@ interface AccionesIA {
     interes?: string;
   }) => Promise<void> | void;
   onReaccionar?: (emoji: string) => Promise<void> | void;
+  /** El modelo dedujo a cuál sede le escribe el huésped. */
+  onElegirHotel?: (sede: SucursalTenant) => Promise<void> | void;
 }
 
 // Tags de interés del tenant, para clasificar al contacto (autos en Grupo Q,
@@ -271,10 +273,60 @@ const TOOLS_YALI: Anthropic.Tool[] = [
   },
 ];
 
+// Con esta el modelo registra a cuál sede le escribe el huésped, cuando lo
+// deduce de lo que dijo. Existe porque el comparador determinista no puede con
+// todo: una nota de voz transcrita como "Jalip Playel Sunsal" es obviamente
+// Yalí en El Sunzal para cualquiera que lea, y no puede terminar en un menú.
+function toolElegirHotel(tenantId?: TenantId): Anthropic.Tool | null {
+  const t = tenantId && TENANTS[tenantId] ? TENANTS[tenantId] : activeTenant();
+  const sedes = t.sucursales?.opciones;
+  if (!sedes?.length) return null;
+  return {
+    name: "elegir_hotel",
+    description:
+      "Registra a cuál de nuestros hoteles le escribe el huésped. Llámala UNA vez, apenas lo sepas: te lo dijo, lo nombró aunque sea mal escrito, o quedó claro por el contexto. Es obligatoria antes de consultar disponibilidad o precios.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hotel: {
+          type: "string",
+          description: "El hotel, tal como está escrito en la lista",
+          enum: sedes.map((s) => s.nombre),
+        },
+      },
+      required: ["hotel"],
+    },
+  };
+}
+
 function toolsPara(tenantId?: TenantId): Anthropic.Tool[] {
-  if (tenantId === "hotel") return TOOLS_HOTEL;
-  if (tenantId === "yaly") return TOOLS_YALI;
-  return TOOLS_BASE;
+  const base =
+    tenantId === "hotel" ? TOOLS_HOTEL : tenantId === "yaly" ? TOOLS_YALI : TOOLS_BASE;
+  const elegir = toolElegirHotel(tenantId);
+  return elegir ? [...base, elegir] : base;
+}
+
+/**
+ * Bloque que se le pega al guion cuando NO sabemos a cuál sede le escribe.
+ *
+ * Es la respuesta a un problema real: el huésped mandó una nota de voz diciendo
+ * el nombre del hotel, la transcripción lo escribió mal y el agente le contestó
+ * "responda A, B o C" ignorando las fechas que acababa de dar. Eso no es un
+ * agente, es un formulario.
+ */
+function contextoPedirSede(tenantId?: TenantId): string {
+  const t = tenantId && TENANTS[tenantId] ? TENANTS[tenantId] : activeTenant();
+  const sedes = t.sucursales?.opciones;
+  if (!sedes?.length) return "";
+  const lista = sedes.map((s) => s.nombre).join(" · ");
+  return `
+
+TODAVÍA NO SABEMOS A CUÁL HOTEL LE ESCRIBE (vale solo para este turno)
+Nuestros hoteles: ${lista}.
+1. Si por lo que dijo se entiende de cuál habla, AUNQUE VENGA MAL ESCRITO O MAL TRANSCRITO (por ejemplo "Jalip Playel Sunsal" es Yalí, Playa El Sunzal), dalo por bueno: llama a "elegir_hotel" y sigue la conversación normal, confirmándolo de paso en tu respuesta.
+2. Si de verdad no se entiende, PRIMERO responde o acusa recibo de lo que te preguntó, y después pide el hotel dentro de la misma frase, con naturalidad.
+3. PROHIBIDO mandarle una lista de opciones, pedirle que conteste con una letra, o ignorar lo que acaba de decir para preguntar otra cosa.
+4. No des disponibilidad ni precios hasta saber el hotel.`;
 }
 
 // Zona horaria del negocio de cada tenant. Guatemala y El Salvador comparten
@@ -348,13 +400,31 @@ export async function ejecutarHerramienta(
   nombre: string,
   input: unknown,
   acciones?: AccionesIA,
-  contexto?: { telefono?: string; tenantId?: TenantId; sucursal?: SucursalTenant | null },
+  contexto?: {
+    telefono?: string;
+    tenantId?: TenantId;
+    sucursal?: SucursalTenant | null;
+    pedirSede?: boolean;
+  },
 ): Promise<string> {
   if (nombre === "guardar_datos_contacto") {
     await acciones?.onGuardarContacto?.(
       input as { nombre?: string; apellido?: string; correo?: string; interes?: string },
     );
     return "Listo.";
+  }
+  if (nombre === "elegir_hotel") {
+    const t = contexto?.tenantId && TENANTS[contexto.tenantId] ? TENANTS[contexto.tenantId] : activeTenant();
+    const pedido = (input as { hotel?: string }).hotel ?? "";
+    const sede =
+      t.sucursales?.opciones.find((o) => o.nombre === pedido) ??
+      (t.sucursales ? interpretarSucursal(pedido, t.sucursales) : null);
+    if (!sede) return JSON.stringify({ error: "No reconocimos ese hotel." });
+    await acciones?.onElegirHotel?.(sede);
+    // Se fija en el contexto para que las herramientas que vengan DESPUÉS en
+    // este mismo turno (cotizar, reservar) ya sepan de qué sede hablan.
+    if (contexto) contexto.sucursal = sede;
+    return JSON.stringify({ ok: true, hotel: sede.nombre });
   }
   if (nombre === "reaccionar") {
     const emoji = (input as { emoji?: string }).emoji;
@@ -509,7 +579,13 @@ export interface RespuestaIA {
 export async function generarRespuesta(
   historial: TurnoIA[],
   acciones?: AccionesIA,
-  contexto?: { telefono?: string; tenantId?: TenantId; sucursal?: SucursalTenant | null },
+  contexto?: {
+    telefono?: string;
+    tenantId?: TenantId;
+    sucursal?: SucursalTenant | null;
+    /** true = no sabemos la sede y el modelo tiene que resolverla este turno. */
+    pedirSede?: boolean;
+  },
 ): Promise<RespuestaIA> {
   const messages: Anthropic.MessageParam[] = historial.map((t) => ({
     role: t.autor === "cliente" ? "user" : "assistant",
@@ -518,7 +594,7 @@ export async function generarRespuesta(
 
   const system = `${systemPromptFor(contexto?.tenantId)}${contextoSucursal(
     contexto?.sucursal ?? null,
-  )}${await contextoPromociones(contexto?.tenantId)}\n\n${contextoTemporal(contexto?.tenantId)}`;
+  )}${contexto?.pedirSede ? contextoPedirSede(contexto?.tenantId) : ""}${await contextoPromociones(contexto?.tenantId)}\n\n${contextoTemporal(contexto?.tenantId)}`;
   const tools: Anthropic.Tool[] = [
     toolGuardarContacto(contexto?.tenantId),
     ...toolsPara(contexto?.tenantId),
