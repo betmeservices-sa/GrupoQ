@@ -73,7 +73,7 @@ export async function registrarConsumo(r: RegistroConsumo): Promise<void> {
     if (mem.length > MAX_MEM) mem.splice(0, mem.length - MAX_MEM);
     return;
   }
-  const { error } = await sb.from("ai_uso_tokens").insert({
+  const registro: Record<string, unknown> = {
     ts: fila.ts,
     tenant: fila.tenant,
     wa_from: fila.waFrom,
@@ -95,7 +95,17 @@ export async function registrarConsumo(r: RegistroConsumo): Promise<void> {
     costo_texto: fila.costoTexto,
     costo_imagen: fila.costoImagen,
     costo_total: fila.costo.total,
-  });
+  };
+  const { error } = await sb.from("ai_uso_tokens").insert(registro);
+  if (error && columnaFaltante(error)) {
+    // Falta la migración de `tipo`. Perder el registro entero por una columna
+    // nueva sería lo peor de los dos mundos: el agente responde, cuesta plata, y
+    // el panel dice que no gastó nada. Se guarda sin esa columna.
+    const { tipo: _fuera, ...sinTipo } = registro;
+    const reintento = await sb.from("ai_uso_tokens").insert(sinTipo);
+    if (reintento.error) console.error("ai_uso_tokens insert:", reintento.error.message);
+    return;
+  }
   if (error) console.error("ai_uso_tokens insert:", error.message);
 }
 
