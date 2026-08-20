@@ -36,6 +36,23 @@ export function latchDeTabla(minutos = 3) {
   };
 }
 
+/**
+ * ¿El error es "esa COLUMNA todavía no existe"?
+ *
+ * Pasa cuando el código sale antes que la migración, que es lo normal: primero
+ * se despliega y después alguien corre el SQL. Sin este chequeo, agregar una
+ * columna al SELECT deja el panel entero en cero hasta que se corra la
+ * migración, y encima en silencio. Ya pasó una vez con `tipo`.
+ */
+export function columnaFaltante(error: unknown): boolean {
+  const e = error as ErrorSupabase | null;
+  if (!e) return false;
+  // 42703 = undefined_column de Postgres. PGRST204 = PostgREST no la encuentra.
+  if (e.code === "42703" || e.code === "PGRST204") return true;
+  const m = (e.message ?? "").toLowerCase();
+  return m.includes("column") && (m.includes("does not exist") || m.includes("not find"));
+}
+
 export function tablaFaltante(error: unknown): boolean {
   const e = error as ErrorSupabase | null;
   if (!e) return false;

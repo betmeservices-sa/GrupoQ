@@ -84,9 +84,7 @@ export async function transcribirAudioWa(
   mediaId: string,
   tenantId?: TenantId,
 ): Promise<Transcripcion | null> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return null;
-
+  if (!process.env.GEMINI_API_KEY) return null;
   try {
     const media = await abrirMediaWa(mediaId);
     if (!media.ok) {
@@ -94,11 +92,35 @@ export async function transcribirAudioWa(
       return null;
     }
     const mime = media.mime.split(";")[0].trim().toLowerCase();
+    const buf = Buffer.from(await media.res.arrayBuffer());
+    return await transcribirAudio(buf, mime, tenantId);
+  } catch (e) {
+    console.error("transcripción: falló", e);
+    return null;
+  }
+}
+
+/**
+ * El paso que habla con Gemini, separado de la descarga.
+ *
+ * Va aparte para poder medir la transcripción con archivos locales (ver
+ * scripts/carga-masiva.ts) sin inventar un media_id de Meta: el banco de pruebas
+ * corre EXACTAMENTE este código, no una copia parecida.
+ */
+export async function transcribirAudio(
+  buf: Buffer,
+  mimeCrudo: string,
+  tenantId?: TenantId,
+): Promise<Transcripcion | null> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+
+  try {
+    const mime = mimeCrudo.split(";")[0].trim().toLowerCase();
     if (!MIMES.includes(mime)) {
       console.error("transcripción: formato no soportado", mime);
       return null;
     }
-    const buf = Buffer.from(await media.res.arrayBuffer());
     if (buf.byteLength > MAX_BYTES) {
       console.error("transcripción: el audio pesa demasiado", buf.byteLength);
       return null;

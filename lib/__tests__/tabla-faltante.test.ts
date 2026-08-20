@@ -5,7 +5,7 @@
 // memoria, porque cada instancia que ya había visto el error no volvía a
 // intentar nunca. Había que redesplegar para algo que ya estaba arreglado.
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { latchDeTabla, tablaFaltante } from "@/lib/tabla-faltante";
+import { columnaFaltante, latchDeTabla, tablaFaltante } from "@/lib/tabla-faltante";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -59,5 +59,30 @@ describe("la espera se apaga sola", () => {
     latch.marcar();
     vi.advanceTimersByTime(2 * 60_000);
     expect(latch.activo()).toBe(true);
+  });
+});
+
+// REGRESIÓN REAL: se desplegó un SELECT con una columna nueva antes de correr
+// su migración, y el panel de consumo quedó en CERO en producción, en silencio.
+// El dueño habría visto que su agente no gastó nada, que es peor que un error.
+describe("reconocer que falta una COLUMNA, no la tabla entera", () => {
+  it("caza el código de Postgres y el de PostgREST", () => {
+    expect(columnaFaltante({ code: "42703" })).toBe(true);
+    expect(columnaFaltante({ code: "PGRST204" })).toBe(true);
+  });
+
+  it("caza el mensaje", () => {
+    expect(columnaFaltante({ message: 'column ai_uso_tokens.tipo does not exist' })).toBe(true);
+    expect(columnaFaltante({ message: "Could not find the 'tipo' column" })).toBe(true);
+  });
+
+  it("no confunde una tabla que falta con una columna que falta", () => {
+    expect(columnaFaltante({ code: "42P01" })).toBe(false);
+    expect(tablaFaltante({ code: "42703" })).toBe(false);
+  });
+
+  it("no confunde otros errores", () => {
+    expect(columnaFaltante({ code: "42501", message: "permission denied" })).toBe(false);
+    expect(columnaFaltante(null)).toBe(false);
   });
 });

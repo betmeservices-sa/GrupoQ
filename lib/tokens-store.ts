@@ -9,6 +9,7 @@
 // reescriba lo que ya se facturó.
 
 import { getSupabase } from "./supabase";
+import { columnaFaltante } from "./tabla-faltante";
 import {
   costoDeImagen,
   costoDeUso,
@@ -264,6 +265,13 @@ export async function resumenConsumo(tenant?: string): Promise<ResumenConsumo> {
   return resumirFilas(await leerFilas(tenant, 1000));
 }
 
+// Columnas que se leen. `COLS_BASE` es lo que existe desde siempre; `COLS`
+// suma `tipo`, que llegó con la medición de las transcripciones. Se separan
+// porque el código sale antes que la migración y hay que poder leer sin ella.
+const COLS_BASE =
+  "ts, tenant, wa_from, wa_id, modelo, input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, tokens_texto, tokens_imagen, imagenes, llamadas, costo_entrada, costo_salida, costo_cache_escritura, costo_cache_lectura, costo_texto, costo_imagen, costo_total";
+const COLS = `${COLS_BASE}, tipo`;
+
 // Lectura cruda de la tabla, compartida por el resumen y el detalle.
 async function leerFilas(tenant: string | undefined, tope: number): Promise<FilaConsumo[]> {
   const sb = getSupabase();
@@ -271,14 +279,25 @@ async function leerFilas(tenant: string | undefined, tope: number): Promise<Fila
 
   let q = sb
     .from("ai_uso_tokens")
-    .select(
-      "ts, tenant, wa_from, wa_id, modelo, input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, tokens_texto, tokens_imagen, imagenes, llamadas, tipo, costo_entrada, costo_salida, costo_cache_escritura, costo_cache_lectura, costo_texto, costo_imagen, costo_total",
-    )
+    .select(COLS)
     .order("ts", { ascending: false })
     .limit(tope);
   if (tenant) q = q.eq("tenant", tenant);
 
-  const { data, error } = await q;
+  let res = await q;
+  if (res.error && columnaFaltante(res.error)) {
+    // La migración de `tipo` todavía no corrió. Se lee sin esa columna en vez
+    // de devolver un panel en blanco: el consumo ya registrado sigue siendo
+    // válido, y todo lo viejo es una respuesta del agente de todos modos.
+    let q2 = sb
+      .from("ai_uso_tokens")
+      .select(COLS_BASE)
+      .order("ts", { ascending: false })
+      .limit(tope);
+    if (tenant) q2 = q2.eq("tenant", tenant);
+    res = (await q2) as typeof res;
+  }
+  const { data, error } = res;
   if (error) {
     console.error("ai_uso_tokens select:", error.message);
     return [];
