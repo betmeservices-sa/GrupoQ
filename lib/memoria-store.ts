@@ -80,14 +80,20 @@ export async function leerMemoria(tenant: string, telefono: string): Promise<Mem
   return data ? deFila(data as Record<string, unknown>) : null;
 }
 
-export async function guardarMemoria(m: MemoriaLlamada): Promise<void> {
+export interface ResultadoGuardado {
+  ok: boolean;
+  donde: "base" | "memoria" | "ninguna";
+  error?: string;
+}
+
+export async function guardarMemoria(m: MemoriaLlamada): Promise<ResultadoGuardado> {
   const registro: MemoriaLlamada = { ...m, telefono: normalizarTelefono(m.telefono) };
-  if (!registro.telefono) return;
+  if (!registro.telefono) return { ok: false, donde: "ninguna", error: "sin teléfono" };
 
   const sb = getSupabase();
   if (!sb || faltaTabla.activo()) {
     mem.set(llave(registro.tenant, registro.telefono), registro);
-    return;
+    return { ok: true, donde: "memoria" };
   }
   const { error } = await sb
     .from("memoria_llamadas")
@@ -96,10 +102,14 @@ export async function guardarMemoria(m: MemoriaLlamada): Promise<void> {
     if (tablaFaltante(error) || columnaFaltante(error)) {
       faltaTabla.marcar();
       mem.set(llave(registro.tenant, registro.telefono), registro);
-      return;
+      return { ok: true, donde: "memoria" };
     }
+    // Antes esto solo se logueaba y el webhook igual contestaba "guardado".
+    // Una politica de RLS mal puesta se veia como exito y el dato se perdia.
     console.error("[memoria] no se pudo guardar:", error.message);
+    return { ok: false, donde: "ninguna", error: `${error.code}: ${error.message}` };
   }
+  return { ok: true, donde: "base" };
 }
 
 /**
@@ -121,7 +131,25 @@ export async function diagnostico(): Promise<Record<string, unknown>> {
     filas: count ?? null,
     esperandoMigracion: faltaTabla.activo(),
     error: error ? { code: error.code, message: error.message } : null,
+    escritura: await pruebaDeEscritura(sb),
   };
+}
+
+/** Escribe y borra una fila de prueba. Es la unica forma de ver si RLS deja. */
+async function pruebaDeEscritura(sb: NonNullable<ReturnType<typeof getSupabase>>) {
+  const fila = {
+    tenant: "__diagnostico",
+    telefono: "00000000",
+    modelos: [],
+    agendo: false,
+    resumen: "",
+    llamadas: 0,
+    ultima: new Date().toISOString(),
+  };
+  const { error } = await sb.from("memoria_llamadas").upsert(fila, { onConflict: "tenant,telefono" });
+  if (error) return { puede: false, code: error.code, message: error.message };
+  await sb.from("memoria_llamadas").delete().eq("tenant", "__diagnostico");
+  return { puede: true };
 }
 
 /** Solo para las pruebas. */

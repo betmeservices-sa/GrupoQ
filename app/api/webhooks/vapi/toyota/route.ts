@@ -135,14 +135,14 @@ export async function POST(req: Request) {
 
     try {
       const previo = await leerMemoria(TENANT, telefono);
-      await guardarMemoria(fundir(previo, extracto, { tenant: TENANT, telefono, callId: msg.call?.id }));
+      const r = await guardarMemoria(fundir(previo, extracto, { tenant: TENANT, telefono, callId: msg.call?.id }));
+      return NextResponse.json({ ok: true, guardado: r.ok, donde: r.donde, ...(r.error ? { error: r.error } : {}) });
     } catch (err) {
       // Un 5xx haría que Vapi reintentara y termináramos contando la misma
       // llamada dos veces.
       console.error("[memoria toyota] fallo al guardar:", err);
       return NextResponse.json({ ok: true, guardado: false });
     }
-    return NextResponse.json({ ok: true, guardado: true });
   }
 
   return NextResponse.json({ ok: true, ignorado: msg?.type ?? "sin tipo" });
