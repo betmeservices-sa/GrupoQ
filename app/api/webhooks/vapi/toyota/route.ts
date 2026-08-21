@@ -35,7 +35,13 @@ interface CuerpoVapi {
 }
 
 function secretoValido(req: Request): boolean {
-  const esperado = process.env.VAPI_WEBHOOK_SECRET;
+  // Secreto PROPIO de este webhook, no el compartido.
+  //
+  // El de cobros (VAPI_WEBHOOK_SECRET) lo configura quien administra el panel
+  // de Vapi, y este agente ni siquiera lo tiene puesto. Compartirlo obligaría a
+  // coordinar los dos cambios a la vez y a que un rotado del banco dejara al
+  // concesionario sin memoria. Se cae al compartido solo por compatibilidad.
+  const esperado = process.env.VAPI_MEMORIA_SECRET || process.env.VAPI_WEBHOOK_SECRET;
   // Sin secreto configurado queda cerrado a propósito: prefiero que el agente
   // se quede sin memoria a que cualquiera pueda leer o escribir el historial de
   // los clientes.
