@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { contextoParaAgente, fundir, normalizarTelefono, type ExtractoLlamada } from "@/lib/memoria-llamadas";
-import { guardarMemoria, leerMemoria } from "@/lib/memoria-store";
+import { diagnostico, guardarMemoria, leerMemoria } from "@/lib/memoria-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,6 +70,13 @@ function comoTexto(v: unknown): string | undefined {
 function comoLista(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
   return v.map((x) => comoTexto(x)).filter((x): x is string => !!x);
+}
+
+// Diagnóstico: dice si de verdad está guardando en la base o cayendo a memoria.
+// Detrás del mismo secreto, porque revela el estado de la infraestructura.
+export async function GET(req: Request) {
+  if (!secretoValido(req)) return NextResponse.json({ ok: false }, { status: 401 });
+  return NextResponse.json({ ok: true, ...(await diagnostico()) });
 }
 
 export async function POST(req: Request) {

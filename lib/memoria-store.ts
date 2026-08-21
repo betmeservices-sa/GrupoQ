@@ -102,6 +102,28 @@ export async function guardarMemoria(m: MemoriaLlamada): Promise<void> {
   }
 }
 
+/**
+ * Qué contesta Supabase de verdad.
+ *
+ * Sin esto, un bloqueo de RLS se ve EXACTAMENTE igual que "esta persona nunca
+ * llamó": leerMemoria se traga el error y devuelve null. Ya nos costó una
+ * tarde de probar a ciegas.
+ */
+export async function diagnostico(): Promise<Record<string, unknown>> {
+  const sb = getSupabase();
+  if (!sb) return { supabase: false, motivo: "faltan SUPABASE_URL o SUPABASE_PUBLISHABLE_KEY" };
+  const { error, count } = await sb
+    .from("memoria_llamadas")
+    .select("telefono", { count: "exact", head: true });
+  return {
+    supabase: true,
+    tabla: !error,
+    filas: count ?? null,
+    esperandoMigracion: faltaTabla.activo(),
+    error: error ? { code: error.code, message: error.message } : null,
+  };
+}
+
 /** Solo para las pruebas. */
 export function _resetMemoriaMem() {
   mem.clear();

@@ -29,12 +29,15 @@ create index if not exists memoria_llamadas_ultima_idx on public.memoria_llamada
 
 alter table public.memoria_llamadas enable row level security;
 
--- La app entra con la service key y se salta RLS. La politica queda por si
--- algun dia se lee con la anon key: sin ella, RLS encendido devuelve cero filas
--- y el agente creeria que nunca nadie lo llamo, en vez de dar error.
+-- La app se conecta con la publishable key, o sea el rol anon (ver lib/supabase.ts),
+-- igual que el resto de las tablas de este demo. Una politica solo para
+-- service_role bloquea TODO en silencio: el guardado cae al store en memoria y
+-- la lectura devuelve vacio, asi que el agente no se acuerda de nada y nadie ve
+-- un error.
 drop policy if exists "service role" on public.memoria_llamadas;
-create policy "service role" on public.memoria_llamadas
-  for all using (auth.role() = 'service_role') with check (auth.role() = 'service_role');
+drop policy if exists "memoria_llamadas anon all" on public.memoria_llamadas;
+create policy "memoria_llamadas anon all" on public.memoria_llamadas
+  for all to anon using (true) with check (true);
 
 -- NOTA DE PRIVACIDAD: esto es dato personal. Guarda quien llamo, que buscaba y
 -- como pensaba pagarlo. Conviene acordar con el cliente cuanto tiempo se

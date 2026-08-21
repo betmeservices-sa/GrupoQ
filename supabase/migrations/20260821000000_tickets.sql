@@ -46,9 +46,10 @@ create index if not exists tickets_asignado_idx on public.tickets (tenant, asign
 
 alter table public.tickets enable row level security;
 
--- La app entra con la service key y se salta RLS. La politica queda por si algun
--- dia se lee con la anon key: sin ella, RLS encendido devuelve cero filas y el
--- tablero se veria vacio en vez de dar error, que es peor.
+-- La app se conecta con la publishable key, o sea el rol anon (ver lib/supabase.ts),
+-- igual que el resto de las tablas de este demo. Una politica solo para
+-- service_role bloquea TODO en silencio y el tablero se veria siempre vacio.
 drop policy if exists "service role" on public.tickets;
-create policy "service role" on public.tickets
-  for all using (auth.role() = 'service_role') with check (auth.role() = 'service_role');
+drop policy if exists "tickets anon all" on public.tickets;
+create policy "tickets anon all" on public.tickets
+  for all to anon using (true) with check (true);
