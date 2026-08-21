@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgePercent, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
+import { BadgePercent, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -23,6 +23,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { id: "bandeja", href: "/", label: "Bandeja", Icon: Inbox },
   { id: "mis-chats", href: "/mis-chats", label: "Mis chats", Icon: BotOff },
+  { id: "tickets", href: "/tickets", label: "Tickets", Icon: TicketCheck },
   { id: "hoy", href: "/hoy", label: "Hoy", Icon: ConciergeBell },
   { id: "contactos", href: "/contactos", label: "Contactos", Icon: Contact },
   { id: "habitaciones", href: "/habitaciones", label: "Habitaciones", Icon: BedDouble },
@@ -75,6 +76,10 @@ export function Sidebar({
   // lo que enciende en Promociones es lo único que el agente puede ofrecer, y
   // Perfil le muestra en cuatro tarjetas cómo está configurado.
   const veYali = tenant === "yaly";
+  // "tickets" es el tablero de casos que Sofia no resuelve sola. Salio de la
+  // reunion del 20 de agosto con el hospital y por ahora sus areas y su semilla
+  // son las del hospital: se abre a otro tenant cuando tenga las suyas.
+  const veTickets = tenant === "hospital";
   // El banco es un centro de COBRANZA: no publica en redes. Recibe mensajes de
   // Instagram y Facebook (eso sigue en la bandeja), pero no programa contenido.
   const veRedes = tenant !== "promerica";
@@ -94,6 +99,7 @@ export function Sidebar({
       (item.id !== "campanas" || veCobros) &&
       (item.id !== "redes" || veRedes) &&
       (item.id !== "mis-chats" || veYali) &&
+      (item.id !== "tickets" || veTickets) &&
       (item.id !== "promociones" || veYali) &&
       (item.id !== "perfil" || veYali),
   );

@@ -30,7 +30,6 @@ import { generarRespuesta, type TurnoIA } from "../lib/ai";
 import { transcribirAudio } from "../lib/transcribir";
 import { costoDeUso, tokensPrompt, type UsoTokens } from "../lib/tokens-precios";
 import { TENANTS } from "../lib/tenants";
-import { descargarImagenParaIA } from "../lib/wa-media";
 
 const TENANT = "yaly" as const;
 const SEDES = TENANTS.yaly.sucursales!.opciones;
@@ -101,6 +100,19 @@ function conversacion(i: number): { sede: (typeof SEDES)[number]; turnos: string
 }
 
 // ── Acumulador ──
+/** Una unidad medida: un mensaje, una nota de voz o una foto. */
+interface Unidad {
+  i: number;
+  que: string; // qué se le mandó, en corto
+  modelo: string;
+  llamadas: number;
+  entrada: number;
+  salida: number;
+  tokensImagen: number;
+  costo: number;
+  ms: number;
+}
+
 interface Acumulado {
   n: number;
   llamadas: number;
@@ -110,20 +122,42 @@ interface Acumulado {
   costo: number;
   ms: number[];
   errores: number;
+  /** Fila por fila. Es lo que permite mirar UNA unidad y no solo el promedio. */
+  unidades: Unidad[];
 }
 
 function vacio(): Acumulado {
-  return { n: 0, llamadas: 0, entrada: 0, salida: 0, tokensImagen: 0, costo: 0, ms: [], errores: 0 };
+  return { n: 0, llamadas: 0, entrada: 0, salida: 0, tokensImagen: 0, costo: 0, ms: [], errores: 0, unidades: [] };
 }
 
-function sumar(a: Acumulado, uso: UsoTokens, modelo: string, llamadas: number, ms: number, tokensImagen = 0) {
+function sumar(
+  a: Acumulado,
+  uso: UsoTokens,
+  modelo: string,
+  llamadas: number,
+  ms: number,
+  tokensImagen = 0,
+  que = "",
+) {
   a.n += 1;
   a.llamadas += llamadas;
   a.entrada += tokensPrompt(uso);
   a.salida += uso.output_tokens;
   a.tokensImagen += tokensImagen;
-  a.costo += costoDeUso(uso, modelo).total;
+  const costo = costoDeUso(uso, modelo).total;
+  a.costo += costo;
   a.ms.push(ms);
+  a.unidades.push({
+    i: a.n,
+    que,
+    modelo,
+    llamadas,
+    entrada: tokensPrompt(uso),
+    salida: uso.output_tokens,
+    tokensImagen,
+    costo,
+    ms,
+  });
 }
 
 function percentil(xs: number[], p: number): number {
@@ -152,9 +186,13 @@ async function enTandas<T>(tareas: (() => Promise<T>)[], conc: number, alAvanzar
   return resultados;
 }
 
+// OJO con el `||`: `--audio 0` es cero, no "sin valor". Con el fallback
+// ingenuo, pedir cero audios corria los dos por defecto.
 function arg(nombre: string, def: number): number {
   const i = process.argv.indexOf(`--${nombre}`);
-  return i > 0 ? Number(process.argv[i + 1]) || def : def;
+  if (i < 0) return def;
+  const v = Number(process.argv[i + 1]);
+  return Number.isFinite(v) ? v : def;
 }
 
 async function main() {
@@ -204,7 +242,7 @@ async function main() {
               tenantId: TENANT,
               sucursal: conv.sede,
             });
-            sumar(texto, r.uso, r.modelo, r.llamadas, Date.now() - t0);
+            sumar(texto, r.uso, r.modelo, r.llamadas, Date.now() - t0, 0, t);
           } catch {
             texto.errores++;
           }
@@ -248,6 +286,8 @@ async function main() {
             r.modelo,
             1,
             Date.now() - t0,
+            0,
+            `${path.basename(archivo)} · ${dur.toFixed(1)} s`,
           );
         });
       }
@@ -281,7 +321,7 @@ async function main() {
             tenantId: TENANT,
             sucursal: conv.sede,
           });
-          sumar(imagenes, r.uso, r.modelo, r.llamadas, Date.now() - t0, r.tokensImagen);
+          sumar(imagenes, r.uso, r.modelo, r.llamadas, Date.now() - t0, r.tokensImagen, path.basename(archivo));
         } catch {
           imagenes.errores++;
         }
@@ -331,6 +371,7 @@ async function main() {
       costoUnitario: b.a.n ? b.a.costo / b.a.n : 0,
       p50ms: percentil(b.a.ms, 0.5),
       p95ms: percentil(b.a.ms, 0.95),
+      unidades: b.a.unidades,
     })),
     costoTotal,
   };
