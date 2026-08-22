@@ -13,11 +13,11 @@ export interface MemoriaLlamada {
   /** Teléfono normalizado. Es la llave. */
   telefono: string;
   nombre?: string;
-  /** Modelos por los que preguntó, del más reciente al más viejo. */
+  /** Modelos (concesionario) o temas de consulta (hospital), del más reciente al más viejo. */
   modelos: string[];
-  /** Para qué lo quiere: familia, trabajo, ciudad, primer carro. */
+  /** Concesionario: para qué lo quiere. Hospital: motivo de la consulta. */
   uso?: string;
-  /** Contado o financiamiento. */
+  /** Concesionario: contado o financiamiento. Hospital: con qué doctora se atiende. */
   pago?: string;
   /** Si en alguna llamada quedó una cita. */
   agendo: boolean;
@@ -97,13 +97,49 @@ function haceCuanto(iso: string, ahora = Date.now()): string {
 }
 
 /**
+ * Cómo se redacta cada campo según el negocio.
+ *
+ * Los campos del registro son los mismos, pero significan cosas distintas: en el
+ * concesionario `uso` es para qué quiere el carro y `pago` cómo lo paga; en el
+ * hospital `uso` es el motivo de consulta y `pago` con qué doctora se atiende.
+ * Sin esto, la memoria del hospital diría "la quería para su control prenatal".
+ */
+export interface FrasesMemoria {
+  unModelo: (x: string) => string;
+  variosModelos: (x: string) => string;
+  uso: (x: string) => string;
+  pago: (x: string) => string;
+  agendo: string;
+}
+
+export const FRASES_AUTO: FrasesMemoria = {
+  unModelo: (x) => `Andaba viendo la ${x}.`,
+  variosModelos: (x) => `Preguntó por ${x}.`,
+  uso: (x) => `La quería para ${x}.`,
+  pago: (x) => `Hablaron de ${x}.`,
+  agendo: "Quedó una cita agendada.",
+};
+
+export const FRASES_HOSPITAL: FrasesMemoria = {
+  unModelo: (x) => `Consultó por ${x}.`,
+  variosModelos: (x) => `Consultó por ${x}.`,
+  uso: (x) => `Llamó por ${x}.`,
+  pago: (x) => `Se atiende con ${x}.`,
+  agendo: "Tiene una cita agendada.",
+};
+
+/**
  * El párrafo que recibe el agente.
  *
  * En prosa y no en campos a propósito. Con una ficha ("uso: familia | pago:
  * financiamiento") el modelo tiende a leerla en voz alta; con una frase suelta
  * la usa como un dato que ya sabía.
  */
-export function contextoParaAgente(m: MemoriaLlamada | null, ahora = Date.now()): string {
+export function contextoParaAgente(
+  m: MemoriaLlamada | null,
+  ahora = Date.now(),
+  frases: FrasesMemoria = FRASES_AUTO,
+): string {
   if (!m || m.llamadas === 0) {
     return "Es la primera vez que llama este número. No hay nada previo, atendela como nueva y no menciones nada de historial.";
   }
@@ -115,12 +151,11 @@ export function contextoParaAgente(m: MemoriaLlamada | null, ahora = Date.now())
       : `Ya llamó ${m.llamadas} veces, la última ${haceCuanto(m.ultima, ahora)}.`,
   );
   if (m.nombre) partes.push(`Se llama ${m.nombre}.`);
-  if (m.modelos.length === 1) partes.push(`Andaba viendo la ${m.modelos[0]}.`);
-  else if (m.modelos.length > 1)
-    partes.push(`Preguntó por ${m.modelos.slice(0, 2).join(" y ")}.`);
-  if (m.uso) partes.push(`La quería para ${m.uso}.`);
-  if (m.pago) partes.push(`Hablaron de ${m.pago}.`);
-  if (m.agendo) partes.push("Quedó una cita agendada.");
+  if (m.modelos.length === 1) partes.push(frases.unModelo(m.modelos[0]));
+  else if (m.modelos.length > 1) partes.push(frases.variosModelos(m.modelos.slice(0, 2).join(" y ")));
+  if (m.uso) partes.push(frases.uso(m.uso));
+  if (m.pago) partes.push(frases.pago(m.pago));
+  if (m.agendo) partes.push(frases.agendo);
   if (m.resumen) partes.push(`De la última llamada: ${m.resumen}`);
 
   return (

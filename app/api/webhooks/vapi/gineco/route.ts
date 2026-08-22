@@ -1,3 +1,4 @@
+import { FRASES_HOSPITAL } from "@/lib/memoria-llamadas";
 import { comoLista, comoTexto, diagnosticoMemoria, manejarMemoria } from "@/lib/memoria-webhook";
 
 export const runtime = "nodejs";
@@ -6,40 +7,29 @@ export const maxDuration = 30;
 
 // Memoria del agente de voz del Hospital Centro Ginecológico.
 //
-// NO es la misma memoria que la del concesionario, y la diferencia es a
-// propósito. Acá lo que se conversa es salud: por qué la operaron, si perdió un
-// embarazo, qué resultado esperaba. Guardar eso convierte una libreta de
-// recepción en un expediente clínico paralelo, sin consentimiento, sin las
-// protecciones que un expediente tiene y en una tabla que lee la app entera.
+// Guarda todo lo relevante de la llamada, pedido por el hospital: el motivo, la
+// especialidad, la doctora que la atiende, los estudios de los que se habló y si
+// quedó una cita. Es lo mismo que anota una recepcionista cuando reconoce a una
+// paciente que vuelve, y es lo que permite que la segunda llamada no empiece de
+// cero.
 //
-// Entonces se guarda lo ADMINISTRATIVO y nada más:
-//   sí   el nombre, el área con la que trata, si tiene cita pendiente.
-//   NO   síntomas, diagnósticos, resultados, tratamientos, embarazos, pérdidas.
-//
-// El filtro está acá abajo además de estar en el guion del extractor, porque una
-// sola línea de defensa contra esto no alcanza: si al modelo se le escapa un
-// síntoma, no tiene que llegar a la base.
-
-/** Palabras que delatan contenido clínico. Si aparecen, el campo se descarta. */
-const CLINICO =
-  /(embaraz|aborto|p[eé]rdida|sangr|dolor|s[ií]ntoma|diagn[oó]stic|tratamient|resultado|examen|biopsia|c[aá]ncer|tumor|quiste|infecci|cirug|ces[aá]rea|parto|menstrua|regla|fertil|anticoncep|papanicola|citolog|colposcop|ultrasonid|prueba|medicament|receta|VIH|ITS)/i;
-
-const sinDatosDeSalud = (v: unknown): string | undefined => {
-  const t = comoTexto(v);
-  return t && !CLINICO.test(t) ? t : undefined;
-};
+// La ruta es PÚBLICA (la llama Vapi desde sus servidores, ver middleware.ts) y
+// valida el secreto compartido.
 
 const OPCIONES = {
   tenant: "gineco",
+  frases: FRASES_HOSPITAL,
   extraer: (d: Record<string, unknown>, resumen?: string) => ({
     nombre: comoTexto(d.nombre),
-    // "modelos" acá son las ÁREAS con las que ya trató (recepción, caja,
-    // laboratorio). Se reusa el campo para no tener dos formas de lo mismo.
-    modelos: comoLista(d.areas).filter((a) => !CLINICO.test(a)),
-    uso: undefined,
-    pago: undefined,
+    // Temas de la llamada: especialidad, estudios, área. Se reusa el campo
+    // "modelos" del modelo compartido para no tener dos formas de lo mismo.
+    modelos: comoLista(d.temas),
+    // En un hospital "uso" es el motivo por el que consulta, y "pago" es con
+    // quién se atiende. Mismos campos, otro significado según el tenant.
+    uso: comoTexto(d.motivo),
+    pago: comoTexto(d.doctora),
     agendo: d.agendo === true,
-    resumen: sinDatosDeSalud(d.resumen) ?? sinDatosDeSalud(resumen),
+    resumen: comoTexto(d.resumen) ?? comoTexto(resumen),
   }),
 };
 

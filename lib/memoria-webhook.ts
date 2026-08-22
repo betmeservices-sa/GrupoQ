@@ -6,7 +6,14 @@
 // desincronizan a la primera corrección.
 
 import { NextResponse } from "next/server";
-import { contextoParaAgente, fundir, normalizarTelefono, type ExtractoLlamada } from "./memoria-llamadas";
+import {
+  contextoParaAgente,
+  FRASES_AUTO,
+  fundir,
+  normalizarTelefono,
+  type ExtractoLlamada,
+  type FrasesMemoria,
+} from "./memoria-llamadas";
 import { diagnostico, guardarMemoria, leerMemoria } from "./memoria-store";
 
 export interface CuerpoVapi {
@@ -26,11 +33,14 @@ export interface OpcionesMemoria {
   /**
    * Qué se queda de la llamada.
    *
-   * Es un gancho por tenant y no un mapeo fijo porque el criterio cambia: en un
-   * concesionario conviene guardar todo lo que se habló; en un hospital, no.
-   * Ver la ruta del gineco.
+   * Es un gancho por tenant y no un mapeo fijo porque los mismos campos
+   * significan cosas distintas: en el concesionario son modelos, uso y forma de
+   * pago; en el hospital son temas, motivo de consulta y con qué doctora se
+   * atiende.
    */
   extraer: (d: Record<string, unknown>, resumen?: string) => ExtractoLlamada;
+  /** Cómo se redacta el párrafo. Por defecto, el vocabulario del concesionario. */
+  frases?: FrasesMemoria;
 }
 
 function secretoValido(req: Request): boolean {
@@ -82,7 +92,11 @@ export async function manejarMemoria(req: Request, op: OpcionesMemoria) {
     const telefono = telefonoDe(msg);
     let texto: string;
     try {
-      texto = contextoParaAgente(telefono ? await leerMemoria(op.tenant, telefono) : null);
+      texto = contextoParaAgente(
+        telefono ? await leerMemoria(op.tenant, telefono) : null,
+        Date.now(),
+        op.frases ?? FRASES_AUTO,
+      );
     } catch (err) {
       // Nunca se rompe la llamada por esto. Sin memoria el agente atiende igual.
       console.error(`[memoria ${op.tenant}] fallo la consulta:`, err);
