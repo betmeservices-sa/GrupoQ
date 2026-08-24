@@ -20,6 +20,7 @@ export type ModuleId =
   | "campanas"
   | "interno"
   | "redes"
+  | "comentarios"
   | "promociones"
   | "perfil"
   | "dashboard"
@@ -48,18 +49,20 @@ export interface RoleDef {
 // "mis-chats", "promociones" y "perfil" solo existen en Yali Hospitality. Las
 // promociones alimentan en vivo lo que el agente puede ofrecer, así que las ve
 // también marketing; el perfil del agente lo tocan solo dirección y jefatura.
+// "comentarios" es la otra mitad de la bandeja: lo que preguntan en publico
+// debajo de las publicaciones. Lo ve quien atiende y quien lleva las redes.
 // "tickets" es el tablero de casos que el agente no resuelve solo. Lo trabajan
 // quienes atienden (recepcion, medico) y lo mira jefatura por las metricas;
 // marketing no gestiona casos, asi que no lo ve.
 // "mis-chats" lo ve todo el mundo: es donde caen los chats que el agente pasa a
 // una persona, y quien atiende tiene que verlos sin depender de su rol.
-const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "promociones", "perfil", "dashboard", "llamadas", "agentes", "settings"];
+const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "dashboard", "llamadas", "agentes", "settings"];
 const VE: Record<RoleId, ModuleId[]> = {
-  recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "interno"],
-  marketing: ["bandeja", "mis-chats", "contactos", "cartera", "publicacion", "cobros", "redes", "promociones"],
+  recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "interno", "comentarios"],
+  marketing: ["bandeja", "mis-chats", "contactos", "cartera", "publicacion", "cobros", "redes", "comentarios", "promociones"],
   gerente_marketing: TODO,
   medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno"],
-  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "interno", "promociones", "perfil", "dashboard"],
+  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "interno", "redes", "comentarios", "promociones", "perfil", "dashboard"],
   admin: TODO,
 };
 
@@ -93,6 +96,7 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   campanas: "/campanas",
   interno: "/interno",
   redes: "/redes",
+  comentarios: "/comentarios",
   promociones: "/promociones",
   perfil: "/perfil",
   dashboard: "/dashboard",
@@ -118,6 +122,7 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname.startsWith("/campanas")) return "campanas";
   if (pathname.startsWith("/interno")) return "interno";
   if (pathname.startsWith("/redes")) return "redes";
+  if (pathname.startsWith("/comentarios")) return "comentarios";
   if (pathname.startsWith("/promociones")) return "promociones";
   if (pathname.startsWith("/perfil")) return "perfil";
   if (pathname.startsWith("/dashboard")) return "dashboard";

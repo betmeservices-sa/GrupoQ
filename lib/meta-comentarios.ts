@@ -1,0 +1,222 @@
+// Comentarios de las publicaciones, en Facebook e Instagram.
+//
+// Es donde se pierden más reservas: alguien pregunta el precio debajo de una
+// foto, nadie contesta en dos días, y se fue. Los mensajes privados ya se
+// atienden (ver meta-messages-store); esto es la otra mitad.
+//
+// Los permisos ya venían pedidos en el OAuth: pages_read_user_content y
+// pages_manage_engagement para Facebook, instagram_manage_comments para
+// Instagram. No hay que volver a autorizar nada.
+
+import type { MetaConnection } from "./meta-store";
+
+const GRAPH = "https://graph.facebook.com/v21.0";
+
+export type RedComentario = "facebook" | "instagram";
+
+export interface Comentario {
+  id: string;
+  red: RedComentario;
+  /** Publicación sobre la que se comentó. */
+  postId: string;
+  /** Texto o miniatura del post, para saber de qué hablan sin salir de la lista. */
+  postResumen?: string;
+  postImagen?: string;
+  autor: string;
+  texto: string;
+  ts: string;
+  /** Cuántas respuestas tiene ya (las nuestras y las de otros). */
+  respuestas: number;
+  /** true si es respuesta a otro comentario, no un comentario de primer nivel. */
+  esRespuesta: boolean;
+  oculto: boolean;
+  meGusta: number;
+  /** Página o cuenta a la que pertenece, para responder con el token correcto. */
+  pageId: string;
+}
+
+interface RespuestaGraph<T> {
+  data?: T[];
+  error?: { message?: string; code?: number; type?: string };
+}
+
+async function pedir<T>(url: string): Promise<RespuestaGraph<T>> {
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    return (await r.json()) as RespuestaGraph<T>;
+  } catch (e) {
+    return { error: { message: e instanceof Error ? e.message : "fallo la red" } };
+  }
+}
+
+/** Recorta el texto de un post para usarlo de referencia en la lista. */
+function resumir(t?: string): string | undefined {
+  if (!t) return undefined;
+  const limpio = t.replace(/\s+/g, " ").trim();
+  return limpio.length > 70 ? limpio.slice(0, 70) + "..." : limpio;
+}
+
+// ── Facebook ─────────────────────────────────────────────────────────────────
+
+interface PostFb {
+  id: string;
+  message?: string;
+  full_picture?: string;
+  comments?: {
+    data?: {
+      id: string;
+      message?: string;
+      created_time?: string;
+      from?: { name?: string };
+      like_count?: number;
+      is_hidden?: boolean;
+      comment_count?: number;
+      parent?: { id?: string };
+    }[];
+  };
+}
+
+/**
+ * Comentarios de las últimas publicaciones de una página.
+ *
+ * Se piden anidados dentro de los posts en una sola llamada en vez de un pedido
+ * por post: con veinte publicaciones eso serían veintiún viajes, y la pantalla
+ * tardaría más que lo que la gente está dispuesta a esperar.
+ */
+export async function comentariosFacebook(c: MetaConnection, limitePosts = 15): Promise<Comentario[]> {
+  const campos =
+    `id,message,full_picture,comments.limit(25){id,message,created_time,from,like_count,is_hidden,comment_count,parent}`;
+  const url = `${GRAPH}/${c.pageId}/posts?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
+  const r = await pedir<PostFb>(url);
+  if (r.error) throw new Error(r.error.message ?? "Facebook no devolvió los comentarios.");
+
+  const out: Comentario[] = [];
+  for (const post of r.data ?? []) {
+    for (const co of post.comments?.data ?? []) {
+      out.push({
+        id: co.id,
+        red: "facebook",
+        postId: post.id,
+        postResumen: resumir(post.message),
+        postImagen: post.full_picture,
+        autor: co.from?.name ?? "Alguien",
+        texto: co.message ?? "",
+        ts: co.created_time ?? new Date().toISOString(),
+        respuestas: co.comment_count ?? 0,
+        esRespuesta: Boolean(co.parent?.id),
+        oculto: co.is_hidden === true,
+        meGusta: co.like_count ?? 0,
+        pageId: c.pageId,
+      });
+    }
+  }
+  return out;
+}
+
+// ── Instagram ────────────────────────────────────────────────────────────────
+
+interface MediaIg {
+  id: string;
+  caption?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  comments?: {
+    data?: {
+      id: string;
+      text?: string;
+      timestamp?: string;
+      username?: string;
+      like_count?: number;
+      hidden?: boolean;
+      replies?: { data?: unknown[] };
+    }[];
+  };
+}
+
+export async function comentariosInstagram(c: MetaConnection, limitePosts = 15): Promise<Comentario[]> {
+  if (!c.igId) return [];
+  const campos =
+    `id,caption,media_url,thumbnail_url,comments.limit(25){id,text,timestamp,username,like_count,hidden,replies}`;
+  const url = `${GRAPH}/${c.igId}/media?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
+  const r = await pedir<MediaIg>(url);
+  if (r.error) throw new Error(r.error.message ?? "Instagram no devolvió los comentarios.");
+
+  const out: Comentario[] = [];
+  for (const m of r.data ?? []) {
+    for (const co of m.comments?.data ?? []) {
+      out.push({
+        id: co.id,
+        red: "instagram",
+        postId: m.id,
+        postResumen: resumir(m.caption),
+        // Los videos no traen media_url usable como miniatura; para eso está thumbnail_url.
+        postImagen: m.thumbnail_url ?? m.media_url,
+        autor: co.username ?? "Alguien",
+        texto: co.text ?? "",
+        ts: co.timestamp ?? new Date().toISOString(),
+        respuestas: co.replies?.data?.length ?? 0,
+        esRespuesta: false,
+        oculto: co.hidden === true,
+        meGusta: co.like_count ?? 0,
+        pageId: c.pageId,
+      });
+    }
+  }
+  return out;
+}
+
+/** Todo junto, lo más nuevo primero. */
+export async function comentariosDe(conexiones: MetaConnection[]): Promise<Comentario[]> {
+  const tandas = await Promise.all(
+    conexiones.flatMap((c) => [
+      comentariosFacebook(c).catch((e) => {
+        // Una página caída no puede dejar la pantalla en blanco: se anota y se
+        // sigue con las demás.
+        console.error("[comentarios fb]", c.pageName, e);
+        return [] as Comentario[];
+      }),
+      comentariosInstagram(c).catch((e) => {
+        console.error("[comentarios ig]", c.pageName, e);
+        return [] as Comentario[];
+      }),
+    ]),
+  );
+  return tandas.flat().sort((a, b) => (a.ts < b.ts ? 1 : -1));
+}
+
+// ── Acciones ─────────────────────────────────────────────────────────────────
+
+async function accion(url: string, metodo: "POST" | "DELETE", cuerpo?: URLSearchParams) {
+  const r = await fetch(url, { method: metodo, body: cuerpo });
+  const j = (await r.json()) as { error?: { message?: string } };
+  if (j.error) throw new Error(j.error.message ?? "Meta rechazó la acción.");
+  return j;
+}
+
+/**
+ * Responder un comentario.
+ *
+ * Sirve para Facebook y para Instagram: las dos usan /replies con `message`.
+ * En las dos se publica contra el id del comentario, no del post: así la
+ * respuesta queda colgando del comentario y la persona recibe el aviso. Si se
+ * publicara contra el post, aparecería suelta abajo y el que preguntó no se
+ * entera.
+ */
+export async function responderComentario(c: MetaConnection, comentarioId: string, texto: string) {
+  const t = texto.trim();
+  if (!t) throw new Error("La respuesta viene vacía.");
+  const cuerpo = new URLSearchParams({ message: t, access_token: c.pageToken });
+  return accion(`${GRAPH}/${comentarioId}/replies`, "POST", cuerpo);
+}
+
+/**
+ * Ocultar o mostrar. NO borrar.
+ *
+ * Ocultar deja el comentario visible para quien lo escribió y para sus amigos,
+ * así que no se dan cuenta y no arma pleito. Borrar sí se nota, y el que se
+ * siente censurado vuelve más enojado. Por eso acá no hay borrar.
+ */
+export async function ocultarComentario(c: MetaConnection, comentarioId: string, oculto: boolean) {
+  const cuerpo = new URLSearchParams({ is_hidden: String(oculto), access_token: c.pageToken });
+  return accion(`${GRAPH}/${comentarioId}`, "POST", cuerpo);
+}

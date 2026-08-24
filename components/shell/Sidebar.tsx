@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgePercent, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
+import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -36,6 +36,7 @@ const NAV: NavItem[] = [
   { id: "campanas", href: "/campanas", label: "Campañas", Icon: PhoneOutgoing },
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
+  { id: "comentarios", href: "/comentarios", label: "Comentarios", Icon: MsgSq },
   { id: "promociones", href: "/promociones", label: "Promociones", Icon: BadgePercent },
   { id: "perfil", href: "/perfil", label: "Perfil del agente", Icon: IdCard },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },
@@ -98,6 +99,7 @@ export function Sidebar({
       (item.id !== "cobros" || veCobros) &&
       (item.id !== "campanas" || veCobros) &&
       (item.id !== "redes" || veRedes) &&
+      (item.id !== "comentarios" || veRedes) &&
       (item.id !== "mis-chats" || veYali) &&
       (item.id !== "tickets" || veTickets) &&
       (item.id !== "promociones" || veYali) &&

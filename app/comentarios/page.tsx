@@ -1,0 +1,287 @@
+"use client";
+
+// Comentarios de las publicaciones.
+//
+// Es la otra mitad de la bandeja. Los mensajes privados ya se atienden; acá se
+// atiende lo público, que es donde se pierden más reservas: alguien pregunta el
+// precio debajo de una foto, nadie contesta en dos días, y se fue.
+//
+// La pantalla abre en "sin responder" a propósito. Ver todos los comentarios
+// ordenados por fecha no sirve para trabajar: lo que hay que ver es la cola.
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { EyeOff, Eye, Instagram, Facebook, Loader2, MessageSquare, RefreshCw, Send } from "lucide-react";
+import { cn } from "@/lib/cn";
+import type { Comentario } from "@/lib/meta-comentarios";
+
+type Filtro = "pendientes" | "todos" | "ocultos";
+
+const ICONO = { facebook: Facebook, instagram: Instagram };
+
+function haceCuanto(iso: string) {
+  const min = Math.floor((Date.now() - Date.parse(iso)) / 60000);
+  if (!Number.isFinite(min) || min < 1) return "recién";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "ayer" : `hace ${d} días`;
+}
+
+export default function ComentariosPage() {
+  const [datos, setDatos] = useState<{ comentarios: Comentario[]; sinConexion?: boolean } | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [filtro, setFiltro] = useState<Filtro>("pendientes");
+  const [abierto, setAbierto] = useState<string | null>(null);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    const r = await fetch("/api/meta/comentarios", { cache: "no-store" });
+    const j = await r.json();
+    setDatos({ comentarios: j.comentarios ?? [], sinConexion: j.sinConexion });
+    setCargando(false);
+  }, []);
+
+  useEffect(() => {
+    void cargar();
+  }, [cargar]);
+
+  const todos = datos?.comentarios ?? [];
+  // "Sin responder" es una aproximación honesta: Meta no dice quién respondió,
+  // solo cuántas respuestas hay. Un comentario sin ninguna respuesta es, sin
+  // duda, uno que nadie atendió.
+  const pendientes = useMemo(() => todos.filter((c) => c.respuestas === 0 && !c.oculto), [todos]);
+  const visibles = useMemo(() => {
+    if (filtro === "ocultos") return todos.filter((c) => c.oculto);
+    if (filtro === "todos") return todos.filter((c) => !c.oculto);
+    return pendientes;
+  }, [todos, pendientes, filtro]);
+
+  return (
+    <div className="flex h-full flex-col">
+      <header className="flex flex-wrap items-center gap-3 border-b border-line bg-card px-5 py-3">
+        <div className="mr-auto">
+          <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Comentarios</h1>
+          <p className="text-[12.5px] text-[var(--text-3)]">
+            Lo que preguntan en público, debajo de tus publicaciones
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void cargar()}
+          disabled={cargando}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[13px] font-semibold text-[var(--text-2)] disabled:opacity-60"
+        >
+          <RefreshCw size={14} className={cargando ? "animate-spin" : ""} />
+          Actualizar
+        </button>
+      </header>
+
+      <div className="flex-1 space-y-4 overflow-y-auto p-5">
+        {datos?.sinConexion ? (
+          <div className="rounded-2xl border border-dashed border-[var(--border-2)] bg-card p-8 text-center">
+            <MessageSquare size={26} className="mx-auto text-[var(--text-3)]" />
+            <p className="mt-2 text-[13.5px] font-semibold text-[var(--text-1)]">
+              Todavía no hay redes conectadas
+            </p>
+            <p className="mx-auto mt-1 max-w-md text-[12.5px] leading-relaxed text-[var(--text-3)]">
+              Cuando conectes las páginas de Facebook e Instagram, los comentarios de tus
+              publicaciones van a caer acá para responderlos sin salir del panel.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <Pestana activo={filtro === "pendientes"} onClick={() => setFiltro("pendientes")}>
+                Sin responder{pendientes.length ? ` · ${pendientes.length}` : ""}
+              </Pestana>
+              <Pestana activo={filtro === "todos"} onClick={() => setFiltro("todos")}>
+                Todos
+              </Pestana>
+              <Pestana activo={filtro === "ocultos"} onClick={() => setFiltro("ocultos")}>
+                Ocultos
+              </Pestana>
+            </div>
+
+            {cargando && !datos ? (
+              <p className="flex items-center gap-2 py-8 text-[13px] text-[var(--text-3)]">
+                <Loader2 size={15} className="animate-spin" />
+                Trayendo comentarios de Facebook e Instagram
+              </p>
+            ) : visibles.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[var(--border-2)] bg-card p-8 text-center">
+                <MessageSquare size={26} className="mx-auto text-[var(--text-3)]" />
+                <p className="mt-2 text-[13px] text-[var(--text-2)]">
+                  {filtro === "pendientes"
+                    ? "No queda ningún comentario sin responder."
+                    : "Nada por acá."}
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {visibles.map((c) => (
+                  <li key={c.id}>
+                    <Fila
+                      c={c}
+                      abierto={abierto === c.id}
+                      onToggle={() => setAbierto(abierto === c.id ? null : c.id)}
+                      onHecho={cargar}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Pestana({
+  activo,
+  onClick,
+  children,
+}: {
+  activo: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-3 py-1.5 text-[12.5px] transition",
+        activo
+          ? "border-brand bg-brand text-white"
+          : "border-line bg-card text-[var(--text-2)] hover:border-[var(--border-2)]",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Fila({
+  c,
+  abierto,
+  onToggle,
+  onHecho,
+}: {
+  c: Comentario;
+  abierto: boolean;
+  onToggle: () => void;
+  onHecho: () => Promise<void>;
+}) {
+  const [texto, setTexto] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const Icono = ICONO[c.red];
+
+  async function accionar(cuerpo: Record<string, unknown>) {
+    setEnviando(true);
+    setError(null);
+    const r = await fetch("/api/meta/comentarios", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: c.id, pageId: c.pageId, ...cuerpo }),
+    });
+    const j = await r.json();
+    setEnviando(false);
+    if (!j.ok) {
+      setError(j.error ?? "No se pudo.");
+      return;
+    }
+    setTexto("");
+    await onHecho();
+  }
+
+  return (
+    <div className={cn("rounded-xl border bg-card", c.oculto ? "border-dashed border-[var(--border-2)]" : "border-line")}>
+      <button type="button" onClick={onToggle} className="flex w-full items-start gap-3 px-4 py-3 text-left">
+        <span className="mt-0.5 shrink-0 text-[var(--text-3)]">
+          <Icono size={15} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-[13.5px] font-semibold text-[var(--text-1)]">{c.autor}</span>
+            <span className="text-[11.5px] text-[var(--text-3)]">{haceCuanto(c.ts)}</span>
+            {c.oculto && (
+              <span className="rounded-full bg-[var(--bg-2,#f1f5f9)] px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                Oculto
+              </span>
+            )}
+          </span>
+          <span className="mt-0.5 block text-[13px] leading-relaxed text-[var(--text-2)]">{c.texto}</span>
+          {c.postResumen && (
+            <span className="mt-1 block truncate text-[11.5px] text-[var(--text-3)]">
+              en: {c.postResumen}
+            </span>
+          )}
+        </span>
+        {c.postImagen && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={c.postImagen}
+            alt=""
+            className="h-11 w-11 shrink-0 rounded-lg object-cover"
+            loading="lazy"
+          />
+        )}
+      </button>
+
+      {abierto && (
+        <div className="space-y-2.5 border-t border-line px-4 py-3">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (texto.trim()) void accionar({ texto });
+            }}
+            className="flex gap-2"
+          >
+            <input
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder={`Responderle a ${c.autor}`}
+              className="flex-1 rounded-lg border border-line bg-card px-3 py-2 text-[12.5px]"
+            />
+            <button
+              type="submit"
+              disabled={enviando || !texto.trim()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-[12.5px] font-semibold text-white disabled:opacity-50"
+            >
+              {enviando ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+              Responder
+            </button>
+          </form>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void accionar({ ocultar: !c.oculto })}
+              disabled={enviando}
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-2)] disabled:opacity-50"
+            >
+              {c.oculto ? <Eye size={13} /> : <EyeOff size={13} />}
+              {c.oculto ? "Volver a mostrar" : "Ocultar"}
+            </button>
+            <span className="text-[11.5px] text-[var(--text-3)]">
+              {c.respuestas === 0 ? "sin respuestas" : `${c.respuestas} respuesta${c.respuestas > 1 ? "s" : ""}`}
+              {c.meGusta > 0 && ` · ${c.meGusta} me gusta`}
+            </span>
+          </div>
+
+          {/* Ocultar y no borrar es a propósito: quien lo escribió lo sigue
+              viendo, así que no se da cuenta y no arma pleito. */}
+          <p className="text-[11px] leading-relaxed text-[var(--text-3)]">
+            Al ocultar, el comentario deja de verse para el público pero quien lo escribió lo sigue
+            viendo. No se borra.
+          </p>
+
+          {error && <p className="text-[12px] text-[var(--bad-fg,#991b1b)]">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}

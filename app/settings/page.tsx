@@ -295,6 +295,8 @@ export default function SettingsPage() {
             </div>
           )}
 
+          <ConexionManual onListo={() => location.reload()} />
+
           {metaEstado === "conectado" && metaDetalle !== "0" && (
             <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12.5px] font-medium text-[#2f9e2f] ring-1 ring-[#00c040]/30">
               <CheckCircle2 size={14} />
@@ -624,3 +626,87 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+
+/**
+ * Alta manual de una página de Meta.
+ *
+ * Mientras la app no esté aprobada por Meta, el botón de conectar no sirve: el
+ * OAuth devuelve permisos recortados o directamente falla. Esto permite pegar
+ * el token de página que se saca del Explorador de la API de Graph y arrancar
+ * igual. Cuando la aprobación salga, conectar por OAuth sobrescribe estas
+ * conexiones por pageId y esto deja de hacer falta.
+ */
+function ConexionManual({ onListo }: { onListo: () => void }) {
+  const [abierto, setAbierto] = useState(false);
+  const [pageId, setPageId] = useState("");
+  const [igId, setIgId] = useState("");
+  const [token, setToken] = useState("");
+  const [estado, setEstado] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    setEnviando(true);
+    setEstado(null);
+    const r = await fetch("/api/meta/connections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pageId: pageId.trim(), igId: igId.trim(), pageToken: token.trim() }),
+    });
+    const j = await r.json();
+    setEnviando(false);
+    if (!j.ok) {
+      setEstado({ tipo: "error", texto: j.error ?? "No se pudo conectar." });
+      return;
+    }
+    setEstado({
+      tipo: "ok",
+      texto: j.suscrita
+        ? `Conectada ${j.pageName}. Ya está suscrita al webhook.`
+        : `Conectada ${j.pageName}, pero la suscripción al webhook falló: revisá que el token tenga pages_manage_metadata.`,
+    });
+    setToken("");
+    setTimeout(onListo, 1800);
+  }
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="mt-3 text-[12.5px] font-semibold text-brand underline underline-offset-2"
+      >
+        Conectar pegando el token a mano
+      </button>
+    );
+  }
+
+  const campo = "w-full rounded-lg border border-line bg-card px-3 py-2 text-[13px]";
+  return (
+    <form onSubmit={enviar} className="mt-3 space-y-2.5 rounded-xl border border-line bg-card p-4">
+      <p className="text-[12.5px] leading-relaxed text-[var(--text-3)]">
+        Para cuando Meta todavía no aprobó la app. El token de página se saca del Explorador de la
+        API de Graph, con permisos de mensajes sobre la página. Se valida y se suscribe al webhook
+        antes de guardarlo.
+      </p>
+      <input value={pageId} onChange={(e) => setPageId(e.target.value)} placeholder="ID de la página de Facebook" className={campo} required />
+      <input value={igId} onChange={(e) => setIgId(e.target.value)} placeholder="ID de la cuenta de Instagram (opcional)" className={campo} />
+      <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token de página" className={campo} required type="password" />
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="submit" disabled={enviando} className="rounded-lg bg-brand px-3.5 py-2 text-[13px] font-semibold text-white disabled:opacity-60">
+          {enviando ? "Comprobando con Meta" : "Conectar"}
+        </button>
+        <button type="button" onClick={() => setAbierto(false)} className="rounded-lg border border-line px-3.5 py-2 text-[13px] font-semibold text-[var(--text-2)]">
+          Cancelar
+        </button>
+      </div>
+      {estado && (
+        <p className={estado.tipo === "ok" ? "text-[12.5px] text-[#2f9e2f]" : "text-[12.5px] text-[var(--bad-fg,#991b1b)]"}>
+          {estado.texto}
+        </p>
+      )}
+    </form>
+  );
+}
+
