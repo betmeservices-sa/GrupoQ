@@ -18,6 +18,9 @@ const PUBLICAS = [
   "/api/auth/logout",
   "/api/webhooks/",
   "/api/meta/callback",
+  // Lo llama el sitio de miagentia.com, que no tiene sesion. Se defiende solo:
+  // lista cerrada de clientes, tope de tamano y freno por IP.
+  "/api/onboarding",
 ];
 
 function esPublica(pathname: string): boolean {

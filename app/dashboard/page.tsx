@@ -28,6 +28,7 @@ import { HotelOcupacion } from "@/components/dashboard/HotelOcupacion";
 import { YaliDashboard } from "@/components/dashboard/YaliDashboard";
 import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
 import { ConsumoIA } from "@/components/dashboard/ConsumoIA";
+import { RedesResumen } from "@/components/dashboard/RedesResumen";
 
 // Íconos disponibles para las tarjetas del dashboard (referenciados por nombre
 // desde la config del tenant).
@@ -65,6 +66,8 @@ export default function DashboardPage() {
   // Yali Hospitality tiene tres sedes y su propio libro de ocupación: su panel
   // arma la foto de los tres hoteles juntos.
   const esYali = activeTenantId() === "yaly";
+  // El banco es un centro de COBRANZA: no publica en redes, igual que en el menú.
+  const veRedes = activeTenantId() !== "promerica";
 
   const stats = useMemo(() => {
     const total = state.conversations.length;
@@ -112,12 +115,15 @@ export default function DashboardPage() {
 
         <OrigenCanales conversations={state.conversations} />
 
+        {veRedes && <RedesResumen />}
+
         {/* Lo que cuesta el agente de IA: tokens y dinero, texto e imágenes.
             Yali no llega hasta acá (tiene su propio tablero) y es a propósito: el
             consumo de tokens es cuenta nuestra, no del hotel. */}
         <ConsumoIA />
 
-        {esHotel && <HotelOcupacion />}
+        {esHotel && <HotelOcupacion />}
+
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <DeptBreakdown conversations={state.conversations} />

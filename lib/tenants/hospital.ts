@@ -128,6 +128,10 @@ export const hospitalTenant: TenantConfig = {
     { label: "Conversaciones hoy", icon: "MessageSquare", kind: "metric", metricLabel: "Conversaciones hoy", fallback: 0 },
     { label: "Tiempo de respuesta", icon: "Clock", kind: "metric", metricLabel: "Tiempo de respuesta", fallback: "6 min" },
     { label: "Resueltas", icon: "CheckCircle2", kind: "resolucionPct" },
+    { label: "Citas agendadas", icon: "CalendarCheck", kind: "metric", metricLabel: "Citas agendadas", fallback: 0 },
+    { label: "Tiempo medio de atención", icon: "Timer", kind: "metric", metricLabel: "Tiempo medio de atención", fallback: "8 min" },
+    { label: "Atendidas por IA", icon: "Bot", kind: "metric", metricLabel: "Atendidas por IA", fallback: "0%" },
+    { label: "Satisfacción (CSAT)", icon: "Smile", kind: "metric", metricLabel: "CSAT", fallback: "4.7 / 5" },
     { label: "Sin asignar", icon: "Inbox", kind: "sinAsignar" },
   ],
   waTemplates: [
