@@ -8,7 +8,10 @@
 // EN PRODUCCIÓN LAS CUENTAS VAN EN LA VARIABLE `USUARIOS`, nunca acá: este repo
 // es público. Formato, separando cuentas con coma:
 //
-//   USUARIOS="correo|contraseña|tenant|rol|Nombre Visible,otro|..."
+//   USUARIOS="correo|contraseña|tenant|rol|Nombre Visible|staffId,otro|..."
+//
+// El último campo une la cuenta con su ficha del equipo (s2, s3...), que es lo
+// que usa el chat interno para saber quién escribe.
 //
 // Si la variable existe, manda ella y esta lista deja de funcionar por completo.
 
@@ -22,6 +25,14 @@ export interface CuentaUsuario {
   tenant: TenantId;
   rol: RoleId;
   nombre: string;
+  /**
+   * Su ficha dentro del equipo (s2, s3...).
+   *
+   * Sin esto el chat interno no sabe a nombre de quién escribe: la cuenta es un
+   * correo y el equipo se identifica por id. Si falta, la persona entra pero no
+   * puede participar del chat interno.
+   */
+  staffId?: string;
 }
 
 const ROLES_VALIDOS = new Set<RoleId>([
@@ -52,7 +63,9 @@ function desdeEnv(): CuentaUsuario[] | null {
   if (!raw) return null;
   const cuentas: CuentaUsuario[] = [];
   for (const linea of raw.split(",")) {
-    const [usuario, password, tenant, rol, ...resto] = linea.split("|").map((x) => x.trim());
+    const [usuario, password, tenant, rol, nombre, staffId] = linea
+      .split("|")
+      .map((x) => x.trim());
     if (!usuario || !password || !tenant || !rol) continue;
     if (!isTenantId(tenant) || !esRol(rol)) continue;
     cuentas.push({
@@ -60,7 +73,8 @@ function desdeEnv(): CuentaUsuario[] | null {
       password,
       tenant,
       rol,
-      nombre: resto.join("|").trim() || usuario,
+      nombre: nombre || usuario,
+      staffId: staffId || undefined,
     });
   }
   return cuentas.length > 0 ? cuentas : null;
@@ -95,4 +109,9 @@ export function buscarCuenta(usuario: string, password: string): CuentaUsuario |
 export function cuentaDeUsuario(usuario: string): CuentaUsuario | null {
   const u = usuario.trim().toLowerCase();
   return cuentas().find((c) => c.usuario === u) ?? null;
+}
+
+/** La ficha de equipo de una cuenta, para firmar sus mensajes internos. */
+export function staffDeUsuario(usuario: string): string | null {
+  return cuentaDeUsuario(usuario)?.staffId ?? null;
 }

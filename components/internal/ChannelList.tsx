@@ -11,10 +11,18 @@ export function ChannelList({
   channels,
   activoId,
   onSelect,
+  yo,
+  sinLeer,
+  pie,
 }: {
   channels: InternalChannel[];
   activoId: string | null;
   onSelect: (id: string) => void;
+  /** Mi ficha del equipo: en un chat directo, el otro es el que no soy yo. */
+  yo?: string;
+  /** Mensajes sin leer por canal. De acá sale el punto. */
+  sinLeer?: Record<string, number>;
+  pie?: React.ReactNode;
 }) {
   const canales = channels.filter((c) => c.tipo === "canal");
   const dms = channels.filter((c) => c.tipo === "dm");
@@ -35,7 +43,8 @@ export function ChannelList({
               )}
             >
               <Hash size={16} className={activo ? "opacity-90" : "opacity-50"} />
-              {c.nombre}
+              <span className="min-w-0 flex-1 truncate text-left">{c.nombre}</span>
+              <Punto n={sinLeer?.[c.id] ?? 0} activo={activo} />
             </button>
           );
         })}
@@ -44,7 +53,7 @@ export function ChannelList({
       <Group titulo="Mensajes directos">
         {dms.map((c) => {
           const activo = c.id === activoId;
-          const otro = c.miembros.find((m) => m !== ME) ?? c.miembros[0];
+          const otro = c.miembros.find((m) => m !== (yo ?? ME)) ?? c.miembros[0];
           const meta = staffMeta(otro);
           return (
             <button
@@ -57,12 +66,35 @@ export function ChannelList({
               )}
             >
               <Avatar iniciales={meta.iniciales} size={24} color={meta.color} />
-              <span className="truncate">{c.nombre}</span>
+              <span className="min-w-0 flex-1 truncate text-left">{c.nombre}</span>
+              <Punto n={sinLeer?.[c.id] ?? 0} activo={activo} />
             </button>
           );
         })}
       </Group>
+
+      {pie}
     </div>
+  );
+}
+
+/**
+ * El punto de mensajes sin leer.
+ *
+ * Se muestra el número y no solo el punto: saber que hay algo sin leer sirve,
+ * pero saber que hay ocho cambia si lo abrís ahora o después.
+ */
+function Punto({ n, activo }: { n: number; activo: boolean }) {
+  if (n <= 0) return null;
+  return (
+    <span
+      className={cn(
+        "flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[10.5px] font-bold",
+        activo ? "bg-white/25 text-white" : "bg-[#dc2626] text-white",
+      )}
+    >
+      {n > 9 ? "9+" : n}
+    </span>
   );
 }
 
