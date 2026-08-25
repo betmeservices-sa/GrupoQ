@@ -40,20 +40,36 @@ export async function nombreDelRemitente(
   const guardado = cache.get(senderId);
   if (guardado && guardado.hasta > ahora) return guardado.nombre;
 
-  // En Instagram el nombre puede venir vacío y el arroba no: se pide el username
-  // como respaldo, porque "@yali_hotel" identifica igual de bien que un nombre.
-  const campos = canal === "instagram" ? "name,username" : "name";
+  // Messenger e Instagram no devuelven lo mismo, y ahi estuvo el error: para un
+  // PSID de Messenger el campo "name" viene vacio. Los que si trae son
+  // first_name y last_name. Instagram en cambio si da name, y ademas username.
+  //
+  // Se piden los dos juegos y se arma con lo que llegue, porque pedir un campo
+  // que ese canal no soporta hace fallar la consulta ENTERA y volvemos a
+  // quedarnos sin nombre.
+  const campos =
+    canal === "instagram" ? "name,username" : "first_name,last_name,name";
   let nombre: string | null = null;
   try {
     const url = `${GRAPH}/${encodeURIComponent(senderId)}?fields=${campos}&access_token=${encodeURIComponent(pageToken)}`;
     const r = await fetch(url, { cache: "no-store" });
-    const j = (await r.json()) as { name?: string; username?: string; error?: unknown };
-    if (!j.error) {
+    const j = (await r.json()) as {
+      name?: string;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      error?: { message?: string };
+    };
+    if (j.error) {
+      console.error("[meta-perfil]", canal, senderId.slice(-6), j.error.message);
+    } else {
+      const completo = [j.first_name, j.last_name].filter(Boolean).join(" ").trim();
       const arroba = j.username ? `@${j.username}` : null;
-      nombre = (j.name ?? "").trim() || arroba;
+      nombre = completo || (j.name ?? "").trim() || arroba;
     }
-  } catch {
+  } catch (e) {
     // Sin nombre se sigue igual: perder el nombre no puede perder el mensaje.
+    console.error("[meta-perfil] no se pudo consultar:", e);
     nombre = null;
   }
 

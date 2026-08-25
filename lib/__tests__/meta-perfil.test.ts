@@ -17,16 +17,31 @@ afterEach(() => {
 });
 
 describe("el nombre de quien escribe", () => {
-  it("lo pide con el token de la pagina y lo devuelve", async () => {
-    const fetchMock = vi.fn(async (_url: string) => respuesta({ name: "Bryan Alvarado" }));
+  it("en Messenger arma el nombre con first_name y last_name", async () => {
+    // El error que tuvimos en produccion: se pedia "name" y para un PSID de
+    // Messenger ese campo viene vacio, asi que la bandeja mostraba "FB 971486".
+    const fetchMock = vi.fn(async (_url: string) =>
+      respuesta({ first_name: "Bryan", last_name: "Alvarado" }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     expect(await nombreDelRemitente("1234", "facebook", "TOK")).toBe("Bryan Alvarado");
 
     const url = String(fetchMock.mock.calls[0][0]);
     expect(url).toContain("/1234?");
-    expect(url).toContain("fields=name");
+    expect(url).toContain("first_name");
+    expect(url).toContain("last_name");
     expect(url).toContain("access_token=TOK");
+  });
+
+  it("se conforma con el nombre de pila si no hay apellido", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => respuesta({ first_name: "Bryan" })));
+    expect(await nombreDelRemitente("1234", "facebook", "TOK")).toBe("Bryan");
+  });
+
+  it("todavia acepta 'name' suelto, por si Meta lo devuelve", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => respuesta({ name: "Bryan Alvarado" })));
+    expect(await nombreDelRemitente("1234", "facebook", "TOK")).toBe("Bryan Alvarado");
   });
 
   it("en Instagram cae al arroba cuando no hay nombre", async () => {
