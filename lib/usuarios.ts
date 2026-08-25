@@ -90,3 +90,9 @@ export function buscarCuenta(usuario: string, password: string): CuentaUsuario |
   }
   return encontrada;
 }
+
+/** La cuenta de un correo, sin comprobar la clave. Para leer su clave inicial. */
+export function cuentaDeUsuario(usuario: string): CuentaUsuario | null {
+  const u = usuario.trim().toLowerCase();
+  return cuentas().find((c) => c.usuario === u) ?? null;
+}

@@ -37,12 +37,15 @@ describe("cuentas de persona", () => {
     process.env.USUARIOS = VERONICA;
     const { validarCredenciales } = await auth();
 
-    const a = validarCredenciales("veronica.viches@yalihospitality.com", "Yali2026");
+    const a = await validarCredenciales("veronica.viches@yalihospitality.com", "Yali2026");
     expect(a).toEqual({
       tenant: "yaly",
       rol: "atencion",
       nombre: "Verónica Viches",
       fijo: true,
+      // Va en la sesion: sin saber QUIEN entro no se le puede dejar cambiar
+      // su propia contraseña.
+      usuario: "veronica.viches@yalihospitality.com",
     });
   });
 
@@ -50,14 +53,14 @@ describe("cuentas de persona", () => {
     process.env.USUARIOS = VERONICA;
     const { validarCredenciales } = await auth();
 
-    expect(validarCredenciales("VERONICA.VICHES@YALIHOSPITALITY.COM", "Yali2026")).not.toBeNull();
-    expect(validarCredenciales("veronica.viches@yalihospitality.com", "yali2026")).toBeNull();
+    expect(await validarCredenciales("VERONICA.VICHES@YALIHOSPITALITY.COM", "Yali2026")).not.toBeNull();
+    expect(await validarCredenciales("veronica.viches@yalihospitality.com", "yali2026")).toBeNull();
   });
 
   it("su rol es FIJO: no se lo puede cambiar desde el navegador", async () => {
     process.env.USUARIOS = VERONICA;
     const { validarCredenciales } = await auth();
-    expect(validarCredenciales("veronica.viches@yalihospitality.com", "Yali2026")?.fijo).toBe(true);
+    expect((await validarCredenciales("veronica.viches@yalihospitality.com", "Yali2026"))?.fijo).toBe(true);
   });
 
   it("una cuenta mal escrita se ignora entera, no entra a medias", async () => {
@@ -68,9 +71,9 @@ describe("cuentas de persona", () => {
       "c@x.com|clave|yaly|jefe_supremo",
     ].join(",");
     const { validarCredenciales } = await auth();
-    expect(validarCredenciales("a@x.com", "clave")).toBeNull();
-    expect(validarCredenciales("b@x.com", "clave")).toBeNull();
-    expect(validarCredenciales("c@x.com", "clave")).toBeNull();
+    expect(await validarCredenciales("a@x.com", "clave")).toBeNull();
+    expect(await validarCredenciales("b@x.com", "clave")).toBeNull();
+    expect(await validarCredenciales("c@x.com", "clave")).toBeNull();
   });
 
   it("sin la variable no hay ninguna cuenta escrita en el codigo", async () => {
@@ -84,7 +87,7 @@ describe("cuentas de persona", () => {
     delete process.env.USUARIOS;
     delete process.env.LOGIN_PASSWORDS;
     const { validarCredenciales } = await auth();
-    const a = validarCredenciales("demoagentia", "miagentiayaly");
+    const a = await validarCredenciales("demoagentia", "miagentiayaly");
     expect(a?.tenant).toBe("yaly");
     expect(a?.fijo).toBe(false);
   });
@@ -95,9 +98,9 @@ describe("el equipo de Yali", () => {
     process.env.USUARIOS = EQUIPO;
     const { validarCredenciales } = await auth();
 
-    const vero = validarCredenciales("veronica.viches@yalihospitality.com", "Yali2026");
-    const olga = validarCredenciales("membresias@yalihospitality.com", "Yali2026");
-    const jaime = validarCredenciales("jaime@yalihospitality.com", "YaliAdmin2026");
+    const vero = await validarCredenciales("veronica.viches@yalihospitality.com", "Yali2026");
+    const olga = await validarCredenciales("membresias@yalihospitality.com", "Yali2026");
+    const jaime = await validarCredenciales("jaime@yalihospitality.com", "YaliAdmin2026");
 
     expect(vero?.rol).toBe("atencion");
     expect(olga?.rol).toBe("atencion");
@@ -114,8 +117,8 @@ describe("el equipo de Yali", () => {
   it("la contraseña de una no abre la cuenta de la otra", async () => {
     process.env.USUARIOS = EQUIPO;
     const { validarCredenciales } = await auth();
-    expect(validarCredenciales("membresias@yalihospitality.com", "YaliAdmin2026")).toBeNull();
-    expect(validarCredenciales("jaime@yalihospitality.com", "Yali2026")).toBeNull();
+    expect(await validarCredenciales("membresias@yalihospitality.com", "YaliAdmin2026")).toBeNull();
+    expect(await validarCredenciales("jaime@yalihospitality.com", "Yali2026")).toBeNull();
   });
 
   it("solo Jaime puede tocar el Modo IA", () => {

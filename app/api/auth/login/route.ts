@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Cuerpo invalido" }, { status: 400 });
   }
 
-  const acceso = validarCredenciales(usuario, password);
+  const acceso = await validarCredenciales(usuario, password);
   if (!acceso) {
     // Mensaje generico a proposito: no revelamos si el usuario existe.
     return NextResponse.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const sesion = await crearSesion(acceso.tenant, acceso.rol, acceso.fijo);
+  const sesion = await crearSesion(acceso.tenant, acceso.rol, acceso.fijo, acceso.usuario ?? "");
   if (!sesion) {
     // Fail-closed: falta SESSION_SECRET en el servidor. No emitimos una sesion
     // insegura; el operador debe configurar la variable.

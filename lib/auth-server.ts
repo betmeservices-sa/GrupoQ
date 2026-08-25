@@ -14,7 +14,8 @@
 import { DEMO_LOGINS, isTenantId } from "./tenants";
 import type { TenantId } from "./tenants/types";
 import type { RoleId } from "./data/types";
-import { buscarCuenta } from "./usuarios";
+import { buscarCuenta, cuentaDeUsuario } from "./usuarios";
+import { claveCorrecta } from "./usuarios-clave";
 
 let avisado = false;
 
@@ -42,6 +43,8 @@ function iguales(a: string, b: string): boolean {
 
 export interface Acceso {
   tenant: TenantId;
+  /** El correo con el que entro. Vacio en los logins de demo. */
+  usuario?: string;
   /** El rol con el que entra. Los logins de demo entran viendo todo. */
   rol: RoleId;
   nombre?: string;
@@ -49,15 +52,25 @@ export interface Acceso {
   fijo: boolean;
 }
 
-export function validarCredenciales(usuario: string, password: string): Acceso | null {
+export async function validarCredenciales(usuario: string, password: string): Promise<Acceso | null> {
   const u = usuario.trim().toLowerCase();
   if (!u || !password) return null;
 
   // Primero las cuentas de persona: son las de clientes en produccion y traen
   // su propio rol, que despues nadie puede cambiar desde el navegador.
-  const cuenta = buscarCuenta(u, password);
+  //
+  // La clave puede ser la que le dimos nosotros o la que ella misma se puso.
+  // Manda la propia: en cuanto existe, la inicial deja de servir. Si no fuera
+  // asi, la clave que mandamos por chat seguiria abriendo la cuenta para
+  // siempre, y cambiarla no serviria de nada.
+  const cuenta = cuentaDeUsuario(u);
   if (cuenta) {
-    return { tenant: cuenta.tenant, rol: cuenta.rol, nombre: cuenta.nombre, fijo: true };
+    const propia = await claveCorrecta(u, password);
+    const ok = propia === null ? Boolean(buscarCuenta(u, password)) : propia;
+    if (ok) {
+      return { tenant: cuenta.tenant, rol: cuenta.rol, nombre: cuenta.nombre, fijo: true, usuario: cuenta.usuario };
+    }
+    return null;
   }
 
   const env = desdeEnv();

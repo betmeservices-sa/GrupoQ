@@ -629,18 +629,21 @@ export default function SettingsPage() {
 
 
 /**
- * Alta manual de una página de Meta.
+ * Alta manual de las paginas de Meta.
  *
- * Mientras la app no esté aprobada por Meta, el botón de conectar no sirve: el
- * OAuth devuelve permisos recortados o directamente falla. Esto permite pegar
- * el token de página que se saca del Explorador de la API de Graph y arrancar
- * igual. Cuando la aprobación salga, conectar por OAuth sobrescribe estas
+ * Mientras la app no este aprobada por Meta, el boton de conectar no sirve: el
+ * OAuth devuelve permisos recortados o falla. Con esto se pega el codigo que se
+ * saca del Explorador de la API de Graph y se conectan todas las paginas de esa
+ * cuenta. Cuando salga la aprobacion, conectar por OAuth sobrescribe estas
  * conexiones por pageId y esto deja de hacer falta.
+ *
+ * OJO CON LO QUE SE ESCRIBE EN PANTALLA: esto lo ve el cliente. El detalle de
+ * como funciona (el explorador, la suscripcion, el cambio a token largo) es
+ * nuestro y no le sirve de nada a quien administra un hotel. En pantalla va lo
+ * que tiene que hacer y que resulto.
  */
 function ConexionManual({ onListo }: { onListo: () => void }) {
   const [abierto, setAbierto] = useState(false);
-  const [pageId, setPageId] = useState("");
-  const [igId, setIgId] = useState("");
   const [token, setToken] = useState("");
   const [estado, setEstado] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -652,12 +655,7 @@ function ConexionManual({ onListo }: { onListo: () => void }) {
     const r = await fetch("/api/meta/connections", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      // Si no dieron id de página, el token es de usuario y se conectan todas.
-      body: JSON.stringify(
-        pageId.trim()
-          ? { pageId: pageId.trim(), igId: igId.trim(), pageToken: token.trim() }
-          : { userToken: token.trim() },
-      ),
+      body: JSON.stringify({ userToken: token.trim() }),
     });
     const j = await r.json();
     setEnviando(false);
@@ -665,25 +663,25 @@ function ConexionManual({ onListo }: { onListo: () => void }) {
       setEstado({ tipo: "error", texto: j.error ?? "No se pudo conectar." });
       return;
     }
-    if (j.paginas) {
-      const sinSuscribir = j.paginas.filter((p: { suscrita: boolean }) => !p.suscrita).length;
-      setEstado({
-        tipo: "ok",
-        texto:
-          `Conectadas ${j.paginas.length}: ` +
-          j.paginas
-            .map((p: { pageName: string; instagram: boolean }) => p.pageName + (p.instagram ? " (con Instagram)" : " (sin Instagram)"))
-            .join(", ") +
-          (sinSuscribir ? `. Ojo: ${sinSuscribir} no quedaron suscritas al webhook.` : ". Todas suscritas al webhook."),
-      });
-    } else {
-      setEstado({
-        tipo: "ok",
-        texto: j.suscrita
-          ? `Conectada ${j.pageName}. Ya está suscrita al webhook.`
-          : `Conectada ${j.pageName}, pero la suscripción al webhook falló: revisá que el token tenga pages_manage_metadata.`,
-      });
+
+    const paginas: { pageName: string; instagram: boolean; suscrita: boolean }[] =
+      j.paginas ?? (j.pageName ? [{ pageName: j.pageName, instagram: false, suscrita: j.suscrita }] : []);
+    const listas = paginas.filter((p) => p.suscrita);
+    const detalle = listas
+      .map((p) => p.pageName + (p.instagram ? " y su Instagram" : ""))
+      .join(", ");
+
+    if (listas.length === 0) {
+      setEstado({ tipo: "error", texto: "Se encontraron las paginas pero no quedaron activas. Volvé a intentar." });
+      return;
     }
+    setEstado({
+      tipo: "ok",
+      texto:
+        listas.length === paginas.length
+          ? `Listo. Ya entran los mensajes de ${detalle}.`
+          : `Quedaron activas ${detalle}. Las demas no se pudieron conectar.`,
+    });
     setToken("");
     setTimeout(onListo, 1800);
   }
@@ -695,39 +693,28 @@ function ConexionManual({ onListo }: { onListo: () => void }) {
         onClick={() => setAbierto(true)}
         className="mt-3 text-[12.5px] font-semibold text-brand underline underline-offset-2"
       >
-        Conectar pegando el token a mano
+        Conectar con un codigo
       </button>
     );
   }
 
-  const campo = "w-full rounded-lg border border-line bg-card px-3 py-2 text-[13px]";
   return (
     <form onSubmit={enviar} className="mt-3 space-y-2.5 rounded-xl border border-line bg-card p-4">
       <p className="text-[12.5px] leading-relaxed text-[var(--text-3)]">
-        Para cuando Meta todavía no aprobó la app. Pegá <strong>un token de usuario</strong> del
-        Explorador de la API de Graph y se conectan todas las páginas de esa cuenta, con su
-        Instagram. Se descubren solas, se suscriben al webhook y el token se cambia por uno largo
-        para que no venza.
+        Pegá el codigo de conexion que te pasamos. Se conectan de una vez todas las paginas de
+        Facebook y las cuentas de Instagram del negocio.
       </p>
       <input
         value={token}
         onChange={(e) => setToken(e.target.value)}
-        placeholder="Token de usuario"
-        className={campo}
+        placeholder="Codigo de conexion"
+        className="w-full rounded-lg border border-line bg-card px-3 py-2 text-[13px]"
         required
         type="password"
       />
-      <details className="text-[12.5px] text-[var(--text-3)]">
-        <summary className="cursor-pointer font-semibold">O conectar una sola página a mano</summary>
-        <div className="mt-2 space-y-2">
-          <input value={pageId} onChange={(e) => setPageId(e.target.value)} placeholder="ID de la página de Facebook" className={campo} />
-          <input value={igId} onChange={(e) => setIgId(e.target.value)} placeholder="ID de la cuenta de Instagram (opcional)" className={campo} />
-          <p>Si llenás estos dos, el token de arriba se usa como token de página.</p>
-        </div>
-      </details>
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={enviando} className="rounded-lg bg-brand px-3.5 py-2 text-[13px] font-semibold text-white disabled:opacity-60">
-          {enviando ? "Comprobando con Meta" : "Conectar"}
+          {enviando ? "Conectando" : "Conectar"}
         </button>
         <button type="button" onClick={() => setAbierto(false)} className="rounded-lg border border-line px-3.5 py-2 text-[13px] font-semibold text-[var(--text-2)]">
           Cancelar

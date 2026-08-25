@@ -12,6 +12,7 @@ import { staff, ME } from "@/lib/data/seed";
 import { Avatar } from "@/components/ui/Avatar";
 import { Brand } from "./Brand";
 import { RoleSwitcher } from "./RoleSwitcher";
+import { CambiarClave } from "./CambiarClave";
 import { Reloj } from "./Reloj";
 
 interface NavItem {
@@ -156,6 +157,7 @@ export function Sidebar({
       </nav>
 
       <div className="space-y-3 border-t border-line p-3">
+        <CambiarClave />
         <RoleSwitcher />
         <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
           <Avatar iniciales={yo.iniciales} size={34} />

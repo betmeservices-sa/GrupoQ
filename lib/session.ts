@@ -72,6 +72,8 @@ export interface Sesion {
   rol: RoleId;
   /** true = el rol viene de una cuenta de persona y no se puede cambiar. */
   fijo: boolean;
+  /** Quien entro. Vacio en los logins de demo, que no son de nadie. */
+  usuario?: string;
 }
 
 /**
@@ -89,9 +91,13 @@ export async function crearSesion(
   tenant: TenantId,
   rol: RoleId = "gerente_marketing",
   fijo = false,
+  usuario = "",
 ): Promise<{ valor: string; maxAge: number } | null> {
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SEG;
-  const payload = `${tenant}.${rol}.${fijo ? "1" : "0"}.${exp}`;
+  // El usuario va en base64url: puede traer @ y puntos, y el punto es el
+  // separador de la cookie. Sin esto, un correo parte la cookie en pedazos.
+  const u = usuario ? Buffer.from(usuario, "utf8").toString("base64url") : "-";
+  const payload = `${tenant}.${rol}.${fijo ? "1" : "0"}.${u}.${exp}`;
   const sig = await firmar(payload);
   if (!sig) return null;
   return { valor: `${payload}.${sig}`, maxAge: MAX_AGE_SEG };
@@ -114,17 +120,26 @@ export async function leerSesion(valor: string | undefined | null): Promise<Sesi
     return { tenant, rol: "gerente_marketing", fijo: false };
   }
 
-  if (partes.length !== 5) return null;
-  const [tenant, rol, fijoStr, expStr, sig] = partes;
+  if (partes.length !== 6) return null;
+  const [tenant, rol, fijoStr, u, expStr, sig] = partes;
   if (!isTenantId(tenant)) return null;
   if (!vigente(expStr)) return null;
 
-  const esperada = await firmar(`${tenant}.${rol}.${fijoStr}.${expStr}`);
+  const esperada = await firmar(`${tenant}.${rol}.${fijoStr}.${u}.${expStr}`);
   // Sin secreto (fail-closed) no hay firma con que comparar: nadie valida.
   if (!esperada) return null;
   if (!igualesEnTiempoConstante(sig, esperada)) return null;
 
-  return { tenant, rol: rol as RoleId, fijo: fijoStr === "1" };
+  let usuario: string | undefined;
+  if (u && u !== "-") {
+    try {
+      usuario = Buffer.from(u, "base64url").toString("utf8");
+    } catch {
+      return null;
+    }
+  }
+
+  return { tenant, rol: rol as RoleId, fijo: fijoStr === "1", usuario };
 }
 
 function vigente(expStr: string): boolean {
