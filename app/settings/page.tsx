@@ -652,7 +652,12 @@ function ConexionManual({ onListo }: { onListo: () => void }) {
     const r = await fetch("/api/meta/connections", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pageId: pageId.trim(), igId: igId.trim(), pageToken: token.trim() }),
+      // Si no dieron id de página, el token es de usuario y se conectan todas.
+      body: JSON.stringify(
+        pageId.trim()
+          ? { pageId: pageId.trim(), igId: igId.trim(), pageToken: token.trim() }
+          : { userToken: token.trim() },
+      ),
     });
     const j = await r.json();
     setEnviando(false);
@@ -660,12 +665,25 @@ function ConexionManual({ onListo }: { onListo: () => void }) {
       setEstado({ tipo: "error", texto: j.error ?? "No se pudo conectar." });
       return;
     }
-    setEstado({
-      tipo: "ok",
-      texto: j.suscrita
-        ? `Conectada ${j.pageName}. Ya está suscrita al webhook.`
-        : `Conectada ${j.pageName}, pero la suscripción al webhook falló: revisá que el token tenga pages_manage_metadata.`,
-    });
+    if (j.paginas) {
+      const sinSuscribir = j.paginas.filter((p: { suscrita: boolean }) => !p.suscrita).length;
+      setEstado({
+        tipo: "ok",
+        texto:
+          `Conectadas ${j.paginas.length}: ` +
+          j.paginas
+            .map((p: { pageName: string; instagram: boolean }) => p.pageName + (p.instagram ? " (con Instagram)" : " (sin Instagram)"))
+            .join(", ") +
+          (sinSuscribir ? `. Ojo: ${sinSuscribir} no quedaron suscritas al webhook.` : ". Todas suscritas al webhook."),
+      });
+    } else {
+      setEstado({
+        tipo: "ok",
+        texto: j.suscrita
+          ? `Conectada ${j.pageName}. Ya está suscrita al webhook.`
+          : `Conectada ${j.pageName}, pero la suscripción al webhook falló: revisá que el token tenga pages_manage_metadata.`,
+      });
+    }
     setToken("");
     setTimeout(onListo, 1800);
   }
@@ -686,13 +704,27 @@ function ConexionManual({ onListo }: { onListo: () => void }) {
   return (
     <form onSubmit={enviar} className="mt-3 space-y-2.5 rounded-xl border border-line bg-card p-4">
       <p className="text-[12.5px] leading-relaxed text-[var(--text-3)]">
-        Para cuando Meta todavía no aprobó la app. El token de página se saca del Explorador de la
-        API de Graph, con permisos de mensajes sobre la página. Se valida y se suscribe al webhook
-        antes de guardarlo.
+        Para cuando Meta todavía no aprobó la app. Pegá <strong>un token de usuario</strong> del
+        Explorador de la API de Graph y se conectan todas las páginas de esa cuenta, con su
+        Instagram. Se descubren solas, se suscriben al webhook y el token se cambia por uno largo
+        para que no venza.
       </p>
-      <input value={pageId} onChange={(e) => setPageId(e.target.value)} placeholder="ID de la página de Facebook" className={campo} required />
-      <input value={igId} onChange={(e) => setIgId(e.target.value)} placeholder="ID de la cuenta de Instagram (opcional)" className={campo} />
-      <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token de página" className={campo} required type="password" />
+      <input
+        value={token}
+        onChange={(e) => setToken(e.target.value)}
+        placeholder="Token de usuario"
+        className={campo}
+        required
+        type="password"
+      />
+      <details className="text-[12.5px] text-[var(--text-3)]">
+        <summary className="cursor-pointer font-semibold">O conectar una sola página a mano</summary>
+        <div className="mt-2 space-y-2">
+          <input value={pageId} onChange={(e) => setPageId(e.target.value)} placeholder="ID de la página de Facebook" className={campo} />
+          <input value={igId} onChange={(e) => setIgId(e.target.value)} placeholder="ID de la cuenta de Instagram (opcional)" className={campo} />
+          <p>Si llenás estos dos, el token de arriba se usa como token de página.</p>
+        </div>
+      </details>
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={enviando} className="rounded-lg bg-brand px-3.5 py-2 text-[13px] font-semibold text-white disabled:opacity-60">
           {enviando ? "Comprobando con Meta" : "Conectar"}

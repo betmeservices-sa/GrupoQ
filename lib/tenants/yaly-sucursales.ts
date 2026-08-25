@@ -29,7 +29,7 @@ export const MARCA_PLACEHOLDER = "[PENDIENTE]";
 export const yalySucursales: TenantSucursales = {
   // Primer mensaje, obligatorio, textual. Va tal cual por WhatsApp.
   pregunta: [
-    "¡Hola! Le saluda Sofía, de Yali Hospitality.",
+    "Gracias por contactar a Yali Hospitality Group. Le saluda Sofía.",
     "Para atenderle bien, ¿a cuál de nuestros hoteles se está comunicando?",
     "",
     "A) Yalí, Playa El Sunzal",

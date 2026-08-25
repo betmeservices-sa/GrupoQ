@@ -27,6 +27,15 @@ export interface ReservaYaliDemo {
   total: number;
   creada: string; // ISO 8601
   origen: "agente" | "panel";
+  /**
+   * Lo que hay que saber antes de que llegue: cuántos desayunos van incluidos,
+   * si entra de madrugada, si pidió cama extra.
+   *
+   * Verónica lo pidió por su nombre en el kickoff: en Cloudbeds la nota es el
+   * medio por el que reservas le avisa al hotel. "El gerente ve la nota que el
+   * cliente va a llegar a las 11 y le notifica al vigilante."
+   */
+  notas?: string;
 }
 
 const MAX = 100;

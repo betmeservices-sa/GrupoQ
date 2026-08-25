@@ -52,6 +52,32 @@ export const HORARIO_CONTINUO: Horario = {
   offsetMin: -360,
 };
 
+/**
+ * Horario igual los siete dias.
+ *
+ * Un hotel no tiene "sabado corto": quien atiende reservas trabaja el mismo
+ * bloque de lunes a domingo, y de hecho el sabado es su dia mas cargado.
+ */
+export function horarioDiario(abre: number, cierra: number, offsetMin = -360): Horario {
+  return {
+    dias: Array.from({ length: 7 }, () => ({ abre: h(abre), cierra: h(cierra) })),
+    offsetMin,
+  };
+}
+
+/**
+ * Cuantas horas habiles tiene el dia mas largo de un horario.
+ *
+ * Sirve para no mentir al convertir minutos en "dias": en el hospital un dia
+ * son 12 horas, en la linea de reservas de un hotel son 9 y en una sede que
+ * nunca cierra son 24. Usar 12 para todos haria que 30 horas de una sede se
+ * mostraran como "2 d 6 h" cuando en realidad es dia y cuarto.
+ */
+export function horasPorDiaHabil(horario: Horario): number {
+  const minutos = horario.dias.reduce((max, d) => (d ? Math.max(max, d.cierra - d.abre) : max), 0);
+  return minutos > 0 ? minutos / 60 : 12;
+}
+
 const DIA_MS = 86_400_000;
 
 /**
@@ -133,16 +159,22 @@ export function estaAbiertoAhora(iso: string, horario: Horario): boolean {
   return !!ventana && a.minutoDelDia >= ventana.abre && a.minutoDelDia < ventana.cierra;
 }
 
-/** "2 h 15 min", "45 min", "3 d 1 h". Pensado para leerse de un vistazo. */
-export function formatearMinutos(min: number): string {
+/**
+ * "2 h 15 min", "45 min", "3 d 1 h". Pensado para leerse de un vistazo.
+ *
+ * `horasPorDia` es la jornada contra la que se cuentan los dias. El default de
+ * 12 es la del hospital; para otro horario hay que pasar horasPorDiaHabil(),
+ * porque un "dia" de una linea que abre 9 horas no son 12.
+ */
+export function formatearMinutos(min: number, horasPorDia = 12): string {
   if (min <= 0) return "0 min";
   if (min < 60) return `${Math.round(min)} min`;
   const horas = Math.floor(min / 60);
   const resto = Math.round(min % 60);
-  if (horas < 12) return resto ? `${horas} h ${resto} min` : `${horas} h`;
-  // Más de 12 horas hábiles ya es más de un día de trabajo: se cuenta en días
-  // de 12 h (la jornada del hospital), no en días de 24, que serían mentira.
-  const dias = Math.floor(horas / 12);
-  const hs = horas % 12;
+  if (horas < horasPorDia) return resto ? `${horas} h ${resto} min` : `${horas} h`;
+  // Pasada una jornada completa se cuenta en dias de trabajo, no en dias de 24
+  // horas, que serian mentira para cualquiera que no atienda de noche.
+  const dias = Math.floor(horas / horasPorDia);
+  const hs = horas % horasPorDia;
   return hs ? `${dias} d ${hs} h` : `${dias} d`;
 }

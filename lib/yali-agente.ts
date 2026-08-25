@@ -120,6 +120,7 @@ export interface InputReservaYali {
   ninos?: number;
   sede?: string;
   telefono?: string;
+  notas?: string;
   origen?: "agente" | "panel";
 }
 
@@ -228,6 +229,7 @@ export async function reservarHabitacionYali(
     adultos,
     ninos,
     total: sigueLibre.total_estadia,
+    notas: input.notas?.trim() || undefined,
     origen: input.origen ?? "agente",
   });
 

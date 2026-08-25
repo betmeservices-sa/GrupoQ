@@ -37,7 +37,9 @@ import {
   type TipoTicket,
 } from "@/lib/tickets";
 import type { MetricasTickets } from "@/lib/tickets-metricas";
-import { formatearMinutos } from "@/lib/tickets-sla";
+import { formatearMinutos, horasPorDiaHabil } from "@/lib/tickets-sla";
+import { configTickets, explicacionReloj, horarioDeArea } from "@/lib/tickets-tenant";
+import { activeTenantId } from "@/lib/tenants/active";
 
 interface Respuesta {
   ok: boolean;
@@ -48,15 +50,15 @@ interface Respuesta {
   error?: string;
 }
 
-const AREAS = [
-  { id: "atencion", label: "Atención al cliente" },
-  { id: "ventas", label: "Ventas" },
-  { id: "recepcion", label: "Recepción" },
-  { id: "laboratorio", label: "Laboratorio" },
-  { id: "imagenes", label: "Imágenes" },
-  { id: "caja", label: "Caja y facturación" },
-  { id: "ginecologia", label: "Ginecología" },
-];
+// Los tipos y las áreas son del negocio: un hotel no clasifica por
+// especialidad médica. Ver lib/tickets-tenant.
+const TENANT = activeTenantId();
+const CFG = configTickets(TENANT);
+const AREAS = CFG.areas;
+// La jornada con la que se convierten minutos en "días" al mostrarlos. Sin
+// esto, 30 horas de una sede que no cierra se leerían como "2 d 6 h".
+const JORNADA = horasPorDiaHabil(CFG.horario);
+const TIPOS_VISIBLES = TIPOS.filter((t) => CFG.tipos.includes(t.id));
 
 const areaLabel = (id: string) => AREAS.find((a) => a.id === id)?.label ?? id;
 const nombreStaff = (id?: string) => (id ? (staff.find((s) => s.id === id)?.nombre ?? id) : null);
@@ -159,13 +161,13 @@ export default function TicketsPage() {
           <Tarjeta
             icono={<Timer size={16} />}
             label="Tiempo de atención"
-            valor={m?.promedioAtencion !== null && m ? formatearMinutos(m.promedioAtencion) : "—"}
+            valor={m?.promedioAtencion !== null && m ? formatearMinutos(m.promedioAtencion, JORNADA) : "—"}
             ayuda="Desde que entra hasta que alguien lo toma"
           />
           <Tarjeta
             icono={<Clock size={16} />}
             label="Tiempo de resolución"
-            valor={m?.promedioResolucion !== null && m ? formatearMinutos(m.promedioResolucion) : "—"}
+            valor={m?.promedioResolucion !== null && m ? formatearMinutos(m.promedioResolucion, JORNADA) : "—"}
             ayuda="Desde que lo toman hasta que se cierra"
           />
           <Tarjeta
@@ -177,16 +179,14 @@ export default function TicketsPage() {
         </section>
 
         <p className="text-[12px] leading-relaxed text-[var(--text-3)]">
-          Los tiempos cuentan solo horas hábiles (lunes a viernes de 7 a 19, sábados de 8 a 13). Un
-          ticket que entra a las 2 de la mañana y se resuelve a las 8:15 tardó 15 minutos, no seis
-          horas.
+          {explicacionReloj(TENANT)}
         </p>
 
         {m?.masEsperado && (
           <div className="flex items-start gap-2.5 rounded-xl border border-[var(--warn-line,#fcd34d)] bg-[var(--warn-bg,#fffbeb)] px-4 py-3">
             <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[var(--warn-fg,#92400e)]" />
             <p className="text-[12.5px] leading-relaxed text-[var(--warn-fg,#92400e)]">
-              <strong>#{m.masEsperado.ticket.numero} lleva {formatearMinutos(m.masEsperado.minutos)} sin que nadie lo tome.</strong>{" "}
+              <strong>#{m.masEsperado.ticket.numero} lleva {formatearMinutos(m.masEsperado.minutos, horasPorDiaHabil(horarioDeArea(TENANT, m.masEsperado.ticket.area)))} sin que nadie lo tome.</strong>{" "}
               {m.masEsperado.ticket.titulo}, de {m.masEsperado.ticket.contactoNombre}.
             </p>
           </div>
@@ -275,7 +275,7 @@ export default function TicketsPage() {
                         {p.promedioResolucion === null ? (
                           <span className="text-[var(--text-3)]">sin cerrar aún</span>
                         ) : (
-                          formatearMinutos(p.promedioResolucion)
+                          formatearMinutos(p.promedioResolucion, JORNADA)
                         )}
                       </td>
                     </tr>
@@ -509,8 +509,8 @@ function FormularioNuevo({ onCerrar, onCreado }: { onCerrar: () => void; onCread
     detalle: "",
     contactoNombre: "",
     contactoTelefono: "",
-    tipo: "cotizacion" as TipoTicket,
-    area: "ventas",
+    tipo: CFG.tipos[0] as TipoTicket,
+    area: CFG.areaPorDefecto,
     prioridad: "normal",
     origen: "manual",
     asignadoA: "",
@@ -584,7 +584,7 @@ function FormularioNuevo({ onCerrar, onCreado }: { onCerrar: () => void; onCread
               onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoTicket })}
               className={campo}
             >
-              {TIPOS.map((t) => (
+              {TIPOS_VISIBLES.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.label}
                 </option>

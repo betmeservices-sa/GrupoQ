@@ -25,6 +25,8 @@ import { bloquePromociones, usaPromos } from "./promos";
 import { listarPromos } from "./promos-store";
 import { sumarUso, USO_CERO, type UsoTokens } from "./tokens-precios";
 import type { MimeImagenIA } from "./wa-media";
+import type { TipoTicket } from "./tickets";
+import { areaYaliPara } from "./tickets-tenant";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -243,7 +245,7 @@ const TOOLS_YALI: Anthropic.Tool[] = [
   {
     name: "reservar_estadia",
     description:
-      "Toma la reserva de una habitación devuelta por consultar_habitaciones. Llámala SOLO cuando el huésped ya eligió habitación y fechas y te dio su nombre completo. Devuelve el número de reserva.",
+      "Toma la reserva de una habitación devuelta por consultar_habitaciones. Llámala SOLO cuando el huésped ya eligió habitación y fechas, te dio su nombre completo, y su comprobante de pago cuadra con el monto EXACTO de la reserva. Si el monto no cuadra, NO la llames: abre el caso con crear_ticket. Devuelve el número de reserva.",
     input_schema: {
       type: "object",
       properties: {
@@ -257,8 +259,54 @@ const TOOLS_YALI: Anthropic.Tool[] = [
         adultos: { type: "number", description: "Cuántos adultos se hospedan (mínimo 1)" },
         ninos: { type: "number", description: "Cuántos niños se hospedan (0 si no hay)" },
         sede: { type: "string", description: "Solo si la reserva es en una sede distinta a la del huésped" },
+        notas: {
+          type: "string",
+          description:
+            "Lo que el hotel tiene que saber antes de que llegue: cuántos desayunos van incluidos (uno por persona, salvo en Playa Linda que no lleva), si llega de madrugada, si pidió cama extra. Va a la nota de la reserva.",
+        },
       },
       required: ["nombre", "habitacion", "llegada", "salida", "adultos"],
+    },
+  },
+  {
+    name: "crear_ticket",
+    description:
+      "Abre un caso para que una persona del equipo lo resuelva y le dé seguimiento. Llámala SIEMPRE que el asunto se salga de lo que puedes cerrar tú: socio o interesado en la membresía, un comprobante que no cuadra, alguien que no pagó a tiempo, entrada o salida fuera de horario, un reclamo, algo olvidado o algo descompuesto. Llámala UNA sola vez por asunto. Después dile al huésped que ya quedó anotado y quién le va a escribir; nunca menciones la palabra ticket.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tipo: {
+          type: "string",
+          description: "De qué se trata el caso",
+          enum: [
+            "membresia",
+            "pago",
+            "reserva",
+            "checkin_especial",
+            "queja",
+            "objeto_perdido",
+            "mantenimiento",
+            "cotizacion",
+            "informacion",
+            "otro",
+          ],
+        },
+        titulo: {
+          type: "string",
+          description: "Una línea que diga qué pasa, como la escribiría una persona. Ej: 'Comprobante por $100 y la reserva es de $125'",
+        },
+        detalle: {
+          type: "string",
+          description:
+            "Todo lo que la persona necesita para resolverlo sin volver a preguntar: fechas, habitación, montos, qué se le dijo ya. Escríbelo en frases, no en lista.",
+        },
+        nombre: { type: "string", description: "Nombre del huésped, si lo dio" },
+        urgente: {
+          type: "boolean",
+          description: "true solo si hay alguien más esperando esa misma habitación hoy, o si el huésped ya está adentro y sin servicio",
+        },
+      },
+      required: ["tipo", "titulo", "detalle"],
     },
   },
   {
@@ -467,6 +515,40 @@ export async function ejecutarHerramienta(
         contexto?.sucursal?.id ?? null,
       ),
     );
+  }
+  if (nombre === "crear_ticket") {
+    const t = input as {
+      tipo?: TipoTicket;
+      titulo?: string;
+      detalle?: string;
+      nombre?: string;
+      urgente?: boolean;
+    };
+    const tenant = contexto?.tenantId ?? "yaly";
+    try {
+      // Se carga aquí y no arriba a propósito: el store de tickets arrastra el
+      // cliente de Supabase, y este archivo es el que se importa en cada
+      // mensaje que entra. Solo lo paga la conversación que abre un caso.
+      const { crearTicket } = await import("./tickets-store");
+      const ticket = await crearTicket(tenant, {
+        titulo: (t.titulo ?? "").trim() || "Caso sin título",
+        detalle: (t.detalle ?? "").trim(),
+        tipo: t.tipo ?? "otro",
+        prioridad: t.urgente ? "urgente" : undefined,
+        origen: "chat",
+        creadoPor: "Sofía",
+        contactoNombre: (t.nombre ?? "").trim() || "Sin nombre",
+        contactoTelefono: contexto?.telefono,
+        area: areaYaliPara(t.tipo ?? "otro", contexto?.sucursal?.id ?? null),
+      });
+      return JSON.stringify({ ok: true, numero: ticket.numero, area: ticket.area });
+    } catch (e) {
+      // Si el caso no se pudo anotar, el modelo NO puede decir que quedó
+      // anotado: prometer seguimiento que nadie va a ver es peor que no
+      // ofrecerlo. Se lo decimos para que ofrezca pasar con una persona.
+      console.error("crear_ticket:", e);
+      return JSON.stringify({ ok: false, error: "No se pudo abrir el caso." });
+    }
   }
   if (nombre === "reservar_estadia") {
     return JSON.stringify(

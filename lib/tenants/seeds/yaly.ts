@@ -13,19 +13,24 @@ const [SUC_A, SUC_B, SUC_C] = yalySucursales.opciones.map((o) => o.nombre);
 
 export const yalySeed: TenantSeed = {
   ME,
+  // Membresías es un departamento aparte y no un sabor de ventas. Jaime lo dijo
+  // así en el kickoff: "reservas es la banca tradicional y membresía es banca
+  // privada". Quien atiende socios no atiende reservas y al revés.
   departments: [
     { id: "reservas", nombre: "Reservas", color: "#0e7490" },
+    { id: "membresias", nombre: "Membresías", color: "#b45309" },
     { id: "recepcion", nombre: "Recepción", color: "#7c3aed" },
     { id: "conserjeria", nombre: "Conserjería", color: "#2e9e5b" },
     { id: "atencion", nombre: "Atención al Huésped", color: "#64748b" },
   ],
+  // Las personas que pidieron usuario en el kickoff del 24 de agosto de 2026.
   staff: [
     { id: ME, nombre: "Gerente de Marketing", rol: "gerente_marketing", departamento: "atencion", iniciales: "GM" },
-    { id: "s2", nombre: "Renata Alvarenga", rol: "medico", departamento: "reservas", iniciales: "RA" },
-    { id: "s3", nombre: "Óscar Menjívar", rol: "recepcion", departamento: "recepcion", iniciales: "OM" },
-    { id: "s4", nombre: "Claudia Bonilla", rol: "jefe", departamento: "reservas", iniciales: "CB" },
-    { id: "s5", nombre: "Iván Portillo", rol: "medico", departamento: "conserjeria", iniciales: "IP" },
-    { id: "s6", nombre: "Gabriela Nieto", rol: "recepcion", departamento: "atencion", iniciales: "GN" },
+    { id: "s2", nombre: "Verónica Viches", rol: "medico", departamento: "reservas", iniciales: "VV" },
+    { id: "s3", nombre: "Olga", rol: "marketing", departamento: "membresias", iniciales: "OL" },
+    { id: "s4", nombre: "Jaime Quintanilla", rol: "jefe", departamento: "reservas", iniciales: "JQ" },
+    { id: "s5", nombre: "Dino Safie", rol: "jefe", departamento: "atencion", iniciales: "DS" },
+    { id: "s6", nombre: "José Mauricio", rol: "recepcion", departamento: "recepcion", iniciales: "JM" },
   ],
   contacts: [
     { id: "c1", nombre: "Mariela Escobar", telefono: "50378114420", canal: "whatsapp", notas: `Escribe a ${SUC_A}. Quiere dos habitaciones para el fin de semana.`, tags: ["Consulta de disponibilidad"] },
@@ -38,7 +43,7 @@ export const yalySeed: TenantSeed = {
     { id: "v1", canal: "whatsapp", contactId: "c1", departamento: "reservas", estado: "en_progreso", asignadoA: "s2", noLeidos: 0, ultimoMensajeTs: "2026-08-14T10:15:00", sucursalId: "a" },
     { id: "v2", canal: "whatsapp", contactId: "c2", departamento: "reservas", estado: "en_progreso", asignadoA: ME, noLeidos: 2, ultimoMensajeTs: "2026-08-14T09:48:00", sucursalId: "b" },
     { id: "v3", canal: "instagram", contactId: "c3", departamento: "recepcion", estado: "nuevo", noLeidos: 1, ultimoMensajeTs: "2026-08-14T10:31:00", sucursalId: "c" },
-    { id: "v4", canal: "facebook", contactId: "c4", departamento: "conserjeria", estado: "en_progreso", asignadoA: "s5", noLeidos: 0, ultimoMensajeTs: "2026-08-14T08:55:00", sucursalId: "a" },
+    { id: "v4", canal: "facebook", contactId: "c4", departamento: "atencion", estado: "en_progreso", asignadoA: "s5", noLeidos: 0, ultimoMensajeTs: "2026-08-14T08:55:00", sucursalId: "a" },
     { id: "v5", canal: "whatsapp", contactId: "c5", departamento: "atencion", estado: "resuelto", asignadoA: ME, noLeidos: 0, ultimoMensajeTs: "2026-08-13T17:20:00", sucursalId: "c" },
   ],
   messages: [
@@ -75,9 +80,9 @@ export const yalySeed: TenantSeed = {
     { id: "ic1", nombre: "general", tipo: "canal", miembros: [ME, "s2", "s3", "s4", "s5", "s6"] },
     { id: "ic2", nombre: "reservas", tipo: "canal", miembros: [ME, "s2", "s4"] },
     { id: "ic3", nombre: "hoteles", tipo: "canal", miembros: [ME, "s3", "s4", "s6"] },
-    { id: "ic4", nombre: "eventos", tipo: "canal", miembros: [ME, "s4", "s5"] },
-    { id: "dm1", nombre: "Claudia Bonilla", tipo: "dm", miembros: [ME, "s4"] },
-    { id: "dm2", nombre: "Óscar Menjívar", tipo: "dm", miembros: [ME, "s3"] },
+    { id: "ic4", nombre: "membresias", tipo: "canal", miembros: [ME, "s3", "s4"] },
+    { id: "dm1", nombre: "Jaime Quintanilla", tipo: "dm", miembros: [ME, "s4"] },
+    { id: "dm2", nombre: "Olga", tipo: "dm", miembros: [ME, "s3"] },
   ],
   internalMessages: [
     { id: "im1", channelId: "ic1", staffId: "s4", texto: "Recuerden confirmar la sucursal antes de cotizar. Ayer se mandaron dos tarifas cruzadas.", ts: "2026-08-14T07:20:00" },

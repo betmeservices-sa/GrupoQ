@@ -26,6 +26,24 @@ export type TipoTicket =
   | "queja"
   | "informacion"
   | "emergencia"
+  // Del hotel: lo que de verdad llega por WhatsApp cuando alguien ya se fue o
+  // ya está adentro.
+  | "objeto_perdido"
+  | "reserva"
+  | "mantenimiento"
+  // Los tres que salieron del kickoff con Yali (24 de agosto de 2026), cada uno
+  // con dueño distinto:
+  //   membresia       socio del Sunsal Beach Club o interesado. Va a Olga, que
+  //                   es la única que habla de precios de socio.
+  //   pago            el comprobante no cuadra con la reserva, o se venció la
+  //                   hora que se le dio para pagar. Jaime fue tajante: monto
+  //                   exacto o no hay trato, y eso lo resuelve una persona.
+  //   checkin_especial  early check in o late check out. Hay que mirar si la
+  //                   habitación está libre antes y después, y cobrar el 50%:
+  //                   demasiado para dejarlo automático.
+  | "membresia"
+  | "pago"
+  | "checkin_especial"
   | "otro";
 
 export type PrioridadTicket = "baja" | "normal" | "alta" | "urgente";
@@ -95,6 +113,12 @@ export const TIPOS: { id: TipoTicket; label: string }[] = [
   { id: "queja", label: "Queja" },
   { id: "informacion", label: "Información" },
   { id: "emergencia", label: "Emergencia" },
+  { id: "objeto_perdido", label: "Objeto olvidado" },
+  { id: "reserva", label: "Reserva" },
+  { id: "mantenimiento", label: "Mantenimiento" },
+  { id: "membresia", label: "Membresía" },
+  { id: "pago", label: "Pago" },
+  { id: "checkin_especial", label: "Entrada o salida especial" },
   { id: "otro", label: "Otro" },
 ];
 
@@ -123,12 +147,24 @@ export const estaAbierto = (t: Ticket) => t.estado !== "resuelto";
 /** Nadie lo tomó: es lo que hace cuello de botella y lo que hay que mirar primero. */
 export const sinTomar = (t: Ticket) => t.estado === "abierto" && !t.asignadoA;
 
+/**
+ * Prioridad de arranque cuando quien abre el ticket no la especifica.
+ *
+ * "pago" entra alto porque del otro lado hay alguien que ya mandó dinero y está
+ * esperando: es el caso que más rápido se vuelve una queja.
+ */
+function prioridadPorTipo(tipo: TipoTicket): PrioridadTicket {
+  if (tipo === "emergencia") return "urgente";
+  if (tipo === "queja" || tipo === "mantenimiento" || tipo === "pago") return "alta";
+  return "normal";
+}
+
 export function normalizarNuevo(t: TicketNuevo): TicketNuevo {
   return {
     titulo: t.titulo.trim(),
     detalle: (t.detalle ?? "").trim(),
     tipo: t.tipo,
-    prioridad: t.prioridad ?? (t.tipo === "emergencia" ? "urgente" : "normal"),
+    prioridad: t.prioridad ?? prioridadPorTipo(t.tipo),
     origen: t.origen,
     creadoPor: t.creadoPor.trim(),
     contactoNombre: t.contactoNombre.trim(),

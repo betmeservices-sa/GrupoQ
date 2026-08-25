@@ -82,11 +82,23 @@ export function tiempoResolucion(
   return minutosHabiles(t.asignado, fin, horario);
 }
 
+/**
+ * El reloj puede ser uno solo o depender del ticket.
+ *
+ * En el hospital todos se miden igual. En Yali no: reservas atiende de 8 a 5,
+ * membresías de 9 a 8 y las sedes no cierran, así que el reloj se resuelve
+ * ticket por ticket con su área.
+ */
+export type RelojTickets = Horario | ((t: Ticket) => Horario);
+
+const relojDe = (reloj: RelojTickets, t: Ticket): Horario =>
+  typeof reloj === "function" ? reloj(t) : reloj;
+
 export function calcularMetricas(
   tickets: Ticket[],
-  opciones: { horario?: Horario; periodo?: Periodo; ahora?: string } = {},
+  opciones: { horario?: RelojTickets; periodo?: Periodo; ahora?: string } = {},
 ): MetricasTickets {
-  const horario = opciones.horario ?? HORARIO_HOSPITAL;
+  const reloj = opciones.horario ?? HORARIO_HOSPITAL;
   const ahora = opciones.ahora ?? new Date().toISOString();
   const enPeriodo = tickets.filter((t) => dentro(t.creado, opciones.periodo));
 
@@ -99,17 +111,17 @@ export function calcularMetricas(
   // comparar semanas.
   const atenciones = enPeriodo
     .filter((t) => t.asignado)
-    .map((t) => minutosHabiles(t.creado, t.asignado as string, horario));
+    .map((t) => minutosHabiles(t.creado, t.asignado as string, relojDe(reloj, t)));
 
   const resoluciones = resueltos
-    .map((t) => tiempoResolucion(t, horario, ahora))
+    .map((t) => tiempoResolucion(t, relojDe(reloj, t), ahora))
     .filter((x): x is number => x !== null);
 
   // El que más espera se busca entre los que nadie tomó: es el que puede
   // convertirse en la queja de mañana.
   let masEsperado: MetricasTickets["masEsperado"] = null;
   for (const t of enCola) {
-    const min = minutosHabiles(t.creado, ahora, horario);
+    const min = minutosHabiles(t.creado, ahora, relojDe(reloj, t));
     if (!masEsperado || min > masEsperado.minutos) masEsperado = { ticket: t, minutos: min };
   }
 
@@ -136,7 +148,7 @@ export function calcularMetricas(
     f.asignados += 1;
     if (t.estado === "resuelto") {
       f.resueltos += 1;
-      const min = tiempoResolucion(t, horario, ahora);
+      const min = tiempoResolucion(t, relojDe(reloj, t), ahora);
       if (min !== null) f.tiempos.push(min);
     } else {
       f.abiertos += 1;

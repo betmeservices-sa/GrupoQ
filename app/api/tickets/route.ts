@@ -11,7 +11,7 @@ import {
 } from "@/lib/tickets-store";
 import { calcularMetricas, ultimosDias } from "@/lib/tickets-metricas";
 import { ordenarCola, type EstadoTicket, type TicketNuevo } from "@/lib/tickets";
-import { HORARIO_HOSPITAL } from "@/lib/tickets-sla";
+import { configTickets, horarioDeArea } from "@/lib/tickets-tenant";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +27,9 @@ export async function GET(req: Request) {
     // recién después se preguntan las banderas.
     const tickets = await listarTickets(tenant);
     const metricas = calcularMetricas(tickets, {
-      horario: HORARIO_HOSPITAL,
+      // Cada ticket contra el reloj de SU área: en Yali reservas cierra a las
+      // 5 y las sedes no cierran nunca.
+      horario: (t) => horarioDeArea(tenant, t.area),
       periodo: Number.isFinite(dias) && dias > 0 ? ultimosDias(dias) : undefined,
     });
     return NextResponse.json({
@@ -63,7 +65,7 @@ export async function POST(req: Request) {
       creadoPor: body.creadoPor ?? "Mostrador",
       contactoNombre: body.contactoNombre ?? "",
       contactoTelefono: body.contactoTelefono,
-      area: body.area ?? "atencion",
+      area: body.area ?? configTickets(tenant).areaPorDefecto,
       asignadoA: body.asignadoA,
       conversacionId: body.conversacionId,
     });

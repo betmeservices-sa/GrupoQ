@@ -139,12 +139,16 @@ describe("el guion de Sofía no contradice las barandas", () => {
       "guardar_datos_contacto",
       "consultar_habitaciones",
       "reservar_estadia",
+      "crear_ticket",
       "reaccionar",
     ]) {
       expect(p).toContain(t);
     }
     expect(herramientasDeTenant("yaly").sort()).toEqual([
       "consultar_habitaciones",
+      // Sale del kickoff del 24 de agosto: lo que Sofía no cierra sola tiene
+      // que quedar anotado para una persona, o se pierde.
+      "crear_ticket",
       // Con esta el modelo registra la sede cuando la deduce (una transcripción
       // mala no puede terminar en "responda A, B o C").
       "elegir_hotel",
@@ -166,9 +170,52 @@ describe("el guion de Sofía no contradice las barandas", () => {
     expect(p).toContain("PROMOCIONES ACTIVAS");
   });
 
-  it("no promete pagos ni tarifas inventadas", () => {
-    expect(p).toMatch(/No confirmes pagos/);
+  it("no confirma un pago que no cuadra, ni inventa tarifas", () => {
+    // Cambió en el kickoff: Sofía SÍ compara el monto del comprobante contra
+    // la reserva. Lo que no puede es dejar pasar una diferencia.
+    expect(p).toMatch(/monto sea EXACTAMENTE el de la reserva/);
+    expect(p).toMatch(/no se hacen excepciones ni por un dólar/i);
     expect(p).toMatch(/No inventes tarifas/);
+  });
+
+  // ---- Lo que se acordó en el kickoff del 24 de agosto de 2026 ----
+
+  it("pregunta por la membresía antes de dar precios, y no la contesta ella", () => {
+    expect(p).toMatch(/¿ES SOCIO\?/);
+    expect(p).toMatch(/Sunsal Beach Club/);
+    // Un socio no puede recibir tarifa de público: eso lo maneja Olga.
+    expect(p).toMatch(/No le des tarifas, ni disponibilidad, ni Day Pass/);
+    expect(p).toMatch(/cincuenta y cinco dólares al mes/);
+  });
+
+  it("el Day Pass está en las tres sedes, con su precio y su horario", () => {
+    expect(p).toMatch(/Yalí: quince dólares/);
+    expect(p).toMatch(/Playa Linda: diez dólares/);
+    expect(p).toMatch(/Costa del Surf: veinte dólares/);
+    // Costa del Surf cierra a las 8, las otras dos no.
+    expect(p).toMatch(/ocho de la mañana a ocho de la noche, todos los días/);
+    expect(p).toMatch(/No incluye toalla/);
+  });
+
+  it("el desayuno va por persona, salvo en Playa Linda", () => {
+    expect(p).toMatch(/uno por persona/);
+    expect(p).toMatch(/En Playa Linda NO se incluye desayuno/);
+  });
+
+  it("aparta la habitación una hora y avisa que la tarifa no se devuelve", () => {
+    expect(p).toMatch(/apartada UNA HORA/);
+    expect(p).toMatch(/NO es reembolsable/);
+    // La condición tiene que decirse ANTES de cobrar, no después.
+    expect(p).toMatch(/ANTES de que pague/);
+  });
+
+  it("no confirma entradas ni salidas fuera de horario por su cuenta", () => {
+    expect(p).toMatch(/checkin_especial/);
+    expect(p).toMatch(/cincuenta por ciento del valor de la noche/);
+  });
+
+  it("no ofrece actividades que el hotel dijo que no tiene", () => {
+    expect(p).toMatch(/ni yoga, ni aeróbicos, ni clases de surf/);
   });
 });
 

@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { activeTenantId } from "@/lib/tenants/active";
 import { veModuloVoz } from "@/lib/tenants/voz";
+import { veTickets } from "@/lib/tickets-tenant";
 import { staff, ME } from "@/lib/data/seed";
 import { Avatar } from "@/components/ui/Avatar";
 import { Brand } from "./Brand";
@@ -77,10 +78,9 @@ export function Sidebar({
   // lo que enciende en Promociones es lo único que el agente puede ofrecer, y
   // Perfil le muestra en cuatro tarjetas cómo está configurado.
   const veYali = tenant === "yaly";
-  // "tickets" es el tablero de casos que Sofia no resuelve sola. Salio de la
-  // reunion del 20 de agosto con el hospital y por ahora sus areas y su semilla
-  // son las del hospital: se abre a otro tenant cuando tenga las suyas.
-  const veTickets = tenant === "hospital";
+  // "tickets" es el tablero de casos que el agente no resuelve solo. Que
+  // clientes lo tienen, y con que tipos y areas, vive en lib/tickets-tenant.
+  const tieneTickets = veTickets(tenant);
   // El banco es un centro de COBRANZA: no publica en redes. Recibe mensajes de
   // Instagram y Facebook (eso sigue en la bandeja), pero no programa contenido.
   const veRedes = tenant !== "promerica";
@@ -101,7 +101,7 @@ export function Sidebar({
       (item.id !== "redes" || veRedes) &&
       (item.id !== "comentarios" || veRedes) &&
       (item.id !== "mis-chats" || veYali) &&
-      (item.id !== "tickets" || veTickets) &&
+      (item.id !== "tickets" || tieneTickets) &&
       (item.id !== "promociones" || veYali) &&
       (item.id !== "perfil" || veYali),
   );

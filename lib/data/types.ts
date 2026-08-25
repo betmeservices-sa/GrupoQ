@@ -32,6 +32,9 @@ export type DepartmentId =
   // Hotel (El Descanso Antigua)
   | "reservas"
   | "conserjeria"
+  // Yali Hospitality: los socios del Sunsal Beach Club son un canal aparte, con
+  // su propia persona y su propio teléfono. No es una variante de reservas.
+  | "membresias"
   // Inmobiliaria (Terrazul): captación de propiedades y trámites de escritura
   | "captacion"
   | "legal"

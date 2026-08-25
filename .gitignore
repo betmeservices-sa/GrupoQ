@@ -15,3 +15,5 @@ dev.pid
 dev.log
 medicion/
 .medicion-tmp/
+
+.vercel

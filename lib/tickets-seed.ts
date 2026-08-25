@@ -9,7 +9,8 @@
 // promedios y en una demo eso parece un error del sistema.
 
 import type { Ticket, TipoTicket } from "./tickets";
-import { HORARIO_HOSPITAL, proximaApertura } from "./tickets-sla";
+import { proximaApertura, type Horario } from "./tickets-sla";
+import { horarioDeArea } from "./tickets-tenant";
 
 /** Generador con semilla: mismo tenant, mismo tablero, siempre. */
 function azar(semilla: string) {
@@ -33,6 +34,8 @@ interface Molde {
   area: string;
   origen: Ticket["origen"];
   prioridad?: Ticket["prioridad"];
+  /** Quién lo toma, cuando no puede ser cualquiera (id del staff del tenant). */
+  atiende?: string;
 }
 
 const MOLDES: Molde[] = [
@@ -143,44 +146,189 @@ const NOMBRES = [
   "Wendy Carolina Mejía",
 ];
 
+
+// Lo que de verdad le llega a Yali, sacado del kickoff del 24 de agosto de 2026.
+//
+// No son casos de adorno: cada uno es un escenario que el cliente nombró en voz
+// alta como algo que Sofía NO cierra sola y que tiene que caerle a una persona.
+// Por eso hay tres de pago y dos de membresía: son los que más se discutieron.
+const MOLDES_YALI: Molde[] = [
+  {
+    titulo: "Socio del Sunsal Beach Club pide tarifa",
+    detalle: "Se identificó como socio y pregunta por una habitación para el fin de semana. No se le dio precio: la atención de socios es de Olga.",
+    tipo: "membresia",
+    area: "membresias",
+    origen: "chat",
+    atiende: "s3",
+  },
+  {
+    titulo: "Pregunta cómo hacerse socio",
+    detalle: "Le interesó la membresía al oír que los socios no pagan Day Pass. Solo se le dijo que los planes arrancan en $55 mensuales.",
+    tipo: "membresia",
+    area: "membresias",
+    origen: "chat",
+    atiende: "s3",
+  },
+  {
+    titulo: "El comprobante no cuadra con la reserva",
+    detalle: "La habitación quedó en $125 y el voucher que mandó es por $100. No se confirmó la reserva.",
+    tipo: "pago",
+    area: "reservas",
+    origen: "chat",
+    prioridad: "alta",
+    atiende: "s2",
+  },
+  {
+    titulo: "Pagó una parte y dice que le mandan el resto",
+    detalle: "Depositó $100 de $150 y avisó que en la tarde le llega una remesa por la diferencia. Quedó sin confirmar.",
+    tipo: "pago",
+    area: "reservas",
+    origen: "chat",
+    prioridad: "alta",
+    atiende: "s2",
+  },
+  {
+    titulo: "Se venció la hora y hay otro esperando la misma habitación",
+    detalle: "Se le mandó el enlace de pago hace más de una hora y no pagó. Hay una segunda persona pidiendo esa misma habitación para hoy.",
+    tipo: "reserva",
+    area: "reservas",
+    origen: "chat",
+    prioridad: "urgente",
+    atiende: "s2",
+  },
+  {
+    titulo: "Quiere entrar a las nueve de la mañana",
+    detalle: "Su vuelo aterriza a las siete en Comalapa y pregunta si puede entrar directo. Hay que ver si la habitación está libre desde la noche anterior.",
+    tipo: "checkin_especial",
+    area: "reservas",
+    origen: "chat",
+    atiende: "s2",
+  },
+  {
+    titulo: "Pide quedarse hasta las cinco de la tarde",
+    detalle: "Sale el domingo y quiere late check out. Corresponde el recargo del 50% de la noche, sujeto a que no entre nadie ese día.",
+    tipo: "checkin_especial",
+    area: "reservas",
+    origen: "chat",
+    atiende: "s2",
+  },
+  {
+    titulo: "Reclama porque no le devuelven el pago",
+    detalle: "Reservó por WhatsApp para el sábado y ya no puede venir. Se le explicó que por este canal la tarifa no es reembolsable y no quedó conforme.",
+    tipo: "queja",
+    area: "reservas",
+    origen: "chat",
+    prioridad: "alta",
+    atiende: "s2",
+  },
+  {
+    titulo: "Dejó una cámara en la habitación",
+    detalle: "Se fue el domingo y olvidó una cámara GoPro en la mesa de noche del bungalow.",
+    tipo: "objeto_perdido",
+    area: "yali",
+    origen: "chat",
+  },
+  {
+    titulo: "El aire acondicionado no enfría",
+    detalle: "Está hospedada y reporta que el aire de la Planta Alta no enfría desde anoche.",
+    tipo: "mantenimiento",
+    area: "surf",
+    origen: "chat",
+    prioridad: "alta",
+  },
+  {
+    titulo: "Reclamo por ruido en la noche",
+    detalle: "Dice que el grupo de al lado estuvo con música hasta tarde y no pudo dormir.",
+    tipo: "queja",
+    area: "yali",
+    origen: "chat",
+    prioridad: "alta",
+  },
+  {
+    titulo: "Cobro de más en la salida",
+    detalle: "Dice que le cargaron un consumo que no hizo y quiere que lo revisen.",
+    tipo: "queja",
+    area: "gerencia",
+    origen: "chat",
+    prioridad: "alta",
+  },
+  {
+    titulo: "Cotización para grupo de doce personas",
+    detalle: "Pregunta por varias habitaciones para un cumpleaños y si hay tarifa de grupo.",
+    tipo: "cotizacion",
+    area: "reservas",
+    origen: "chat",
+    atiende: "s2",
+  },
+  {
+    titulo: "Olvidó un cargador y una toalla",
+    detalle: "Pide que se los guarden, pasa a recogerlos el fin de semana.",
+    tipo: "objeto_perdido",
+    area: "linda",
+    origen: "chat",
+    prioridad: "baja",
+  },
+];
+
+const NOMBRES_YALI = [
+  "Andrea Melgar", "Diego Fuentes", "Camila Sandoval", "Luis Alberto Rivas",
+  "Natalia Guzmán", "Jorge Interiano", "Valeria Cáceres", "Marcelo Peña",
+  "Fátima Orellana", "Sebastián Duarte",
+];
+
+/** Quienes atienden lo de las sedes en Yali (ids del seed del tenant). */
+const ATIENDEN_YALI = ["s2", "s6", "s5"];
+
 /** Personal que atiende tickets en el hospital (ids del seed del tenant). */
 const ATIENDEN = ["s6", "s8", "s7"];
 
 const MINUTO = 60_000;
 
 /**
- * Corre un instante hacia adelante hasta que el hospital esté abierto.
+ * Corre un instante hacia adelante hasta que esa área esté abierta.
  *
  * Sin esto, la semilla podría poner un ticket "tomado" a las 3 de la mañana y
  * el tiempo de atención daría cero minutos hábiles, que es un número que en la
  * vida real no puede pasar y le quitaría credibilidad al tablero.
+ *
+ * Va por área y no por negocio porque en Yali conviven relojes distintos: un
+ * ticket de la sede sí puede nacer a las 3 de la mañana (el vigilante está),
+ * pero uno de reservas no, porque a esa hora no hay nadie en esa línea.
  */
-function enHorario(ms: number): number {
-  const iso = proximaApertura(new Date(ms).toISOString(), HORARIO_HOSPITAL);
+function enHorarioDe(ms: number, horario: Horario): number {
+  const iso = proximaApertura(new Date(ms).toISOString(), horario);
   return iso ? Date.parse(iso) : ms;
 }
 
 export function ticketsSemilla(tenant: string, ahora = Date.now()): Ticket[] {
-  // Solo el hospital tiene tablero sembrado: los demás tenants abren limpios,
-  // como el resto de sus módulos.
-  if (tenant !== "hospital") return [];
+  // Solo los clientes con tablero se siembran; los demás abren limpios, como el
+  // resto de sus módulos.
+  const moldes = tenant === "hospital" ? MOLDES : tenant === "yaly" ? MOLDES_YALI : [];
+  if (moldes.length === 0) return [];
+  const nombres = tenant === "yaly" ? NOMBRES_YALI : NOMBRES;
+  const atienden = tenant === "yaly" ? ATIENDEN_YALI : ATIENDEN;
 
   const r = azar(tenant);
   const out: Ticket[] = [];
 
-  MOLDES.forEach((m, i) => {
+  moldes.forEach((m, i) => {
+    // Cada ticket vive en el reloj de su área.
+    const reloj = horarioDeArea(tenant, m.area);
+    const enH = (ms: number) => enHorarioDe(ms, reloj);
+
     // Repartidos sobre los últimos días, los más nuevos al final.
     const horasAtras = Math.round(4 + r() * 90 + i * 3);
-    const creado = enHorario(ahora - horasAtras * 60 * MINUTO);
+    const creado = enH(ahora - horasAtras * 60 * MINUTO);
 
     // Un tercio sigue en cola, un tercio en curso, un tercio cerrado.
     const suerte = r();
     const enCola = suerte < 0.3;
     const cerrado = suerte > 0.62;
 
-    const asignadoA = enCola ? undefined : ATIENDEN[Math.floor(r() * ATIENDEN.length)];
-    const asignado = enCola ? undefined : enHorario(creado + Math.round(8 + r() * 220) * MINUTO);
-    const resuelto = cerrado && asignado ? enHorario(asignado + Math.round(15 + r() * 400) * MINUTO) : undefined;
+    // Los de membresías y pago tienen dueño fijo: no los puede tomar cualquiera.
+    const asignadoA = enCola ? undefined : m.atiende ?? atienden[Math.floor(r() * atienden.length)];
+    const asignado = enCola ? undefined : enH(creado + Math.round(8 + r() * 220) * MINUTO);
+    const resuelto = cerrado && asignado ? enH(asignado + Math.round(15 + r() * 400) * MINUTO) : undefined;
 
     out.push({
       id: `tkt-seed-${i + 1}`,
@@ -192,8 +340,8 @@ export function ticketsSemilla(tenant: string, ahora = Date.now()): Ticket[] {
       estado: enCola ? "abierto" : cerrado ? "resuelto" : r() < 0.5 ? "asignado" : "en_proceso",
       prioridad: m.prioridad ?? "normal",
       origen: m.origen,
-      creadoPor: m.origen === "manual" ? "Lic. José Ramírez" : m.origen === "qr" ? "Código QR" : "Sofía",
-      contactoNombre: NOMBRES[i % NOMBRES.length],
+      creadoPor: m.origen === "manual" ? "Recepción" : m.origen === "qr" ? "Código QR" : "Sofía",
+      contactoNombre: nombres[i % nombres.length],
       contactoTelefono: `+503 7${String(1000000 + Math.floor(r() * 8999999)).slice(0, 7)}`,
       area: m.area,
       asignadoA,
@@ -204,8 +352,8 @@ export function ticketsSemilla(tenant: string, ahora = Date.now()): Ticket[] {
         ? [
             {
               id: `nota-seed-${i}`,
-              autor: "Lic. Karla Cruz",
-              texto: "Se contactó a la paciente y se resolvió la solicitud.",
+              autor: tenant === "yaly" ? "Recepción" : "Lic. Karla Cruz",
+              texto: tenant === "yaly" ? "Se contactó al huésped y se resolvió." : "Se contactó a la paciente y se resolvió la solicitud.",
               ts: new Date(resuelto).toISOString(),
             },
           ]
