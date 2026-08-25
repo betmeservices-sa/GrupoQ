@@ -54,7 +54,7 @@ function deMemoria(tenant: string): Promocion[] {
 }
 
 export async function listarPromos(tenant: string): Promise<Promocion[]> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb || faltaTabla.activo()) return deMemoria(tenant);
 
   const { data, error } = await sb
@@ -143,7 +143,7 @@ export async function actualizarPromo(
 }
 
 export async function borrarPromo(tenant: string, id: string): Promise<void> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb || faltaTabla.activo()) {
     const actual = mem.get(id);
     if (actual?.tenant === tenant) mem.delete(id);

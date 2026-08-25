@@ -5,7 +5,7 @@
 //
 // Tabla: meta_connections (ver supabase/meta-connections.sql).
 
-import { getSupabase } from "./supabase";
+import { getSupabase, todosLosClientes } from "./supabase";
 
 export interface MetaConnection {
   tenant: string;
@@ -63,8 +63,9 @@ export async function guardarConexiones(
 // (igual que WhatsApp enruta por phone_number_id).
 export async function conexionPorActivo(id: string): Promise<MetaConnection | null> {
   if (!id) return null;
-  const sb = getSupabase();
-  if (sb) {
+  // Se busca en todos los esquemas: averiguar de que cliente es la pagina es
+  // justamente el motivo de esta consulta, asi que no se puede elegir uno.
+  for (const sb of todosLosClientes()) {
     const { data, error } = await sb
       .from("meta_connections")
       .select("tenant,page_id,page_name,page_token,ig_id,user_token")
@@ -98,7 +99,7 @@ export function seedConexionMemoria(c: MetaConnection): void {
 }
 
 export async function conexionesDe(tenant: string): Promise<MetaConnection[]> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (sb) {
     const { data, error } = await sb
       .from("meta_connections")

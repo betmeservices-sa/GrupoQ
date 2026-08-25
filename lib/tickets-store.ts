@@ -110,7 +110,7 @@ function nuevoId(): string {
 // ── Lectura ──────────────────────────────────────────────────────────────────
 
 export async function listarTickets(tenant: string): Promise<Ticket[]> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb || faltaTabla.activo()) return deMemoria(tenant);
 
   const { data, error } = await sb
@@ -186,7 +186,7 @@ export async function crearTicket(tenant: string, entrada: TicketNuevo): Promise
 }
 
 async function guardar(t: Ticket): Promise<Ticket> {
-  const sb = getSupabase();
+  const sb = getSupabase(t.tenant);
   if (!sb || faltaTabla.activo()) {
     mem.set(t.id, t);
     return t;

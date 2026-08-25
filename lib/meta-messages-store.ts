@@ -55,7 +55,7 @@ function guardarEnMemoria(m: Omit<MetaMensaje, "seq">): void {
 }
 
 async function guardar(m: Omit<MetaMensaje, "seq">): Promise<void> {
-  const sb = getSupabase();
+  const sb = getSupabase(m.tenant);
   if (sb) {
     const { error } = await sb.from("meta_messages").upsert(
       {
@@ -95,7 +95,7 @@ export async function addMetaOutbound(
 // Devuelve los mensajes con cursor (seq/id) mayor al del cliente. Si se pasa
 // `tenant`, solo los de ese cliente (así cada dashboard ve lo suyo).
 export async function getMetaSince(after: number, tenant?: string): Promise<MetaMensaje[]> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (sb) {
     let q = sb
       .from("meta_messages")

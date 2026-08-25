@@ -77,7 +77,7 @@ function resumir(clics: ClicBio[]): ResumenClics[] {
 
 /** Clics por link, desde una fecha (ISO). */
 export async function resumenClics(tenant: string, desde: string): Promise<ResumenClics[]> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb || faltaTabla.activo()) {
     return resumir(mem.filter((c) => c.tenant === tenant && c.ts >= desde));
   }

@@ -35,7 +35,7 @@ let memSeq = 0;
 const MAX = 500;
 
 async function guardar(m: Omit<WaInbound, "seq">): Promise<void> {
-  const sb = getSupabase();
+  const sb = getSupabase(m.tenant);
   if (sb) {
     const { error } = await sb.from("wa_messages").upsert(
       {
@@ -89,7 +89,7 @@ export async function addOutbound(m: {
 // Devuelve los mensajes con cursor (seq/id) mayor al del cliente. Si se pasa
 // `tenant`, solo los de ese cliente (así cada dashboard ve lo suyo).
 export async function getSince(after: number, tenant?: string): Promise<WaInbound[]> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (sb) {
     let q = sb
       .from("wa_messages")
@@ -132,7 +132,7 @@ export async function getSince(after: number, tenant?: string): Promise<WaInboun
 // el demo, y dejar el panel de costos con cifras de conversaciones que ya no
 // están en la bandeja confunde más de lo que informa.
 export async function clearHistory(tenant?: string): Promise<void> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb) {
     for (let i = mem.length - 1; i >= 0; i--) {
       if (!tenant || mem[i].tenant === tenant) mem.splice(i, 1);

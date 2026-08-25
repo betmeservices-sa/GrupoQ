@@ -58,7 +58,7 @@ export async function leerMemoria(tenant: string, telefono: string): Promise<Mem
   const tel = normalizarTelefono(telefono);
   if (!tel) return null;
 
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb || faltaTabla.activo()) return mem.get(llave(tenant, tel)) ?? null;
 
   const { data, error } = await sb
@@ -90,7 +90,7 @@ export async function guardarMemoria(m: MemoriaLlamada): Promise<ResultadoGuarda
   const registro: MemoriaLlamada = { ...m, telefono: normalizarTelefono(m.telefono) };
   if (!registro.telefono) return { ok: false, donde: "ninguna", error: "sin teléfono" };
 
-  const sb = getSupabase();
+  const sb = getSupabase(registro.tenant);
   if (!sb || faltaTabla.activo()) {
     mem.set(llave(registro.tenant, registro.telefono), registro);
     return { ok: true, donde: "memoria" };

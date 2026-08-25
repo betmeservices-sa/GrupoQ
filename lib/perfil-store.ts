@@ -56,7 +56,7 @@ export async function crearSolicitud(
 }
 
 export async function listarSolicitudes(tenant: string): Promise<SolicitudPerfil[]> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb || faltaTabla.activo()) return mem.filter((s) => s.tenant === tenant);
 
   const { data, error } = await sb

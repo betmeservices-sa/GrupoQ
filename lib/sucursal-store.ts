@@ -101,7 +101,7 @@ export async function guardarSucursal(
  * escribiendo.
  */
 export async function conversacionesPorOrigen(tenant: string): Promise<Record<string, number>> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   const cuenta: Record<string, number> = {};
   if (!sb) {
     for (const e of mem.values()) {
@@ -134,7 +134,7 @@ export async function conversacionesPorOrigen(tenant: string): Promise<Record<st
  * el demo tiene que dejarlo como recién salido de fábrica.
  */
 export async function borrarEstadosSucursalDeTenant(tenant: string): Promise<void> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb) {
     mem.clear();
     return;

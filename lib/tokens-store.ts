@@ -284,7 +284,7 @@ const COLS = `${COLS_BASE}, tipo`;
 
 // Lectura cruda de la tabla, compartida por el resumen y el detalle.
 async function leerFilas(tenant: string | undefined, tope: number): Promise<FilaConsumo[]> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb) return mem.filter((f) => !tenant || f.tenant === tenant).slice(0, tope);
 
   let q = sb
@@ -353,7 +353,7 @@ async function leerFilas(tenant: string | undefined, tope: number): Promise<Fila
 
 /** Borra el consumo de un cliente (lo llama el "Borrar historial" del demo). */
 export async function borrarConsumo(tenant?: string): Promise<void> {
-  const sb = getSupabase();
+  const sb = getSupabase(tenant);
   if (!sb) {
     for (let i = mem.length - 1; i >= 0; i--) {
       if (!tenant || mem[i].tenant === tenant) mem.splice(i, 1);
