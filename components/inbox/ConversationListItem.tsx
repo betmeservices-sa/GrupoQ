@@ -70,6 +70,16 @@ export function ConversationListItem({
               Nuevo
             </span>
           )}
+          {/* Por cual pagina entro. Con dos marcas conectadas, contestar sin
+              saber a cual le escribieron es adivinar. */}
+          {conversation.paginaNombre && (
+            <span
+              title={`Escribio a ${conversation.paginaNombre}`}
+              className="max-w-[9rem] truncate rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-2)]"
+            >
+              {conversation.paginaNombre}
+            </span>
+          )}
           {conversation.asignadoA && (
             <span
               title={`Asignado a ${nombreStaff(conversation.asignadoA)}`}

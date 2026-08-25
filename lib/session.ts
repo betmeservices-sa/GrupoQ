@@ -11,6 +11,7 @@
 
 import { isTenantId } from "./tenants";
 import type { TenantId } from "./tenants/types";
+import type { RoleId } from "./data/types";
 
 export const SESSION_COOKIE = "ccg_sesion";
 
@@ -66,39 +67,74 @@ function igualesEnTiempoConstante(a: string, b: string): boolean {
   return dif === 0;
 }
 
+export interface Sesion {
+  tenant: TenantId;
+  rol: RoleId;
+  /** true = el rol viene de una cuenta de persona y no se puede cambiar. */
+  fijo: boolean;
+}
+
 /**
- * Crea el valor de la cookie: `<tenant>.<expiracionUnix>.<firma>`.
+ * Crea el valor de la cookie: `<tenant>.<rol>.<fijo>.<expiracionUnix>.<firma>`.
+ *
+ * El rol va DENTRO de la firma a proposito. Antes vivia en el navegador, en un
+ * localStorage que cualquiera edita, asi que no protegia nada: era un "ver
+ * como" para enseñar el demo. Con una cuenta de una persona real eso no
+ * alcanza; el servidor tiene que poder decir que no.
+ *
  * Devuelve null si no hay secreto configurado (fail-closed): el login debe
  * responder error en vez de emitir una sesion insegura.
  */
 export async function crearSesion(
   tenant: TenantId,
+  rol: RoleId = "gerente_marketing",
+  fijo = false,
 ): Promise<{ valor: string; maxAge: number } | null> {
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SEG;
-  const payload = `${tenant}.${exp}`;
+  const payload = `${tenant}.${rol}.${fijo ? "1" : "0"}.${exp}`;
   const sig = await firmar(payload);
   if (!sig) return null;
   return { valor: `${payload}.${sig}`, maxAge: MAX_AGE_SEG };
 }
 
-/** Devuelve el tenant si la cookie es valida y no expiro; null si no. */
-export async function verificarSesion(valor: string | undefined | null): Promise<TenantId | null> {
+/** Devuelve la sesion si la cookie es valida y no expiro; null si no. */
+export async function leerSesion(valor: string | undefined | null): Promise<Sesion | null> {
   if (!valor) return null;
   const partes = valor.split(".");
-  if (partes.length !== 3) return null;
-  const [tenant, expStr, sig] = partes;
 
+  // Cookies viejas (tenant.exp.firma) siguen valiendo hasta que expiren, para
+  // no echar a nadie de su sesion al desplegar. Entran con acceso total, que es
+  // lo que tenian antes de este cambio.
+  if (partes.length === 3) {
+    const [tenant, expStr, sig] = partes;
+    if (!isTenantId(tenant)) return null;
+    if (!vigente(expStr)) return null;
+    const esperada = await firmar(`${tenant}.${expStr}`);
+    if (!esperada || !igualesEnTiempoConstante(sig, esperada)) return null;
+    return { tenant, rol: "gerente_marketing", fijo: false };
+  }
+
+  if (partes.length !== 5) return null;
+  const [tenant, rol, fijoStr, expStr, sig] = partes;
   if (!isTenantId(tenant)) return null;
+  if (!vigente(expStr)) return null;
 
-  const exp = Number(expStr);
-  if (!Number.isFinite(exp) || exp * 1000 < Date.now()) return null;
-
-  const esperada = await firmar(`${tenant}.${expStr}`);
+  const esperada = await firmar(`${tenant}.${rol}.${fijoStr}.${expStr}`);
   // Sin secreto (fail-closed) no hay firma con que comparar: nadie valida.
   if (!esperada) return null;
   if (!igualesEnTiempoConstante(sig, esperada)) return null;
 
-  return tenant;
+  return { tenant, rol: rol as RoleId, fijo: fijoStr === "1" };
+}
+
+function vigente(expStr: string): boolean {
+  const exp = Number(expStr);
+  return Number.isFinite(exp) && exp * 1000 >= Date.now();
+}
+
+/** Solo el tenant. Lo usan los sitios a los que el rol no les importa. */
+export async function verificarSesion(valor: string | undefined | null): Promise<TenantId | null> {
+  return (await leerSesion(valor))?.tenant ?? null;
 }
 
 export function cookieDeSesion(valor: string, maxAge: number): string {

@@ -106,6 +106,7 @@ export const hospitalTenant: TenantConfig = {
   labels: { contacto: "paciente", contactoPlural: "pacientes" },
   roles: {
     recepcion: "Recepción",
+    atencion: "Atención",
     marketing: "Marketing",
     gerente_marketing: "Gerente de Marketing",
     medico: "Médico",

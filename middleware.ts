@@ -11,7 +11,8 @@
 // de Meta en su propio handler.
 
 import { NextResponse, type NextRequest } from "next/server";
-import { sesionDeCookieHeader, verificarSesion } from "@/lib/session";
+import { leerSesion, sesionDeCookieHeader } from "@/lib/session";
+import { MODULO_RUTA, primerModulo, puedeVerRuta, VE } from "@/lib/modulos";
 
 const PUBLICAS = [
   "/api/auth/login",
@@ -29,22 +30,35 @@ function esPublica(pathname: string): boolean {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const sesion = await leerSesion(sesionDeCookieHeader(req.headers.get("cookie")));
 
-  if (!pathname.startsWith("/api/") || esPublica(pathname)) {
+  if (pathname.startsWith("/api/")) {
+    if (esPublica(pathname)) return NextResponse.next();
+    if (!sesion) {
+      return NextResponse.json(
+        { error: "No autenticado. Inicia sesion para acceder a estos datos." },
+        { status: 401 },
+      );
+    }
     return NextResponse.next();
   }
 
-  const tenant = await verificarSesion(sesionDeCookieHeader(req.headers.get("cookie")));
-  if (!tenant) {
-    return NextResponse.json(
-      { error: "No autenticado. Inicia sesion para acceder a estos datos." },
-      { status: 401 },
-    );
+  // Paginas. Solo se cierran cuando la sesion trae un rol FIJO, o sea una
+  // cuenta de una persona. Los logins de demo siguen viendo todo y con su
+  // selector de "ver como", porque son para enseñar el producto.
+  //
+  // Esto es lo que de verdad cierra la puerta: esconder el modulo del menu es
+  // comodidad, y no impide escribir la URL a mano.
+  if (sesion?.fijo && !puedeVerRuta(sesion.rol, pathname)) {
+    const destino = MODULO_RUTA[primerModulo({ ve: VE[sesion.rol] ?? [] })];
+    return NextResponse.redirect(new URL(destino, req.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  // Las paginas tambien, no solo /api: la restriccion por rol se aplica al
+  // navegar. Se dejan fuera los assets y el login, que no tienen modulo.
+  matcher: ["/api/:path*", "/((?!_next/|favicon|login|.*\.).*)"],
 };

@@ -227,18 +227,29 @@ describe("el dashboard puede separar por hotel", () => {
     }
   });
 
-  it("las tres sedes tienen al menos una conversación, o una pestaña saldría vacía", () => {
-    for (const o of yalySucursales.opciones) {
-      expect(
-        TENANTS.yaly.seed.conversations.some((c) => c.sucursalId === o.id),
-        o.nombre,
-      ).toBe(true);
-    }
+  it("no trae NADA inventado: Yali es un cliente, no un demo", () => {
+    // Esto reemplaza a las pruebas que exigian conversaciones de ejemplo. Con
+    // huespedes reales escribiendo, un contacto inventado en la bandeja de
+    // Veronica no es una demostracion: es alguien a quien va a intentar
+    // contestarle.
+    const seed = TENANTS.yaly.seed;
+    expect(seed.contacts).toEqual([]);
+    expect(seed.conversations).toEqual([]);
+    expect(seed.messages).toEqual([]);
+    expect(seed.socialPosts).toEqual([]);
+    expect(seed.socialStats).toEqual([]);
+    expect(seed.metrics).toEqual([]);
+    expect(seed.internalMessages).toEqual([]);
   });
 
-  it("hay al menos un chat asignado a mí, que es lo que muestra Mis chats", () => {
-    const mios = TENANTS.yaly.seed.conversations.filter((c) => c.asignadoA === TENANTS.yaly.seed.ME);
-    expect(mios.length).toBeGreaterThan(0);
+  it("pero si trae la estructura: el equipo real y sus departamentos", () => {
+    const seed = TENANTS.yaly.seed;
+    expect(seed.staff.length).toBeGreaterThan(0);
+    expect(seed.departments.length).toBeGreaterThan(0);
+    // Las personas que pidieron usuario en el kickoff.
+    const nombres = seed.staff.map((s) => s.nombre);
+    expect(nombres).toContain("Verónica Viches");
+    expect(nombres).toContain("Olga");
   });
 });
 

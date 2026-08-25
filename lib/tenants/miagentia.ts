@@ -79,6 +79,7 @@ export const miagentiaTenant: TenantConfig = {
   labels: { contacto: "cliente", contactoPlural: "clientes" },
   roles: {
     recepcion: "Atención al Cliente",
+    atencion: "Atención",
     marketing: "Marketing",
     gerente_marketing: "Gerente de Marketing",
     medico: "Asesor",

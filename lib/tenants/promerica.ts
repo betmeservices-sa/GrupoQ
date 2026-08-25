@@ -85,6 +85,7 @@ export const promericaTenant: TenantConfig = {
   labels: { contacto: "cliente", contactoPlural: "clientes" },
   roles: {
     recepcion: "Servicio al Cliente",
+    atencion: "Atención",
     marketing: "Analista de cartera",
     gerente_marketing: "Jefe de Cobranza",
     medico: "Gestor de cobro",

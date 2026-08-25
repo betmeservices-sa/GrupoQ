@@ -39,8 +39,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Cuerpo invalido" }, { status: 400 });
   }
 
-  const tenant = validarCredenciales(usuario, password);
-  if (!tenant) {
+  const acceso = validarCredenciales(usuario, password);
+  if (!acceso) {
     // Mensaje generico a proposito: no revelamos si el usuario existe.
     return NextResponse.json({ ok: false, error: "Credenciales invalidas" }, { status: 401 });
   }
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const sesion = await crearSesion(tenant);
+  const sesion = await crearSesion(acceso.tenant, acceso.rol, acceso.fijo);
   if (!sesion) {
     // Fail-closed: falta SESSION_SECRET en el servidor. No emitimos una sesion
     // insegura; el operador debe configurar la variable.
@@ -102,7 +102,12 @@ export async function POST(req: Request) {
       { status: 503 },
     );
   }
-  const res = NextResponse.json({ ok: true, tenant });
+  const res = NextResponse.json({
+    ok: true,
+    tenant: acceso.tenant,
+    rol: acceso.rol,
+    nombre: acceso.nombre,
+  });
   res.headers.append("Set-Cookie", cookieDeSesion(sesion.valor, sesion.maxAge));
   // Abrir/renovar la ventana de 24h solo cuando se acaba de verificar el codigo.
   if (abrirVentana2fa) {

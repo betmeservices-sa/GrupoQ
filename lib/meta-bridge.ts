@@ -31,13 +31,17 @@ export function useMetaBridge(dispatch: Dispatch<StoreAction>) {
       try {
         const r = await fetch(`/api/meta/inbox?after=${cursor.current}`);
         if (!r.ok || !activo) return;
-        const data = (await r.json()) as { mensajes: MetaMensajeDTO[] };
+        const data = (await r.json()) as {
+          mensajes: MetaMensajeDTO[];
+          paginas?: Record<string, string>;
+        };
         for (const m of data.mensajes) {
           dispatch({
             type: "META_INCOMING",
             mid: m.mid,
             canal: m.canal,
             pageId: m.pageId,
+            paginaNombre: data.paginas?.[m.pageId],
             senderId: m.senderId,
             senderName: m.senderName,
             texto: m.texto,

@@ -1,7 +1,7 @@
 "use client";
 
 import { UserCog } from "lucide-react";
-import { ROLES, useRole } from "@/lib/roles";
+import { ROLES, rolEsFijo, useRole } from "@/lib/roles";
 import { Desplegable } from "@/components/ui/Desplegable";
 
 // Control de demo: cambia el rol activo para mostrar qué ve cada perfil.
@@ -13,7 +13,22 @@ import { Desplegable } from "@/components/ui/Desplegable";
 //
 // Abre hacia ARRIBA porque vive al pie de la barra lateral.
 export function RoleSwitcher() {
-  const { rol, setRol } = useRole();
+  const { rol, setRol, def } = useRole();
+
+  // Cuenta de una persona: no hay nada que elegir. Se muestra con qué perfil
+  // entró y ya. Dejar el selector visible sería ofrecer algo que el servidor va
+  // a rechazar, y encima invita a intentarlo.
+  if (rolEsFijo()) {
+    return (
+      <div className="rounded-xl border border-line bg-surface/60 px-3 py-2.5">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+          <UserCog size={13} />
+          Perfil
+        </p>
+        <p className="mt-0.5 text-[13px] font-semibold text-[var(--text)]">{def.nombre}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-line bg-surface/60 p-3">

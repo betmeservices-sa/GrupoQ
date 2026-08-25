@@ -82,6 +82,8 @@ export type StoreAction =
       mid: string;
       canal: "facebook" | "instagram";
       pageId: string;
+      /** Nombre de la pagina por la que entro (Yali tiene dos). */
+      paginaNombre?: string;
       senderId: string;
       senderName?: string;
       texto: string;
@@ -437,6 +439,7 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
                 ultimoMensajeTs: action.ts,
                 noLeidos: esEntrante ? c.noLeidos + 1 : c.noLeidos,
                 estado: c.estado === "resuelto" ? "en_progreso" : c.estado,
+                paginaNombre: c.paginaNombre ?? action.paginaNombre,
               }
             : c,
         );
@@ -468,6 +471,7 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
             estado: "nuevo",
             noLeidos: esEntrante ? 1 : 0,
             ultimoMensajeTs: action.ts,
+            paginaNombre: action.paginaNombre,
           },
           ...state.conversations,
         ];

@@ -41,7 +41,17 @@ export type DepartmentId =
   // Banco Promerica: gestión de cartera en mora
   | "cobranza";
 
-export type RoleId = "recepcion" | "marketing" | "gerente_marketing" | "medico" | "jefe" | "admin";
+// "atencion" es quien contesta y nada mas: bandeja, sus chats, comentarios y
+// redes. Sale de Yali, donde Veronica atiende mensajes y no gestiona nada
+// del negocio, pero sirve para cualquier cliente con esa figura.
+export type RoleId =
+  | "recepcion"
+  | "atencion"
+  | "marketing"
+  | "gerente_marketing"
+  | "medico"
+  | "jefe"
+  | "admin";
 
 export interface Department {
   id: DepartmentId;
@@ -102,6 +112,12 @@ export interface Conversation {
   // Yali). Sale de la pregunta de apertura del agente, y con ella el dashboard
   // puede separar las conversaciones hotel por hotel.
   sucursalId?: string;
+  // Por cual pagina de Facebook o Instagram entro el mensaje.
+  //
+  // Con una sola pagina daba igual. Con dos (Yali y Sunzal) deja de dar igual:
+  // quien atiende necesita saber a que marca le escribieron antes de contestar,
+  // porque la respuesta no es la misma.
+  paginaNombre?: string;
 }
 
 export interface InternalChannel {

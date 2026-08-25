@@ -301,9 +301,13 @@ function enHorarioDe(ms: number, horario: Horario): number {
 }
 
 export function ticketsSemilla(tenant: string, ahora = Date.now()): Ticket[] {
-  // Solo los clientes con tablero se siembran; los demás abren limpios, como el
-  // resto de sus módulos.
-  const moldes = tenant === "hospital" ? MOLDES : tenant === "yaly" ? MOLDES_YALI : [];
+  // Solo el hospital, que sigue siendo un demo que se enseña.
+  //
+  // Yali quedó fuera a propósito aunque sus moldes existan mas abajo: es un
+  // cliente en produccion y su tablero tiene que arrancar vacio. Un ticket
+  // inventado ahi no es una demostracion, es una tarea falsa mezclada con las
+  // de verdad, y alguien la va a trabajar.
+  const moldes = tenant === "hospital" ? MOLDES : [];
   if (moldes.length === 0) return [];
   const nombres = tenant === "yaly" ? NOMBRES_YALI : NOMBRES;
   const atienden = tenant === "yaly" ? ATIENDEN_YALI : ATIENDEN;

@@ -74,6 +74,9 @@ export function ContextPanel({
           <Row Icon={Phone} label={telefonoBonito(contact.telefono)} />
         )}
         {contact.handle && <Row Icon={AtSign} label={contact.handle} />}
+        {conversation.paginaNombre && (
+          <Row Icon={AtSign} label={`Escribio a ${conversation.paginaNombre}`} />
+        )}
         {contact.notas && <Row Icon={StickyNote} label={contact.notas} multiline />}
       </div>
 

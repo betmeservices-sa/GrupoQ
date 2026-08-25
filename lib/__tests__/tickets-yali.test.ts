@@ -125,37 +125,28 @@ describe("cada área con su reloj", () => {
 });
 
 describe("el tablero con el que abre Yali", () => {
-  const tickets = ticketsSemilla("yaly", Date.parse(MANANA));
-
-  it("trae los casos que el cliente nombró en la llamada", () => {
-    const tipos = new Set(tickets.map((t) => t.tipo));
-    for (const esperado of ["membresia", "pago", "checkin_especial", "objeto_perdido"]) {
-      expect(tipos).toContain(esperado);
-    }
+  it("arranca vacio, sin un solo caso inventado", () => {
+    // Yali es un cliente en produccion. Un ticket de ejemplo en su tablero no
+    // es una demostracion: es una tarea falsa mezclada con las de verdad, y
+    // alguien del hotel la va a trabajar.
+    expect(ticketsSemilla("yaly", Date.parse(MANANA))).toEqual([]);
   });
 
-  it("los de membresía son de Olga y ninguno cae en otra área", () => {
-    const membresias = tickets.filter((t) => t.tipo === "membresia");
-    expect(membresias.length).toBeGreaterThan(0);
-    for (const t of membresias) expect(t.area).toBe("membresias");
-  });
+  it("el hospital, que sigue siendo demo, si trae su tablero", () => {
+    const tickets = ticketsSemilla("hospital", Date.parse(MANANA));
+    expect(tickets.length).toBeGreaterThan(0);
 
-  it("ningún ticket de reservas nace fuera del horario de reservas", () => {
-    const reloj = horarioDeArea("yaly", "reservas");
-    for (const t of tickets.filter((x) => x.area === "reservas")) {
-      // Si naciera a las 3 de la mañana, su tiempo de atención arrancaría en
-      // cero minutos hábiles y el promedio del tablero sería irreal.
-      const hasta = t.asignado ?? MANANA;
-      if (hasta > t.creado) expect(minutosHabiles(t.creado, hasta, reloj)).toBeGreaterThan(0);
-    }
-  });
-
-  it("solo usa áreas y tipos que la configuración declara", () => {
-    const cfg = configTickets("yaly");
+    const cfg = configTickets("hospital");
     const areas = new Set(cfg.areas.map((a) => a.id));
     for (const t of tickets) {
       expect(areas).toContain(t.area);
       expect(cfg.tipos).toContain(t.tipo);
+    }
+  });
+
+  it("ningun cliente sin tablero se siembra por accidente", () => {
+    for (const t of ["grupoq", "excel", "miagentia", "promerica"]) {
+      expect(ticketsSemilla(t, Date.parse(MANANA))).toEqual([]);
     }
   });
 });

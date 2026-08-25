@@ -227,6 +227,7 @@ export const yalyTenant: TenantConfig = {
   labels: { contacto: "huésped", contactoPlural: "huéspedes" },
   roles: {
     recepcion: "Recepción",
+    atencion: "Atención",
     // "marketing" es el id interno; en Yali esa silla es la de membresías, que
     // es un canal aparte con su propia persona y su propio teléfono.
     marketing: "Membresías",

@@ -101,6 +101,7 @@ export const inmobiliariaTenant: TenantConfig = {
   labels: { contacto: "cliente", contactoPlural: "clientes" },
   roles: {
     recepcion: "Recepción",
+    atencion: "Atención",
     marketing: "Marketing",
     gerente_marketing: "Gerente Comercial",
     medico: "Asesor",

@@ -13,6 +13,8 @@
 
 import { DEMO_LOGINS, isTenantId } from "./tenants";
 import type { TenantId } from "./tenants/types";
+import type { RoleId } from "./data/types";
+import { buscarCuenta } from "./usuarios";
 
 let avisado = false;
 
@@ -38,14 +40,30 @@ function iguales(a: string, b: string): boolean {
   return dif === 0;
 }
 
-export function validarCredenciales(usuario: string, password: string): TenantId | null {
+export interface Acceso {
+  tenant: TenantId;
+  /** El rol con el que entra. Los logins de demo entran viendo todo. */
+  rol: RoleId;
+  nombre?: string;
+  /** true = el rol viene de una cuenta de persona y NO se puede cambiar. */
+  fijo: boolean;
+}
+
+export function validarCredenciales(usuario: string, password: string): Acceso | null {
   const u = usuario.trim().toLowerCase();
   if (!u || !password) return null;
+
+  // Primero las cuentas de persona: son las de clientes en produccion y traen
+  // su propio rol, que despues nadie puede cambiar desde el navegador.
+  const cuenta = buscarCuenta(u, password);
+  if (cuenta) {
+    return { tenant: cuenta.tenant, rol: cuenta.rol, nombre: cuenta.nombre, fijo: true };
+  }
 
   const env = desdeEnv();
   if (env) {
     for (const [clave, tenant] of env) {
-      if (iguales(password, clave)) return tenant;
+      if (iguales(password, clave)) return { tenant, rol: "gerente_marketing", fijo: false };
     }
     return null;
   }
@@ -60,5 +78,7 @@ export function validarCredenciales(usuario: string, password: string): TenantId
   const match = DEMO_LOGINS.find(
     (l) => l.usuario.toLowerCase() === u && iguales(password, l.password),
   );
-  return match ? match.tenant : null;
+  // Los logins de demo siguen entrando con acceso total y con el selector de
+  // "ver como" disponible: son para enseñar el producto, no para trabajar.
+  return match ? { tenant: match.tenant, rol: "gerente_marketing", fijo: false } : null;
 }

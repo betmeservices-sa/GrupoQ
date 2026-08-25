@@ -90,6 +90,7 @@ export const hotelTenant: TenantConfig = {
   labels: { contacto: "huésped", contactoPlural: "huéspedes" },
   roles: {
     recepcion: "Recepción",
+    atencion: "Atención",
     marketing: "Marketing",
     gerente_marketing: "Gerente de Marketing",
     medico: "Reservas",
