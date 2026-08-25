@@ -26,6 +26,7 @@ export const yalySeed: TenantSeed = {
   // así en el kickoff: "reservas es la banca tradicional y membresía es banca
   // privada". Quien atiende socios no atiende reservas y al revés.
   departments: [
+    { id: "sin_clasificar", nombre: "Sin clasificar", color: "#94a3b8" },
     { id: "reservas", nombre: "Reservas", color: "#0e7490" },
     { id: "membresias", nombre: "Membresías", color: "#b45309" },
     { id: "recepcion", nombre: "Recepción", color: "#7c3aed" },

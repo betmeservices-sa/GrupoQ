@@ -59,12 +59,17 @@ export function ConversationListItem({
           )}
         </div>
         <div className="mt-1.5 flex items-center gap-1.5">
-          <span
-            className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold"
-            style={{ backgroundColor: `${d.color}1a`, color: d.color }}
-          >
-            {d.nombre}
-          </span>
+          {/* Sin etiqueta mientras nadie clasifico la conversacion. Poner una
+              por defecto es peor que no poner ninguna: se lee como si alguien
+              hubiera decidido que era eso. */}
+          {conversation.departamento !== "sin_clasificar" && (
+            <span
+              className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold"
+              style={{ backgroundColor: `${d.color}1a`, color: d.color }}
+            >
+              {d.nombre}
+            </span>
+          )}
           {conversation.estado === "nuevo" && (
             <span className="rounded-md bg-[var(--brand-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand-accent)]">
               Nuevo

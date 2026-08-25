@@ -25,7 +25,9 @@ export function InternalThread({
     finRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
 
-  const titulo = channel.tipo === "canal" ? `#${channel.nombre}` : channel.nombre;
+  // Sin el "#" adelante: al lado ya va el icono de almohadilla, y juntos se
+  // leian como "# #membresias".
+  const titulo = channel.nombre;
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-surface">
@@ -40,7 +42,11 @@ export function InternalThread({
         </button>
         {channel.tipo === "canal" && <Hash size={18} className="text-[var(--text-3)]" />}
         <p className="text-sm font-bold text-[var(--text)]">{titulo}</p>
-        <span className="text-[12px] text-[var(--text-3)]">· {channel.miembros.length} miembros</span>
+        {/* Sin el punto separador delante del numero: "· 6 miembros" se leia
+            como "16 miembros". */}
+        <span className="ml-1 text-[12px] text-[var(--text-3)]">
+          {channel.miembros.length} {channel.miembros.length === 1 ? "miembro" : "miembros"}
+        </span>
       </div>
 
       {/* min-h-0: sin esto el alto minimo de un item flex es el de su contenido,

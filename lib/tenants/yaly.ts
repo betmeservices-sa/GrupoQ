@@ -236,7 +236,9 @@ export const yalyTenant: TenantConfig = {
     jefe: "Dirección",
     admin: "Dirección (todo)",
   },
-  defaultDepartment: "reservas",
+  // Una conversación que acaba de entrar no es una reserva: es alguien que
+  // escribió. Se clasifica cuando se sabe, no antes.
+  defaultDepartment: "sin_clasificar",
   tags: [
     "Consulta de disponibilidad",
     "Reserva confirmada",
@@ -278,14 +280,15 @@ export const yalyTenant: TenantConfig = {
     ],
   },
   sucursales: yalySucursales,
+  // Solo lo que se puede contar de verdad hoy.
+  //
+  // Se quitaron el tiempo de respuesta, el de atencion y el CSAT: sus numeros
+  // salian de un `fallback` escrito a mano ("1 min", "4 min", "4.8 / 5") y en
+  // un panel de trabajo un numero inventado es peor que ningun numero, porque
+  // se lee como si midiera algo. Vuelven cuando haya de donde calcularlos.
   dashboard: [
     { label: "Conversaciones hoy", icon: "MessageSquare", kind: "metric", metricLabel: "Conversaciones hoy", fallback: 0 },
-    { label: "Consultas de disponibilidad", icon: "CalendarSearch", kind: "metric", metricLabel: "Consultas de disponibilidad", fallback: 0 },
-    { label: "Tiempo de respuesta", icon: "Clock", kind: "metric", metricLabel: "Tiempo de respuesta", fallback: "1 min" },
-    { label: "Tiempo medio de atención", icon: "Timer", kind: "metric", metricLabel: "Tiempo medio de atención", fallback: "4 min" },
     { label: "Tasa de resolución", icon: "CheckCircle2", kind: "resolucionPct" },
-    { label: "Satisfacción (CSAT)", icon: "Smile", kind: "metric", metricLabel: "CSAT", fallback: "4.8 / 5" },
-    { label: "Atendidas por IA", icon: "Bot", kind: "metric", metricLabel: "Atendidas por IA", fallback: "0%" },
     { label: "Sin asignar", icon: "Inbox", kind: "sinAsignar" },
   ],
   waTemplates: [

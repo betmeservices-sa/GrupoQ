@@ -39,7 +39,11 @@ export type DepartmentId =
   | "captacion"
   | "legal"
   // Banco Promerica: gestión de cartera en mora
-  | "cobranza";
+  | "cobranza"
+  // Todavía nadie dijo de qué es. Existe para no tener que mentir: antes toda
+  // conversación nueva nacía con el departamento por defecto del cliente, así
+  // que en Yali TODO entraba marcado como "Reservas", incluida una queja.
+  | "sin_clasificar";
 
 // "atencion" es quien contesta y nada mas: bandeja, sus chats, comentarios y
 // redes. Sale de Yali, donde Veronica atiende mensajes y no gestiona nada

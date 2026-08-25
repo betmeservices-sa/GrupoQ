@@ -438,7 +438,15 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
                 ...c,
                 ultimoMensajeTs: action.ts,
                 noLeidos: esEntrante ? c.noLeidos + 1 : c.noLeidos,
-                estado: c.estado === "resuelto" ? "en_progreso" : c.estado,
+                // Contestar es atender: deja de ser "nuevo". Vale igual si la
+                // respuesta salio desde el panel o desde el celular, porque
+                // Meta nos avisa de las dos.
+                estado:
+                  !esEntrante && c.estado === "nuevo"
+                    ? "en_progreso"
+                    : c.estado === "resuelto"
+                      ? "en_progreso"
+                      : c.estado,
                 paginaNombre: c.paginaNombre ?? action.paginaNombre,
               }
             : c,

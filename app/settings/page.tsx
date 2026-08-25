@@ -14,8 +14,8 @@ import {
   Instagram,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { rolEsFijo } from "@/lib/roles";
 import { activeTenant } from "@/lib/tenants/active";
-import { WaRoutingPanel } from "@/components/settings/WaRoutingPanel";
 
 type TemplateCategory = "MARKETING" | "UTILITY" | "AUTHENTICATION";
 type TemplateStatus = "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED";
@@ -295,7 +295,10 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <ConexionManual onListo={() => location.reload()} />
+          {/* Herramienta nuestra mientras Meta no apruebe la app. Con una
+              cuenta de persona no se muestra: al cliente no le sirve y solo
+              invita a pegar cosas que no tiene. */}
+          {!rolEsFijo() && <ConexionManual onListo={() => location.reload()} />}
 
           {metaEstado === "conectado" && metaDetalle !== "0" && (
             <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12.5px] font-medium text-[#2f9e2f] ring-1 ring-[#00c040]/30">
@@ -354,8 +357,11 @@ export default function SettingsPage() {
           )}
         </div>
 
-        <WaRoutingPanel />
-
+        {/* Plantillas de WhatsApp. Escondidas para las cuentas de persona: el
+            tramite es con Meta, no algo que administre un hotel, y ademas
+            todavia no esta terminado. Nosotros si las vemos. */}
+        {rolEsFijo() ? null : (
+        <>
         {demo && (
           <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.5px] text-amber-800">
             <AlertCircle size={16} className="mt-0.5 shrink-0" />
@@ -622,6 +628,8 @@ export default function SettingsPage() {
             ))}
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
