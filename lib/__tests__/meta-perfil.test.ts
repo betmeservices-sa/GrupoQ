@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe("el nombre de quien escribe", () => {
   it("lo pide con el token de la pagina y lo devuelve", async () => {
-    const fetchMock = vi.fn(async () => respuesta({ name: "Bryan Alvarado" }));
+    const fetchMock = vi.fn(async (_url: string) => respuesta({ name: "Bryan Alvarado" }));
     vi.stubGlobal("fetch", fetchMock);
 
     expect(await nombreDelRemitente("1234", "facebook", "TOK")).toBe("Bryan Alvarado");

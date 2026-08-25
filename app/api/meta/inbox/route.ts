@@ -1,4 +1,4 @@
-import { getMetaSince } from "@/lib/meta-messages-store";
+import { getMetaSince, metaEnMemoria } from "@/lib/meta-messages-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const dynamic = "force-dynamic";
@@ -10,5 +10,7 @@ export async function GET(req: Request) {
   const after = Number(new URL(req.url).searchParams.get("after") ?? "0");
   const tenant = tenantFromRequest(req);
   const mensajes = await getMetaSince(Number.isFinite(after) ? after : 0, tenant);
-  return Response.json({ mensajes });
+  // enMemoria = falta la tabla meta_messages y los mensajes se estan
+  // guardando en la memoria del proceso, que en Vercel se borra sola.
+  return Response.json({ mensajes, enMemoria: metaEnMemoria() });
 }

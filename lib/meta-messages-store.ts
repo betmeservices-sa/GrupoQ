@@ -35,6 +35,19 @@ const g = globalThis as unknown as {
 const mem = (g.__metaMensajes ??= { rows: [], seq: 0 });
 const MAX = 500;
 
+// Se acuerda de si alguna vez hubo que caer a memoria.
+//
+// Sin esto el fallback es una trampa: en Vercel cada instancia tiene su propia
+// memoria y se recicla sola, asi que el mensaje aparece en la bandeja y al rato
+// desaparece, sin un solo error a la vista. Preferible que el panel lo diga.
+const estado = ((globalThis as unknown as { __metaEnMemoria?: { si: boolean } })
+  .__metaEnMemoria ??= { si: false });
+
+/** ¿Los mensajes de Meta se estan guardando solo en memoria? */
+export function metaEnMemoria(): boolean {
+  return estado.si;
+}
+
 function guardarEnMemoria(m: Omit<MetaMensaje, "seq">): void {
   if (mem.rows.some((x) => x.mid === m.mid)) return; // dedup
   mem.rows.push({ ...m, seq: ++mem.seq });
@@ -61,6 +74,7 @@ async function guardar(m: Omit<MetaMensaje, "seq">): Promise<void> {
     if (!error) return;
     console.error("[meta-messages] insert falló, cae a memoria:", error.message);
   }
+  estado.si = true;
   guardarEnMemoria(m);
 }
 

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { addMetaInbound, type MetaCanal } from "@/lib/meta-messages-store";
+import { addMetaInbound, addMetaOutbound, type MetaCanal } from "@/lib/meta-messages-store";
 import { conexionPorActivo } from "@/lib/meta-store";
 import { nombreDelRemitente } from "@/lib/meta-perfil";
 
@@ -87,16 +87,28 @@ export async function POST(req: Request) {
       const activoId = String(entry.id ?? "");
       for (const ev of entry.messaging ?? []) {
         const msg = ev.message;
-        // Echo = copia de lo que la página envió (ya lo persistimos al enviar).
-        if (!msg || msg.is_echo) continue;
-        const senderId = ev.sender?.id;
+        if (!msg) continue;
+
+        // Echo = lo que salio DESDE la pagina. Puede ser nuestro (ya lo
+        // guardamos al enviar, y el dedup por mid lo descarta) o puede ser una
+        // persona contestando desde la bandeja de Facebook o desde el celular.
+        //
+        // Ese segundo caso hay que guardarlo: si no, el panel muestra la
+        // pregunta del huesped y nunca la respuesta, el hilo parece abandonado
+        // y alguien lo contesta dos veces.
+        //
+        // En un echo los papeles se invierten: sender es la pagina y recipient
+        // es la persona, asi que la conversacion se identifica por recipient.
+        const esEco = Boolean(msg.is_echo);
+        const senderId = esEco ? ev.recipient?.id : ev.sender?.id;
         if (!senderId) continue;
 
-        // Enrutar: el id del entry (page id o ig id) o, en su defecto, el
-        // recipient (en entrantes también es el activo) → tenant dueño.
+        // Enrutar: el id del entry (page id o ig id) o, en su defecto, el otro
+        // extremo del evento → tenant dueño.
+        const otroExtremo = esEco ? ev.sender?.id : ev.recipient?.id;
         const cx =
           (await conexionPorActivo(activoId)) ??
-          (ev.recipient?.id ? await conexionPorActivo(ev.recipient.id) : null);
+          (otroExtremo ? await conexionPorActivo(otroExtremo) : null);
         if (!cx) {
           console.warn(`[meta-webhook] sin conexión para activo ${activoId} (${canal}), se ignora`);
           continue;
@@ -117,7 +129,8 @@ export async function POST(req: Request) {
         // final del id, que es lo que hacia antes.
         const senderName = (await nombreDelRemitente(senderId, canal, cx.pageToken)) ?? undefined;
 
-        await addMetaInbound({
+        const guardar = esEco ? addMetaOutbound : addMetaInbound;
+        await guardar({
           mid: msg.mid ?? `${canal}-${senderId}-${ev.timestamp ?? Date.now()}`,
           senderName,
           tenant: cx.tenant,
