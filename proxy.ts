@@ -1,5 +1,10 @@
 // Frontera de seguridad de la app.
 //
+// Se llama proxy.ts y no middleware.ts porque en Next 16 ese nombre quedo
+// deprecado. No es cosmetico: con el nombre viejo seguia corriendo para /api
+// pero NO para las paginas, asi que las rutas cerradas por rol devolvian 200
+// igual. Se veia como si la restriccion no existiera.
+//
 // Todo lo que cuelga de /api requiere sesion firmada, SALVO las rutas que
 // tienen que ser publicas por diseno:
 //   - los webhooks, que los llama Meta desde sus servidores (si se bloquean,
@@ -28,7 +33,7 @@ function esPublica(pathname: string): boolean {
   return PUBLICAS.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p));
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const sesion = await leerSesion(sesionDeCookieHeader(req.headers.get("cookie")));
 
