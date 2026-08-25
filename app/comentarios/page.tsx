@@ -118,18 +118,55 @@ export default function ComentariosPage() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-2">
-                {visibles.map((c) => (
-                  <li key={c.id}>
-                    <Fila
-                      c={c}
-                      abierto={abierto === c.id}
-                      onToggle={() => setAbierto(abierto === c.id ? null : c.id)}
-                      onHecho={cargar}
-                    />
-                  </li>
+              // Agrupados por publicacion. Una lista plana no dice a que se
+              // esta contestando: dos comentarios seguidos pueden ser de dos
+              // publicaciones distintas y la respuesta cambia por completo.
+              <div className="space-y-4">
+                {agrupar(visibles).map((g) => (
+                  <section key={g.postId} className="overflow-hidden rounded-2xl border border-line bg-card">
+                    <div className="flex items-start gap-3 border-b border-line bg-surface/40 px-4 py-3">
+                      {g.imagen && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={g.imagen} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" loading="lazy" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] leading-relaxed text-[var(--text-1)]">
+                          {g.resumen || "Publicación sin texto"}
+                        </p>
+                        <p className="mt-1 text-[11.5px] text-[var(--text-3)]">
+                          {g.comentarios.length}{" "}
+                          {g.comentarios.length === 1 ? "comentario" : "comentarios"}
+                          {g.enlace && (
+                            <>
+                              {" · "}
+                              <a
+                                href={g.enlace}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-semibold text-brand underline underline-offset-2"
+                              >
+                                Ver publicación
+                              </a>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <ul className="divide-y divide-[var(--line)]">
+                      {g.comentarios.map((c) => (
+                        <li key={c.id}>
+                          <Fila
+                            c={c}
+                            abierto={abierto === c.id}
+                            onToggle={() => setAbierto(abierto === c.id ? null : c.id)}
+                            onHecho={cargar}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             )}
           </>
         )}
@@ -214,21 +251,7 @@ function Fila({
             )}
           </span>
           <span className="mt-0.5 block text-[13px] leading-relaxed text-[var(--text-2)]">{c.texto}</span>
-          {c.postResumen && (
-            <span className="mt-1 block truncate text-[11.5px] text-[var(--text-3)]">
-              en: {c.postResumen}
-            </span>
-          )}
         </span>
-        {c.postImagen && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={c.postImagen}
-            alt=""
-            className="h-11 w-11 shrink-0 rounded-lg object-cover"
-            loading="lazy"
-          />
-        )}
       </button>
 
       {abierto && (
@@ -284,4 +307,24 @@ function Fila({
       )}
     </div>
   );
+}
+
+/**
+ * Los comentarios, juntos por publicacion.
+ *
+ * Se conserva el orden en que vinieron: la publicacion con el comentario mas
+ * nuevo queda arriba, que es la que hay que mirar primero.
+ */
+function agrupar(cs: Comentario[]) {
+  const orden: string[] = [];
+  const mapa = new Map<string, { postId: string; resumen?: string; imagen?: string; enlace?: string; comentarios: Comentario[] }>();
+  for (const c of cs) {
+    const k = c.postId || "sin-publicacion";
+    if (!mapa.has(k)) {
+      orden.push(k);
+      mapa.set(k, { postId: k, resumen: c.postResumen, imagen: c.postImagen, enlace: c.postEnlace, comentarios: [] });
+    }
+    mapa.get(k)!.comentarios.push(c);
+  }
+  return orden.map((k) => mapa.get(k)!);
 }

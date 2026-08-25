@@ -10,7 +10,7 @@
 
 import type { SocialStats } from "./data/types";
 import { GRAPH } from "./meta-oauth";
-import { conexionesDe } from "./meta-store";
+import { conexionesDe, type MetaConnection } from "./meta-store";
 
 async function graph(
   path: string,
@@ -70,7 +70,18 @@ function pct(nuevos: number, total: number): number {
 export async function statsReales(tenant: string): Promise<SocialStats[] | null> {
   const conexiones = await conexionesDe(tenant);
   if (!conexiones.length) return null;
-  const c = conexiones[0];
+
+  // Todas las paginas, no solo la primera.
+  //
+  // Antes esto tomaba conexiones[0] y listo. Con una pagina daba igual; con dos
+  // (Yali y Sunzal) una quedaba invisible, y en la pantalla se veia como si esa
+  // marca no estuviera conectada.
+  const listas = await Promise.all(conexiones.map((c) => statsDeConexion(c)));
+  const out = listas.flat();
+  return out.length ? out : null;
+}
+
+async function statsDeConexion(c: MetaConnection): Promise<SocialStats[]> {
   const out: SocialStats[] = [];
 
   // Facebook (la página conectada)
@@ -123,5 +134,5 @@ export async function statsReales(tenant: string): Promise<SocialStats[] | null>
     }
   }
 
-  return out.length ? out : null;
+  return out;
 }

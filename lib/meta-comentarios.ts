@@ -22,6 +22,8 @@ export interface Comentario {
   /** Texto o miniatura del post, para saber de qué hablan sin salir de la lista. */
   postResumen?: string;
   postImagen?: string;
+  /** Enlace a la publicacion en Facebook o Instagram, para abrirla y verla. */
+  postEnlace?: string;
   autor: string;
   texto: string;
   ts: string;
@@ -60,6 +62,7 @@ function resumir(t?: string): string | undefined {
 
 interface PostFb {
   id: string;
+  permalink_url?: string;
   message?: string;
   full_picture?: string;
   comments?: {
@@ -84,8 +87,10 @@ interface PostFb {
  * tardaría más que lo que la gente está dispuesta a esperar.
  */
 export async function comentariosFacebook(c: MetaConnection, limitePosts = 15): Promise<Comentario[]> {
+  // `from{id,name}` desarmado en vez de `from` a secas, y `permalink_url` para
+  // poder abrir la publicacion desde el panel.
   const campos =
-    `id,message,full_picture,comments.limit(25){id,message,created_time,from,like_count,is_hidden,comment_count,parent}`;
+    `id,message,full_picture,permalink_url,created_time,comments.limit(25){id,message,created_time,from{id,name},like_count,is_hidden,comment_count,parent}`;
   const url = `${GRAPH}/${c.pageId}/posts?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
   const r = await pedir<PostFb>(url);
   if (r.error) throw new Error(r.error.message ?? "Facebook no devolvió los comentarios.");
@@ -99,7 +104,12 @@ export async function comentariosFacebook(c: MetaConnection, limitePosts = 15): 
         postId: post.id,
         postResumen: resumir(post.message),
         postImagen: post.full_picture,
-        autor: co.from?.name ?? "Alguien",
+        postEnlace: post.permalink_url,
+        // Meta no siempre dice quien comento. Con Acceso Estandar solo da el
+        // nombre de quien tiene un rol en la pagina; para el resto hace falta
+        // Acceso Avanzado a pages_read_user_content, que se pide en la revision
+        // de la app. Cuando falta se dice que no se sabe, no se inventa.
+        autor: co.from?.name ?? "Sin identificar",
         texto: co.message ?? "",
         ts: co.created_time ?? new Date().toISOString(),
         respuestas: co.comment_count ?? 0,
@@ -117,6 +127,7 @@ export async function comentariosFacebook(c: MetaConnection, limitePosts = 15): 
 
 interface MediaIg {
   id: string;
+  permalink?: string;
   caption?: string;
   media_url?: string;
   thumbnail_url?: string;
@@ -136,7 +147,7 @@ interface MediaIg {
 export async function comentariosInstagram(c: MetaConnection, limitePosts = 15): Promise<Comentario[]> {
   if (!c.igId) return [];
   const campos =
-    `id,caption,media_url,thumbnail_url,comments.limit(25){id,text,timestamp,username,like_count,hidden,replies}`;
+    `id,caption,media_url,thumbnail_url,permalink,comments.limit(25){id,text,timestamp,username,like_count,hidden,replies}`;
   const url = `${GRAPH}/${c.igId}/media?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
   const r = await pedir<MediaIg>(url);
   if (r.error) throw new Error(r.error.message ?? "Instagram no devolvió los comentarios.");
@@ -151,7 +162,8 @@ export async function comentariosInstagram(c: MetaConnection, limitePosts = 15):
         postResumen: resumir(m.caption),
         // Los videos no traen media_url usable como miniatura; para eso está thumbnail_url.
         postImagen: m.thumbnail_url ?? m.media_url,
-        autor: co.username ?? "Alguien",
+        postEnlace: m.permalink,
+        autor: co.username ? `@${co.username}` : "Sin identificar",
         texto: co.text ?? "",
         ts: co.timestamp ?? new Date().toISOString(),
         respuestas: co.replies?.data?.length ?? 0,

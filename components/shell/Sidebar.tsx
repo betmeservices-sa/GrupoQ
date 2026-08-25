@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
+import { useStore } from "@/lib/store";
+import { sinLeerPorCanal, useInterno } from "@/lib/interno-bridge";
 import { activeTenantId } from "@/lib/tenants/active";
 import { veModuloVoz } from "@/lib/tenants/voz";
 import { veTickets } from "@/lib/tickets-tenant";
@@ -107,6 +109,19 @@ export function Sidebar({
       (item.id !== "perfil" || veYali),
   );
 
+  // Los avisos del menu: lo que espera respuesta en cada modulo.
+  //
+  // Sin esto hay que entrar a mirar si paso algo, y en un turno de trabajo eso
+  // significa que un mensaje puede quedarse horas sin que nadie se entere.
+  const { state } = useStore();
+  const { estado: interno } = useInterno();
+  const pendientes: Partial<Record<ModuleId, number>> = {
+    "mis-chats": state.conversations
+      .filter((c) => c.asignadoA === yo.id && c.noLeidos > 0)
+      .reduce((n, c) => n + c.noLeidos, 0),
+    interno: Object.values(sinLeerPorCanal(interno)).reduce((n, x) => n + x, 0),
+  };
+
   return (
     <aside
       className={cn(
@@ -150,7 +165,17 @@ export function Sidebar({
               )}
             >
               <Icon size={18} strokeWidth={2.1} />
-              {label}
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {(pendientes[id] ?? 0) > 0 && (
+                <span
+                  className={cn(
+                    "flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10.5px] font-bold",
+                    active ? "bg-white/25 text-white" : "bg-[#dc2626] text-white",
+                  )}
+                >
+                  {(pendientes[id] ?? 0) > 9 ? "9+" : pendientes[id]}
+                </span>
+              )}
             </Link>
           );
         })}
