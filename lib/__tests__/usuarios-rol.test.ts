@@ -24,6 +24,9 @@ afterEach(() => {
 
 const VERONICA =
   "veronica.viches@yalihospitality.com|Yali2026|yaly|atencion|Verónica Viches";
+const OLGA = "membresias@yalihospitality.com|Yali2026|yaly|atencion|Olga Zelaya";
+const JAIME = "jaime@yalihospitality.com|YaliAdmin2026|yaly|admin|Jaime Quintanilla";
+const EQUIPO = [VERONICA, OLGA, JAIME].join(",");
 
 async function auth() {
   return import("@/lib/auth-server");
@@ -87,6 +90,40 @@ describe("cuentas de persona", () => {
   });
 });
 
+describe("el equipo de Yali", () => {
+  it("cada uno entra con lo suyo", async () => {
+    process.env.USUARIOS = EQUIPO;
+    const { validarCredenciales } = await auth();
+
+    const vero = validarCredenciales("veronica.viches@yalihospitality.com", "Yali2026");
+    const olga = validarCredenciales("membresias@yalihospitality.com", "Yali2026");
+    const jaime = validarCredenciales("jaime@yalihospitality.com", "YaliAdmin2026");
+
+    expect(vero?.rol).toBe("atencion");
+    expect(olga?.rol).toBe("atencion");
+    expect(olga?.nombre).toBe("Olga Zelaya");
+    expect(jaime?.rol).toBe("admin");
+
+    // Los tres del mismo cliente, y ninguno con el rol suelto.
+    for (const a of [vero, olga, jaime]) {
+      expect(a?.tenant).toBe("yaly");
+      expect(a?.fijo).toBe(true);
+    }
+  });
+
+  it("la contraseña de una no abre la cuenta de la otra", async () => {
+    process.env.USUARIOS = EQUIPO;
+    const { validarCredenciales } = await auth();
+    expect(validarCredenciales("membresias@yalihospitality.com", "YaliAdmin2026")).toBeNull();
+    expect(validarCredenciales("jaime@yalihospitality.com", "Yali2026")).toBeNull();
+  });
+
+  it("solo Jaime puede tocar el Modo IA", () => {
+    expect(VE.admin.includes("settings")).toBe(true);
+    expect(VE.atencion.includes("settings")).toBe(false);
+  });
+});
+
 describe("lo que ve el rol de atencion", () => {
   it("contesta mensajes y redes, y nada mas", () => {
     expect(VE.atencion).toEqual(["bandeja", "mis-chats", "comentarios", "redes"]);
@@ -118,6 +155,14 @@ describe("lo que ve el rol de atencion", () => {
 
   it("las rutas sin modulo no se restringen, o dejaria a todos afuera", () => {
     expect(puedeVerRuta("atencion", "/login")).toBe(true);
+  });
+
+  it("no puede tocar el interruptor general de la IA", () => {
+    // Es de direccion: apagarlo deja al agente mudo para TODAS las
+    // conversaciones del cliente, no solo las de quien lo toca. Quien atiende
+    // tiene el interruptor de su propio chat, que es el que le corresponde.
+    expect(VE.atencion.includes("settings")).toBe(false);
+    expect(VE.admin.includes("settings")).toBe(true);
   });
 
   it("direccion sigue viendo todo", () => {

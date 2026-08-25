@@ -3,10 +3,18 @@
 import { useEffect, useState } from "react";
 import { Bot } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useRole } from "@/lib/roles";
 
 // Interruptor del Modo IA (always-on). Lee y escribe el estado global en el
 // servidor, así la IA responde aunque nadie tenga el dashboard abierto.
+//
+// NO lo ve todo el mundo. Apagarlo o encenderlo cambia el comportamiento del
+// agente para TODAS las conversaciones del cliente, no solo las de quien lo
+// toca. Quien atiende mensajes tiene el interruptor de su propio chat, que es
+// el que le corresponde; este es de dirección.
 export function AiModeToggle() {
+  const { def } = useRole();
+  const puedeVerlo = def.ve.includes("settings");
   const [enabled, setEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -28,6 +36,8 @@ export function AiModeToggle() {
   }
 
   const on = enabled === true;
+
+  if (!puedeVerlo) return null;
 
   return (
     <button
