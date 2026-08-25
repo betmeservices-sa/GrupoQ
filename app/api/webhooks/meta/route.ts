@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { addMetaInbound, type MetaCanal } from "@/lib/meta-messages-store";
 import { conexionPorActivo } from "@/lib/meta-store";
+import { nombreDelRemitente } from "@/lib/meta-perfil";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -111,8 +112,14 @@ export async function POST(req: Request) {
           ? new Date(Number(ev.timestamp)).toISOString()
           : new Date().toISOString();
 
+        // Meta no manda el nombre en el evento, solo el id. Se pide aparte con
+        // el token de la pagina; si no viene, la bandeja cae al canal mas el
+        // final del id, que es lo que hacia antes.
+        const senderName = (await nombreDelRemitente(senderId, canal, cx.pageToken)) ?? undefined;
+
         await addMetaInbound({
           mid: msg.mid ?? `${canal}-${senderId}-${ev.timestamp ?? Date.now()}`,
+          senderName,
           tenant: cx.tenant,
           canal,
           // Guardamos SIEMPRE el page_id de la conexión: Instagram también se

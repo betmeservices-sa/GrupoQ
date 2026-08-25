@@ -449,7 +449,12 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
             nombre:
               action.senderName ||
               `${action.canal === "instagram" ? "IG" : "FB"} ${action.senderId.slice(-6)}`,
-            handle: action.senderId,
+            // El id de Meta NO es un arroba: es un numero interno, distinto
+            // para cada pagina, que no sirve para buscar a nadie. Mostrarlo en
+            // la ficha como si fuera el usuario confunde mas de lo que ayuda.
+            // Para responder no hace falta: el destinatario sale del id de la
+            // conversacion.
+            handle: undefined,
             canal: action.canal,
           };
           contacts = [nuevoContacto, ...state.contacts];

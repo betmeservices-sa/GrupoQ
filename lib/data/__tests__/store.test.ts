@@ -277,7 +277,11 @@ describe("storeReducer - META_INCOMING", () => {
     expect(c.noLeidos).toBe(1);
     const contacto = after.contacts.find((x) => x.id === `meta-instagram-${BASE.senderId}`)!;
     expect(contacto.canal).toBe("instagram");
-    expect(contacto.handle).toBe(BASE.senderId);
+    // El id de Meta NO se muestra como arroba: es un numero interno, distinto
+    // para cada pagina, que no sirve para buscar a nadie. Salia en la ficha
+    // como "@37808947532087261" y confundia. Para responder no hace falta: el
+    // destinatario sale del id de la conversacion.
+    expect(contacto.handle).toBeUndefined();
     const added = msgs(after, CONV_ID).at(-1)!;
     expect(added.autor).toBe("cliente");
     expect(added.texto).toBe(BASE.texto);
