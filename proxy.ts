@@ -65,5 +65,10 @@ export async function proxy(req: NextRequest) {
 export const config = {
   // Las paginas tambien, no solo /api: la restriccion por rol se aplica al
   // navegar. Se dejan fuera los assets y el login, que no tienen modulo.
-  matcher: ["/api/:path*", "/((?!_next/|favicon|login|.*\.).*)"],
+  // Ojo con el patron: en una cadena de TypeScript, "\." se escribe con DOS
+  // barras. Con una sola, JavaScript se la come y "\.*\." queda como ".*.",
+  // que matchea cualquier cosa y hace que el lookahead descarte TODAS las
+  // paginas. Se veia como si el proxy no corriera. Por eso aca no se excluye
+  // por extension: se listan los prefijos y ya.
+  matcher: ["/api/:path*", "/((?!_next|favicon|login).*)"],
 };
