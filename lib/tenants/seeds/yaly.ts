@@ -41,6 +41,11 @@ export const yalySeed: TenantSeed = {
     { id: "s4", nombre: "Jaime Quintanilla", rol: "jefe", departamento: "reservas", iniciales: "JQ" },
     { id: "s5", nombre: "Dino Safie", rol: "jefe", departamento: "atencion", iniciales: "DS" },
     { id: "s6", nombre: "José Mauricio", rol: "recepcion", departamento: "recepcion", iniciales: "JM" },
+    // Nosotros. Van acá y no sueltos para que el chat interno firme sus
+    // mensajes con su nombre: una cuenta sin ficha de equipo escribe como
+    // "Gerente de Marketing", que no es nadie.
+    { id: "sop1", nombre: "Bryan (MiAgentIA)", rol: "admin", departamento: "atencion", iniciales: "BR" },
+    { id: "sop2", nombre: "Alex (MiAgentIA)", rol: "admin", departamento: "atencion", iniciales: "AL" },
   ],
   contacts: [],
   conversations: [],
