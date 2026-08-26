@@ -108,6 +108,14 @@ export type StoreAction =
       texto: string;
       ts: string;
       direction?: "in" | "out";
+      /**
+       * Se está releyendo lo que ya pasó, no llegando ahora.
+       *
+       * Vale lo mismo que en WhatsApp: sin esto, las 600 conversaciones que se
+       * importaron de Facebook aparecían todas juntas como sin leer, como si
+       * seiscientas personas hubieran escrito en el mismo segundo.
+       */
+      historico?: boolean;
     }
   | {
       // Rehidrata asignado/estado/departamento de la BD al montar.
@@ -457,6 +465,12 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
       if (state.messages.some((m) => m.id === action.mid)) return state;
 
       const esEntrante = action.direction !== "out";
+      // Releer el historial no deja nada sin leer.
+      const cuenta = esEntrante && !action.historico;
+      // Al releer, el estado sale de quién habló último: si contestó el hotel
+      // está atendida, y si el último en escribir fue el huésped sigue
+      // pendiente. Los mensajes llegan en orden, así que gana el último.
+      const estadoHistorico = esEntrante ? "en_progreso" : "resuelto";
       const deptDefault = activeTenant().defaultDepartment;
       const conversationId = `metac-${action.canal}-${action.pageId}-${action.senderId}`;
       const contactId = `meta-${action.canal}-${action.senderId}`;
@@ -471,12 +485,13 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
             ? {
                 ...c,
                 ultimoMensajeTs: action.ts,
-                noLeidos: esEntrante ? c.noLeidos + 1 : c.noLeidos,
+                noLeidos: cuenta ? c.noLeidos + 1 : c.noLeidos,
                 // Contestar es atender: deja de ser "nuevo". Vale igual si la
                 // respuesta salio desde el panel o desde el celular, porque
                 // Meta nos avisa de las dos.
-                estado:
-                  !esEntrante && c.estado === "nuevo"
+                estado: action.historico
+                  ? estadoHistorico
+                  : !esEntrante && c.estado === "nuevo"
                     ? "en_progreso"
                     : c.estado === "resuelto"
                       ? "en_progreso"
@@ -510,8 +525,8 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
             canal: action.canal,
             contactId,
             departamento: deptDefault,
-            estado: "nuevo",
-            noLeidos: esEntrante ? 1 : 0,
+            estado: action.historico ? estadoHistorico : "nuevo",
+            noLeidos: cuenta ? 1 : 0,
             ultimoMensajeTs: action.ts,
             paginaNombre: action.paginaNombre,
           },

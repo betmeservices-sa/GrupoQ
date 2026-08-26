@@ -64,3 +64,47 @@ describe("mensajes que llegan de verdad", () => {
     expect(c.noLeidos).toBe(1);
   });
 });
+
+describe("historial importado de Facebook", () => {
+  function meta(sender: string, mid: string, dir: "in" | "out", historico: boolean): StoreAction {
+    return {
+      type: "META_INCOMING",
+      mid,
+      canal: "facebook",
+      pageId: "PG",
+      senderId: sender,
+      senderName: "Ruth Ibarra",
+      texto: "hola",
+      ts: "2026-08-20T10:00:00.000Z",
+      direction: dir,
+      historico,
+    };
+  }
+  const id = (s: string) => `metac-facebook-PG-${s}`;
+
+  it("no deja nada sin leer", () => {
+    // Son 600 conversaciones: sin esto la bandeja abre con un numero absurdo.
+    const s = storeReducer(createInitialState(), meta("u1", "fb-1", "in", true));
+    expect(s.conversations.find((c) => c.id === id("u1"))!.noLeidos).toBe(0);
+  });
+
+  it("si el hotel contestó último, queda atendida", () => {
+    let s = storeReducer(createInitialState(), meta("u2", "fb-2", "in", true));
+    s = storeReducer(s, meta("u2", "fb-3", "out", true));
+    expect(s.conversations.find((c) => c.id === id("u2"))!.estado).toBe("resuelto");
+  });
+
+  it("si el huésped escribió último, sigue pendiente", () => {
+    // Esto sí es trabajo de verdad y no se puede esconder: alguien preguntó y
+    // nadie le contestó.
+    let s = storeReducer(createInitialState(), meta("u3", "fb-4", "out", true));
+    s = storeReducer(s, meta("u3", "fb-5", "in", true));
+    expect(s.conversations.find((c) => c.id === id("u3"))!.estado).toBe("en_progreso");
+  });
+
+  it("un mensaje que llega de verdad sí cuenta", () => {
+    let s = storeReducer(createInitialState(), meta("u4", "fb-6", "out", true));
+    s = storeReducer(s, meta("u4", "fb-7", "in", false));
+    expect(s.conversations.find((c) => c.id === id("u4"))!.noLeidos).toBe(1);
+  });
+});

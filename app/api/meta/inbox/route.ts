@@ -7,10 +7,16 @@ export const dynamic = "force-dynamic";
 // Lo que sondea el cliente: mensajes de Messenger/Instagram con seq mayor a su
 // cursor. Filtra por el tenant del dashboard (cookie ccg_tenant), así cada
 // cliente ve solo lo suyo. Mismo contrato que /api/whatsapp/inbox.
+const TOPE = 1000;
+
 export async function GET(req: Request) {
-  const after = Number(new URL(req.url).searchParams.get("after") ?? "0");
+  const url = new URL(req.url);
+  const after = Number(url.searchParams.get("after") ?? "0");
+  const pedido = Number(url.searchParams.get("limite") ?? "100");
+  const limite = Number.isFinite(pedido) ? Math.min(Math.max(pedido, 1), TOPE) : 100;
+
   const tenant = tenantFromRequest(req);
-  const mensajes = await getMetaSince(Number.isFinite(after) ? after : 0, tenant);
+  const mensajes = await getMetaSince(Number.isFinite(after) ? after : 0, tenant, limite);
 
   // El nombre de cada pagina, para que la bandeja pueda decir por cual entro
   // cada conversacion. El mensaje solo trae el id, que no le dice nada a nadie.
@@ -18,5 +24,12 @@ export async function GET(req: Request) {
   for (const c of await conexionesDe(tenant)) paginas[c.pageId] = c.pageName;
   // enMemoria = falta la tabla meta_messages y los mensajes se estan
   // guardando en la memoria del proceso, que en Vercel se borra sola.
-  return Response.json({ mensajes, paginas, enMemoria: metaEnMemoria() });
+  return Response.json({
+    mensajes,
+    paginas,
+    // Página llena = casi seguro queda más. Con esto el navegador encadena en
+    // vez de esperar el próximo tick.
+    hayMas: mensajes.length >= limite,
+    enMemoria: metaEnMemoria(),
+  });
 }

@@ -94,7 +94,14 @@ export async function addMetaOutbound(
 
 // Devuelve los mensajes con cursor (seq/id) mayor al del cliente. Si se pasa
 // `tenant`, solo los de ese cliente (así cada dashboard ve lo suyo).
-export async function getMetaSince(after: number, tenant?: string): Promise<MetaMensaje[]> {
+/**
+ * Los mensajes con id mayor a `after`.
+ *
+ * `limite` por lo mismo que en WhatsApp: la misma consulta sirve al sondeo de
+ * cada cuatro segundos y a la carga inicial, que tras importar el historial de
+ * Facebook son miles. Mil es el techo de PostgREST.
+ */
+export async function getMetaSince(after: number, tenant?: string, limite = 100): Promise<MetaMensaje[]> {
   const sb = getSupabase(tenant);
   if (sb) {
     let q = sb
@@ -102,7 +109,7 @@ export async function getMetaSince(after: number, tenant?: string): Promise<Meta
       .select("id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction")
       .gt("id", after);
     if (tenant) q = q.eq("tenant", tenant);
-    const { data, error } = await q.order("id", { ascending: true }).limit(100);
+    const { data, error } = await q.order("id", { ascending: true }).limit(Math.min(limite, 1000));
     if (!error) {
       return (data ?? []).map((r) => ({
         seq: Number(r.id),
