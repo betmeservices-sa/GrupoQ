@@ -52,6 +52,29 @@ const estado = ((globalThis as unknown as { __metaEnMemoria?: { si: boolean } })
   .__metaEnMemoria ??= { si: false });
 
 /** ¿Los mensajes de Meta se estan guardando solo en memoria? */
+// ¿La base ya tiene la columna `historia_url`?
+//
+// Existe porque el código y el SQL no llegan juntos: el deploy sale al aire
+// apenas se hace push, y la migración la corre una persona cuando puede. En el
+// medio, pedir una columna que no existe hacía fallar la consulta ENTERA, y el
+// panel se quedaba sin un solo mensaje de Meta. Una función de más no puede
+// apagar las que ya andaban.
+//
+// Empieza asumiendo que sí está. Al primer error se apaga y no se vuelve a
+// intentar, así no se paga un viaje perdido por consulta.
+const g2 = globalThis as unknown as { __metaHistoriaUrl?: { hay: boolean } };
+const columnaHistoria = (g2.__metaHistoriaUrl ??= { hay: true });
+
+/** El error dice que falta esa columna, no otra cosa. */
+function faltaLaColumna(mensaje: string | undefined): boolean {
+  return Boolean(mensaje && /historia_url/.test(mensaje));
+}
+
+/** Para las pruebas: volver a asumir que la columna está. */
+export function olvidarColumnaHistoria(): void {
+  columnaHistoria.hay = true;
+}
+
 export function metaEnMemoria(): boolean {
   return estado.si;
 }
@@ -65,22 +88,36 @@ function guardarEnMemoria(m: Omit<MetaMensaje, "seq">): void {
 async function guardar(m: Omit<MetaMensaje, "seq">): Promise<void> {
   const sb = getSupabase(m.tenant);
   if (sb) {
-    const { error } = await sb.from("meta_messages").upsert(
-      {
-        mid: m.mid,
-        tenant: m.tenant,
-        canal: m.canal,
-        page_id: m.pageId,
-        sender_id: m.senderId,
-        sender_name: m.senderName ?? null,
-        texto: m.texto,
-        ts: m.ts,
-        direction: m.direction,
-        historia_url: m.historiaUrl ?? null,
-      },
-      { onConflict: "mid", ignoreDuplicates: true },
-    );
+    const base = {
+      mid: m.mid,
+      tenant: m.tenant,
+      canal: m.canal,
+      page_id: m.pageId,
+      sender_id: m.senderId,
+      sender_name: m.senderName ?? null,
+      texto: m.texto,
+      ts: m.ts,
+      direction: m.direction,
+    };
+    const fila = columnaHistoria.hay
+      ? { ...base, historia_url: m.historiaUrl ?? null }
+      : base;
+
+    const { error } = await sb
+      .from("meta_messages")
+      .upsert(fila, { onConflict: "mid", ignoreDuplicates: true });
     if (!error) return;
+
+    // Falta la columna: se apunta y se guarda igual, sin ella. Perder de qué
+    // historia hablaban es molesto; perder el mensaje es inaceptable.
+    if (faltaLaColumna(error.message)) {
+      columnaHistoria.hay = false;
+      console.error("[meta-messages] falta historia_url: se guarda sin ella. Corré la migración.");
+      const { error: e2 } = await sb
+        .from("meta_messages")
+        .upsert(base, { onConflict: "mid", ignoreDuplicates: true });
+      if (!e2) return;
+    }
     console.error("[meta-messages] insert falló, cae a memoria:", error.message);
   }
   estado.si = true;
@@ -113,14 +150,38 @@ export async function addMetaOutbound(
 export async function getMetaSince(after: number, tenant?: string, limite = 100): Promise<MetaMensaje[]> {
   const sb = getSupabase(tenant);
   if (sb) {
-    let q = sb
-      .from("meta_messages")
-      .select("id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction, historia_url")
-      .gt("id", after);
-    if (tenant) q = q.eq("tenant", tenant);
-    const { data, error } = await q.order("id", { ascending: true }).limit(Math.min(limite, 1000));
+    // Las dos listas escritas enteras y no armadas con una plantilla: el
+    // cliente de Supabase lee el texto del select para tipar la respuesta, y
+    // con una plantilla no puede.
+    async function traer(conHistoria: boolean) {
+      let q = sb!
+        .from("meta_messages")
+        .select(
+          conHistoria
+            ? "id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction, historia_url"
+            : "id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction",
+        )
+        .gt("id", after);
+      if (tenant) q = q.eq("tenant", tenant);
+      return q.order("id", { ascending: true }).limit(Math.min(limite, 1000));
+    }
+
+    let { data, error } = await traer(columnaHistoria.hay);
+
+    // La migración de `historia_url` todavía no se corrió. Se vuelve a pedir
+    // sin ella: quedarse sin saber a qué historia contestaron es un detalle,
+    // quedarse sin NINGÚN mensaje de Meta no lo es.
+    if (error && faltaLaColumna(error.message)) {
+      columnaHistoria.hay = false;
+      console.error("[meta-messages] falta historia_url: se lee sin ella. Corré la migración.");
+      ({ data, error } = await traer(false));
+    }
+
     if (!error) {
-      return (data ?? []).map((r) => ({
+      // Se lee como filas sueltas: son dos consultas con distinto juego de
+      // columnas y el tipado del cliente no puede con las dos a la vez.
+      const filas = (data ?? []) as unknown as Record<string, unknown>[];
+      return filas.map((r) => ({
         seq: Number(r.id),
         mid: (r.mid as string | null) ?? `meta-fila-${r.id}`,
         tenant: r.tenant as string,

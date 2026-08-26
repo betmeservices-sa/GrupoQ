@@ -8,9 +8,25 @@
 //
 // La pantalla abre en "sin responder" a propósito. Ver todos los comentarios
 // ordenados por fecha no sirve para trabajar: lo que hay que ver es la cola.
+//
+// Va en dos columnas, igual que la bandeja: a la izquierda las publicaciones y
+// a la derecha la que se está atendiendo, con la publicación arriba y sus
+// comentarios abajo. Antes era una sola lista larga con todas las
+// publicaciones apiladas: para contestar un comentario había que acordarse de
+// cuál foto estaba diez centímetros más arriba.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { EyeOff, Eye, Instagram, Facebook, Loader2, MessageSquare, RefreshCw, Send } from "lucide-react";
+import {
+  ChevronLeft,
+  EyeOff,
+  Eye,
+  Instagram,
+  Facebook,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+  Send,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { Comentario } from "@/lib/meta-comentarios";
 

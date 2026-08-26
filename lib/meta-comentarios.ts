@@ -39,6 +39,7 @@ export interface Comentario {
 
 interface RespuestaGraph<T> {
   data?: T[];
+  paging?: { next?: string };
   error?: { message?: string; code?: number; type?: string };
 }
 
@@ -49,6 +50,42 @@ async function pedir<T>(url: string): Promise<RespuestaGraph<T>> {
   } catch (e) {
     return { error: { message: e instanceof Error ? e.message : "fallo la red" } };
   }
+}
+
+// Cuánto se trae.
+//
+// Antes eran 15 publicaciones y 25 comentarios por publicación, sin seguir las
+// páginas siguientes. Con eso el panel decía "no hay comentarios sin responder"
+// mientras en Facebook sí los había, que es la peor forma de fallar: no se ve
+// el hueco.
+const LIMITE_POSTS = 25;
+const LIMITE_COMENTARIOS = 100;
+// Tope de páginas a seguir. 6 x 25 = 150 publicaciones, más de un año para
+// quien publica tres veces por semana.
+const MAX_PAGINAS = 6;
+
+/**
+ * Como `pedir`, pero siguiendo las páginas siguientes de Meta.
+ *
+ * Si una página falla se devuelve lo que ya se juntó en vez de tirar todo: es
+ * mejor mostrar las publicaciones que sí llegaron que una pantalla en blanco.
+ */
+async function pedirTodo<T>(primera: string): Promise<T[]> {
+  const todo: T[] = [];
+  let url: string | undefined = primera;
+  for (let i = 0; url && i < MAX_PAGINAS; i++) {
+    const r: RespuestaGraph<T> = await pedir<T>(url);
+    if (r.error) {
+      if (i === 0) throw new Error(r.error.message ?? "Meta no devolvió los comentarios.");
+      console.error("[comentarios] se corta la paginación:", r.error.message);
+      break;
+    }
+    const lote = r.data ?? [];
+    if (lote.length === 0) break;
+    todo.push(...lote);
+    url = r.paging?.next;
+  }
+  return todo;
 }
 
 /** Recorta el texto de un post para usarlo de referencia en la lista. */
@@ -85,18 +122,26 @@ interface PostFb {
  * Se piden anidados dentro de los posts en una sola llamada en vez de un pedido
  * por post: con veinte publicaciones eso serían veintiún viajes, y la pantalla
  * tardaría más que lo que la gente está dispuesta a esperar.
+ *
+ * OJO CON EL ORDEN. Facebook entrega los comentarios del MÁS VIEJO al más
+ * nuevo. Con un tope de 25 eso significaba quedarse con los 25 primeros y
+ * perder los últimos, que son justo los que hay que contestar: en una
+ * publicación con cuarenta comentarios, los de esta semana no aparecían.
+ * `reverse_chronological` invierte eso y trae los nuevos primero.
  */
-export async function comentariosFacebook(c: MetaConnection, limitePosts = 15): Promise<Comentario[]> {
+export async function comentariosFacebook(
+  c: MetaConnection,
+  limitePosts = LIMITE_POSTS,
+): Promise<Comentario[]> {
   // `from{id,name}` desarmado en vez de `from` a secas, y `permalink_url` para
   // poder abrir la publicacion desde el panel.
   const campos =
-    `id,message,full_picture,permalink_url,created_time,comments.limit(25){id,message,created_time,from{id,name},like_count,is_hidden,comment_count,parent}`;
+    `id,message,full_picture,permalink_url,created_time,comments.limit(${LIMITE_COMENTARIOS}).order(reverse_chronological){id,message,created_time,from{id,name},like_count,is_hidden,comment_count,parent}`;
   const url = `${GRAPH}/${c.pageId}/posts?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
-  const r = await pedir<PostFb>(url);
-  if (r.error) throw new Error(r.error.message ?? "Facebook no devolvió los comentarios.");
+  const posts = await pedirTodo<PostFb>(url);
 
   const out: Comentario[] = [];
-  for (const post of r.data ?? []) {
+  for (const post of posts) {
     for (const co of post.comments?.data ?? []) {
       out.push({
         id: co.id,
@@ -144,16 +189,18 @@ interface MediaIg {
   };
 }
 
-export async function comentariosInstagram(c: MetaConnection, limitePosts = 15): Promise<Comentario[]> {
+export async function comentariosInstagram(
+  c: MetaConnection,
+  limitePosts = LIMITE_POSTS,
+): Promise<Comentario[]> {
   if (!c.igId) return [];
   const campos =
-    `id,caption,media_url,thumbnail_url,permalink,comments.limit(25){id,text,timestamp,username,like_count,hidden,replies}`;
+    `id,caption,media_url,thumbnail_url,permalink,comments.limit(${LIMITE_COMENTARIOS}){id,text,timestamp,username,like_count,hidden,replies}`;
   const url = `${GRAPH}/${c.igId}/media?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
-  const r = await pedir<MediaIg>(url);
-  if (r.error) throw new Error(r.error.message ?? "Instagram no devolvió los comentarios.");
+  const medias = await pedirTodo<MediaIg>(url);
 
   const out: Comentario[] = [];
-  for (const m of r.data ?? []) {
+  for (const m of medias) {
     for (const co of m.comments?.data ?? []) {
       out.push({
         id: co.id,
