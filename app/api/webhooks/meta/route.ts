@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { addMetaInbound, addMetaOutbound, type MetaCanal } from "@/lib/meta-messages-store";
 import { esRespuestaAComentario } from "@/lib/respuesta-a-comentario";
 import { textoDelMensaje } from "@/lib/meta-texto-mensaje";
+import { guardarEventoMeta } from "@/lib/meta-webhook-log";
 import { conexionPorActivo } from "@/lib/meta-store";
 import { nombreDelRemitente } from "@/lib/meta-perfil";
 
@@ -116,7 +117,10 @@ export async function POST(req: Request) {
   // cosa (una respuesta a historia de Facebook no viene igual que una de
   // Instagram) y sin ver el crudo se adivina. Recortado para no reventar el
   // log; lo que importa cabe.
-  console.log(`[meta-webhook-crudo] ${raw.slice(0, 6000)}`);
+  console.log(`[meta-webhook-crudo] ${raw.slice(0, 3500)}`);
+  // Y en la base, entero. Se espera a que termine: en Vercel lo que queda
+  // pendiente cuando la respuesta ya salio puede no correr nunca.
+  await guardarEventoMeta(body.object, payload);
 
   if (body.object !== "page" && body.object !== "instagram") {
     // Otros objetos (permissions, etc.): 200 para que Meta no reintente.
