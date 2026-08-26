@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { conexionesDe } from "@/lib/meta-store";
-import { comentariosDe, ocultarComentario, responderComentario } from "@/lib/meta-comentarios";
+import { comentariosDe, ocultarComentario, responderComentario, responderEnPrivado } from "@/lib/meta-comentarios";
+import { addMetaOutbound } from "@/lib/meta-messages-store";
+import { esComentarioInstagram } from "@/lib/meta-ig-login";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +35,8 @@ export async function POST(req: Request) {
     pageId?: string;
     texto?: string;
     ocultar?: boolean;
+    /** true = contestar por mensaje privado en vez de debajo del comentario. */
+    privado?: boolean;
   };
   if (!body.id || !body.pageId) {
     return NextResponse.json({ ok: false, error: "Falta el comentario." }, { status: 400 });
@@ -52,6 +56,23 @@ export async function POST(req: Request) {
     }
     if (!(body.texto ?? "").trim()) {
       return NextResponse.json({ ok: false, error: "La respuesta viene vacía." }, { status: 400 });
+    }
+    if (body.privado) {
+      const { recipientId, mid } = await responderEnPrivado(conexion, body.id, body.texto as string);
+      // Queda en la bandeja desde ya, bajo la persona: el sondeo de Messenger
+      // trae después su nombre y lo que conteste.
+      if (recipientId) {
+        await addMetaOutbound({
+          mid,
+          tenant,
+          canal: esComentarioInstagram(body.id) ? "instagram" : "facebook",
+          pageId: conexion.pageId,
+          senderId: recipientId,
+          texto: (body.texto as string).trim(),
+          ts: new Date().toISOString(),
+        });
+      }
+      return NextResponse.json({ ok: true, privado: true, recipientId });
     }
     await responderComentario(conexion, body.id, body.texto as string);
     return NextResponse.json({ ok: true, respondido: true });

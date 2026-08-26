@@ -36,6 +36,13 @@ export interface Comentario {
   meGusta: number;
   /** Página o cuenta a la que pertenece, para responder con el token correcto. */
   pageId: string;
+  /**
+   * Enlace al comentario mismo en Facebook. Existe porque sin App Review Meta
+   * no dice quién comentó ("Sin identificar"); abriéndolo se ve la persona.
+   */
+  enlace?: string;
+  /** Meta deja mandarle un Messenger privado a quien comentó. */
+  privadoPosible?: boolean;
 }
 
 interface RespuestaGraph<T> {
@@ -113,6 +120,8 @@ interface PostFb {
       is_hidden?: boolean;
       comment_count?: number;
       parent?: { id?: string };
+      permalink_url?: string;
+      can_reply_privately?: boolean;
     }[];
   };
 }
@@ -137,7 +146,7 @@ export async function comentariosFacebook(
   // `from{id,name}` desarmado en vez de `from` a secas, y `permalink_url` para
   // poder abrir la publicacion desde el panel.
   const campos =
-    `id,message,full_picture,permalink_url,created_time,comments.limit(${LIMITE_COMENTARIOS}).order(reverse_chronological){id,message,created_time,from{id,name},like_count,is_hidden,comment_count,parent}`;
+    `id,message,full_picture,permalink_url,created_time,comments.limit(${LIMITE_COMENTARIOS}).order(reverse_chronological){id,message,created_time,from{id,name},like_count,is_hidden,comment_count,parent,permalink_url,can_reply_privately}`;
   const url = `${GRAPH}/${c.pageId}/posts?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
   const posts = await pedirTodo<PostFb>(url);
 
@@ -163,6 +172,8 @@ export async function comentariosFacebook(
         oculto: co.is_hidden === true,
         meGusta: co.like_count ?? 0,
         pageId: c.pageId,
+        enlace: co.permalink_url,
+        privadoPosible: co.can_reply_privately === true,
       });
     }
   }
@@ -271,6 +282,41 @@ export async function responderComentario(c: MetaConnection, comentarioId: strin
   }
   const cuerpo = new URLSearchParams({ message: t, access_token: c.pageToken });
   return accion(`${GRAPH}/${comentarioId}/replies`, "POST", cuerpo);
+}
+
+/**
+ * Contestar un comentario por mensaje privado (Messenger o Instagram Direct).
+ *
+ * Existe por dos cosas. La obvia: "te mando el precio por privado". La otra:
+ * sin App Review, Facebook no dice quién comentó; al contestarle en privado se
+ * abre una conversación de Messenger, y ahí sí aparece con su nombre en la
+ * bandeja. Meta lo permite una sola vez por comentario y dentro de 7 días.
+ *
+ * Devuelve el id de la persona en Messenger (PSID / IGSID) y el del mensaje,
+ * para dejar la conversación en la bandeja desde ya.
+ */
+export async function responderEnPrivado(
+  c: MetaConnection,
+  comentarioId: string,
+  texto: string,
+): Promise<{ recipientId: string; mid: string }> {
+  const t = texto.trim();
+  if (!t) throw new Error("La respuesta viene vacía.");
+  const r = await fetch(`${GRAPH}/${c.pageId}/messages?access_token=${encodeURIComponent(c.pageToken)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient: { comment_id: comentarioId }, message: { text: t } }),
+  });
+  const j = (await r.json().catch(() => ({}))) as {
+    recipient_id?: string;
+    message_id?: string;
+    error?: { message?: string };
+  };
+  if (!r.ok || j.error) throw new Error(j.error?.message ?? `Meta no aceptó el mensaje (HTTP ${r.status}).`);
+  return {
+    recipientId: j.recipient_id ?? "",
+    mid: j.message_id ?? `out-privado-${comentarioId}-${Date.now()}`,
+  };
 }
 
 /**

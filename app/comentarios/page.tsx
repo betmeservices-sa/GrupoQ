@@ -260,6 +260,19 @@ function Fila({
           <span className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-[13.5px] font-semibold text-[var(--text-1)]">{c.autor}</span>
             <span className="text-[11.5px] text-[var(--text-3)]">{haceCuanto(c.ts)}</span>
+            {c.enlace && (
+              // Sin App Review, Facebook no dice quién comentó. Abrirlo allá sí
+              // lo muestra; el enlace va al comentario, no a la publicación.
+              <a
+                href={c.enlace}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[11.5px] font-semibold text-brand hover:underline"
+              >
+                Ver en Facebook
+              </a>
+            )}
             {c.oculto && (
               <span className="rounded-full bg-[var(--bg-2,#f1f5f9)] px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
                 Oculto
@@ -293,6 +306,20 @@ function Fila({
               {enviando ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
               Responder
             </button>
+            {(c.red === "instagram" || c.privadoPosible) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (texto.trim()) void accionar({ texto, privado: true });
+                }}
+                disabled={enviando || !texto.trim()}
+                title="Le llega como mensaje privado, no debajo del comentario. Una sola vez por comentario."
+                className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2 text-[12.5px] font-semibold text-[var(--text-1)] disabled:opacity-50"
+              >
+                <Send size={13} />
+                En privado
+              </button>
+            )}
           </form>
 
           <div className="flex flex-wrap items-center gap-3">
