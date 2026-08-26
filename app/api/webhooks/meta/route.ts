@@ -87,6 +87,17 @@ export async function POST(req: Request) {
   }
 
   const body = payload as { object?: string; entry?: MetaEntry[] };
+
+  // Queda anotado SIEMPRE, aunque no haya nada que guardar.
+  //
+  // Sin esto no hay forma de distinguir "Meta no nos avisa" de "nos avisa y lo
+  // estamos tirando", y son dos problemas con arreglos opuestos. Pasó con los
+  // mensajes de Instagram: se veian en el celular, no en el panel, y la unica
+  // forma de saber de que lado estaba el hueco fue mirar si el aviso llegaba.
+  console.log(
+    `[meta-webhook] llego object=${body.object ?? "?"} entradas=${body.entry?.length ?? 0}`,
+  );
+
   if (body.object !== "page" && body.object !== "instagram") {
     // Otros objetos (permissions, etc.): 200 para que Meta no reintente.
     return new Response("IGNORED", { status: 200 });
