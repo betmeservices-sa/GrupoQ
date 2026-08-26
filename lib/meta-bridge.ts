@@ -65,17 +65,50 @@ export function useMetaBridge(dispatch: Dispatch<StoreAction>) {
       return Boolean(data.hayMas);
     }
 
+    /** La lista de una. false = la vista no esta en la base todavia. */
+    async function cargarResumen(): Promise<boolean> {
+      const r = await fetch("/api/meta/inbox?resumen=1");
+      if (!r.ok || !activo) return false;
+      const data = (await r.json()) as {
+        ultimos: MetaMensajeDTO[];
+        cursor: number;
+        paginas?: Record<string, string>;
+        sinVista?: boolean;
+      };
+      if (data.sinVista) return false;
+      for (const m of data.ultimos) {
+        dispatch({
+          type: "META_INCOMING",
+          mid: m.mid,
+          canal: m.canal,
+          pageId: m.pageId,
+          paginaNombre: data.paginas?.[m.pageId],
+          senderId: m.senderId,
+          senderName: m.senderName,
+          texto: m.texto,
+          ts: m.ts,
+          direction: m.direction,
+          historiaUrl: m.historiaUrl,
+          historico: true,
+        });
+      }
+      cursor.current = data.cursor;
+      return true;
+    }
+
     async function sondear() {
       try {
         if (alDia.current) {
           await traerPagina(PAGINA_SONDEO, false);
           return;
         }
-        let vueltas = 0;
-        let quedaMas = true;
-        while (quedaMas && activo && vueltas < MAX_VUELTAS) {
-          quedaMas = await traerPagina(PAGINA_HISTORIAL, true);
-          vueltas++;
+        if (!(await cargarResumen())) {
+          let vueltas = 0;
+          let quedaMas = true;
+          while (quedaMas && activo && vueltas < MAX_VUELTAS) {
+            quedaMas = await traerPagina(PAGINA_HISTORIAL, true);
+            vueltas++;
+          }
         }
         if (activo) alDia.current = true;
       } catch {

@@ -86,6 +86,109 @@ export async function addOutbound(m: {
   });
 }
 
+const COLUMNAS_WA =
+  "id, wa_id, wa_from, nombre, texto, ts, direccion, tenant, media_id, media_tipo, media_mime, media_filename";
+
+function deFila(r: Record<string, unknown>): WaInbound {
+  return {
+    seq: Number(r.id),
+    waId: r.wa_id as string,
+    from: r.wa_from as string,
+    nombre: (r.nombre as string | null) ?? undefined,
+    texto: r.texto as string,
+    ts: r.ts as string,
+    direccion: ((r.direccion as string | null) ?? "in") as Direccion,
+    tenant: (r.tenant as string | null) ?? undefined,
+    media: r.media_id
+      ? {
+          id: r.media_id as string,
+          tipo: (r.media_tipo as string | null) ?? "document",
+          mime: (r.media_mime as string | null) ?? undefined,
+          filename: (r.media_filename as string | null) ?? undefined,
+        }
+      : undefined,
+  };
+}
+
+export interface Resumen {
+  /** El último mensaje de cada conversación. */
+  ultimos: WaInbound[];
+  /** Hasta dónde llegó la base; el sondeo arranca de acá. */
+  cursor: number;
+  /** La vista de la base no existe todavía: quien llama tiene que caer al camino viejo. */
+  sinVista?: boolean;
+}
+
+/**
+ * El último mensaje de cada conversación, para armar la lista de una.
+ *
+ * Es una fila por conversación en vez de todos los mensajes: con seis meses
+ * importados, 1,720 filas en vez de 16,131. La lista aparece al instante y los
+ * mensajes de cada hilo se traen recién cuando alguien lo abre.
+ *
+ * Si la vista todavía no está en la base (la migración la corre una persona,
+ * el deploy sale solo), se avisa con `sinVista` en vez de devolver una lista
+ * vacía: vacía se leería como "no hay conversaciones", que es mentira.
+ */
+export async function ultimoPorConversacion(tenant?: string): Promise<Resumen> {
+  const sb = getSupabase(tenant);
+  if (!sb) {
+    // En memoria: la última fila por número.
+    const porFrom = new Map<string, WaInbound>();
+    for (const m of mem) if (!tenant || m.tenant === tenant) porFrom.set(m.from, m);
+    return { ultimos: [...porFrom.values()], cursor: memSeq };
+  }
+  let q = sb.from("wa_ultimo_por_conversacion").select(COLUMNAS_WA);
+  if (tenant) q = q.eq("tenant", tenant);
+  // El tope de PostgREST es 1000 por pedido: con más conversaciones que eso
+  // hay que pedir en tandas.
+  const ultimos: WaInbound[] = [];
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await q.order("id", { ascending: false }).range(desde, desde + 999);
+    if (error) {
+      console.error("Supabase resumen WA:", error.message);
+      return { ultimos: [], cursor: 0, sinVista: true };
+    }
+    const filas = (data ?? []) as unknown as Record<string, unknown>[];
+    ultimos.push(...filas.map(deFila));
+    if (filas.length < 1000) break;
+  }
+  const cursor = ultimos.reduce((max, m) => Math.max(max, m.seq), 0);
+  return { ultimos, cursor };
+}
+
+/**
+ * Los mensajes de UNA conversación anteriores a una fecha, del más nuevo al
+ * más viejo. Es lo que se pide al abrir un hilo (sin `antes`) y al subir
+ * (con la fecha del más viejo que ya se tiene).
+ */
+export async function mensajesAnteriores(
+  from: string,
+  antes: string | null,
+  limite: number,
+  tenant?: string,
+): Promise<{ mensajes: WaInbound[]; hayMas: boolean }> {
+  const sb = getSupabase(tenant);
+  const tope = Math.min(Math.max(limite, 1), 200);
+  if (!sb) {
+    const todos = mem
+      .filter((m) => m.from === from && (!tenant || m.tenant === tenant) && (!antes || m.ts < antes))
+      .sort((a, b) => b.ts.localeCompare(a.ts));
+    return { mensajes: todos.slice(0, tope), hayMas: todos.length > tope };
+  }
+  let q = sb.from("wa_messages").select(COLUMNAS_WA).eq("wa_from", from);
+  if (tenant) q = q.eq("tenant", tenant);
+  if (antes) q = q.lt("ts", antes);
+  // Uno de más, solo para saber si queda algo detrás.
+  const { data, error } = await q.order("ts", { ascending: false }).limit(tope + 1);
+  if (error) {
+    console.error("Supabase hilo WA:", error.message);
+    return { mensajes: [], hayMas: false };
+  }
+  const filas = (data ?? []) as unknown as Record<string, unknown>[];
+  return { mensajes: filas.slice(0, tope).map(deFila), hayMas: filas.length > tope };
+}
+
 // Devuelve los mensajes con cursor (seq/id) mayor al del cliente. Si se pasa
 // `tenant`, solo los de ese cliente (así cada dashboard ve lo suyo).
 /**

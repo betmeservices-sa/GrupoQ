@@ -1,4 +1,10 @@
-import { getMetaSince, metaEnMemoria } from "@/lib/meta-messages-store";
+import {
+  getMetaSince,
+  mensajesAnteriores,
+  metaEnMemoria,
+  ultimoPorConversacion,
+  type MetaCanal,
+} from "@/lib/meta-messages-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { conexionesDe } from "@/lib/meta-store";
 
@@ -16,6 +22,35 @@ export async function GET(req: Request) {
   const limite = Number.isFinite(pedido) ? Math.min(Math.max(pedido, 1), TOPE) : 100;
 
   const tenant = tenantFromRequest(req);
+
+  // Mismos tres modos que /api/whatsapp/inbox: resumen, hilo, sondeo.
+  if (url.searchParams.get("resumen") === "1") {
+    const r = await ultimoPorConversacion(tenant);
+    const paginas: Record<string, string> = {};
+    for (const c of await conexionesDe(tenant)) paginas[c.pageId] = c.pageName;
+    return Response.json({
+      ultimos: r.ultimos,
+      cursor: r.cursor,
+      paginas,
+      sinVista: r.sinVista === true,
+      enMemoria: metaEnMemoria(),
+    });
+  }
+
+  const senderId = url.searchParams.get("de");
+  const pageId = url.searchParams.get("pagina");
+  const canal = url.searchParams.get("canal");
+  if (senderId && pageId && (canal === "facebook" || canal === "instagram")) {
+    const antes = url.searchParams.get("antes");
+    const r = await mensajesAnteriores(
+      { canal: canal as MetaCanal, pageId, senderId },
+      antes || null,
+      Math.min(limite, 200),
+      tenant,
+    );
+    return Response.json(r);
+  }
+
   const mensajes = await getMetaSince(Number.isFinite(after) ? after : 0, tenant, limite);
 
   // El nombre de cada pagina, para que la bandeja pueda decir por cual entro

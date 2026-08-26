@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MessageSquareDashed } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useStore } from "@/lib/store";
@@ -46,6 +46,11 @@ export default function BandejaPage() {
   const [activaId, setActivaId] = useState<string | null>(null);
   const [ctxOpen, setCtxOpen] = useState(false); // panel de contexto en movil
   const [aiRefresh, setAiRefresh] = useState(0); // refresca el toggle de IA por chat
+
+  // Que tiene cargado cada hilo. La lista trae solo el ultimo mensaje de cada
+  // conversacion; el resto se pide al abrirla (los ultimos 50) y al subir (los
+  // 50 anteriores). `completo` = ya no queda nada mas viejo en la base.
+  const [hilos, setHilos] = useState<Record<string, { completo: boolean; cargando: boolean }>>({});
 
   const contactoDe = useMemo(
     () => new Map(state.contacts.map((c) => [c.id, c])),
@@ -106,6 +111,75 @@ export default function BandejaPage() {
     setActivaId(id);
     dispatch({ type: "MARK_READ", conversationId: id });
   }
+
+  /**
+   * Trae los mensajes anteriores a los que ya se tienen de este hilo.
+   *
+   * Solo para conversaciones reales (wac-, metac-): las de la simulacion y las
+   * del seed viven enteras en el navegador y no hay nada que pedir.
+   */
+  const cargarAnteriores = useCallback(
+    async (convId: string) => {
+      const esWa = convId.startsWith("wac-");
+      const esMeta = convId.startsWith("metac-");
+      if (!esWa && !esMeta) {
+        setHilos((h) => ({ ...h, [convId]: { completo: true, cargando: false } }));
+        return;
+      }
+      setHilos((h) => ({ ...h, [convId]: { completo: h[convId]?.completo ?? false, cargando: true } }));
+
+      // La fecha del mas viejo que ya se tiene: de ahi para atras.
+      const propios = state.messages.filter((m) => m.conversationId === convId);
+      const masViejo = propios.reduce<string | null>(
+        (min, m) => (min === null || m.ts < min ? m.ts : min),
+        null,
+      );
+      const antes = masViejo ? `&antes=${encodeURIComponent(masViejo)}` : "";
+
+      try {
+        let hayMas = false;
+        if (esWa) {
+          const from = convId.slice("wac-".length);
+          const r = await fetch(`/api/whatsapp/inbox?de=${encodeURIComponent(from)}${antes}&limite=50`);
+          const d = (await r.json()) as {
+            mensajes: Array<{ waId: string; from: string; nombre?: string; texto: string; ts: string; direccion?: "in" | "out"; media?: { id: string; tipo: string; mime?: string; filename?: string } }>;
+            hayMas: boolean;
+          };
+          for (const m of d.mensajes) {
+            dispatch({ type: "WHATSAPP_INCOMING", waId: m.waId, from: m.from, nombre: m.nombre, texto: m.texto, ts: m.ts, direccion: m.direccion, media: m.media, historico: true });
+          }
+          hayMas = d.hayMas;
+        } else {
+          const [, canal, pageId, senderId] = convId.split("-");
+          const r = await fetch(
+            `/api/meta/inbox?de=${encodeURIComponent(senderId)}&pagina=${encodeURIComponent(pageId)}&canal=${canal}${antes}&limite=50`,
+          );
+          const d = (await r.json()) as {
+            mensajes: Array<{ mid: string; canal: "facebook" | "instagram"; pageId: string; senderId: string; senderName?: string; texto: string; ts: string; direction?: "in" | "out"; historiaUrl?: string }>;
+            hayMas: boolean;
+          };
+          for (const m of d.mensajes) {
+            dispatch({ type: "META_INCOMING", mid: m.mid, canal: m.canal, pageId: m.pageId, senderId: m.senderId, senderName: m.senderName, texto: m.texto, ts: m.ts, direction: m.direction, historiaUrl: m.historiaUrl, historico: true });
+          }
+          hayMas = d.hayMas;
+        }
+        setHilos((h) => ({ ...h, [convId]: { completo: !hayMas, cargando: false } }));
+      } catch {
+        // Se deja como estaba: el boton sigue ahi para reintentar.
+        setHilos((h) => ({ ...h, [convId]: { completo: h[convId]?.completo ?? false, cargando: false } }));
+      }
+    },
+    [dispatch, state.messages],
+  );
+
+  // Al abrir un hilo por primera vez, se traen sus ultimos mensajes.
+  useEffect(() => {
+    if (!activaId || hilos[activaId]) return;
+    void cargarAnteriores(activaId);
+    // Solo cuando cambia el hilo abierto: si dependiera de cargarAnteriores
+    // (que cambia con cada mensaje) pediria de nuevo en cada sondeo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activaId]);
 
   // "Abrir en la bandeja" desde Mis chats: la conversación ya existe, solo hay
   // que seleccionarla.
@@ -184,6 +258,9 @@ export default function BandejaPage() {
               ventanaCerrada={ventanaCerrada}
               contact={contactoActivo}
               messages={mensajesActivos}
+              hayAnteriores={!(hilos[activa.id]?.completo ?? false)}
+              cargandoAnteriores={hilos[activa.id]?.cargando ?? false}
+              onCargarAnteriores={() => void cargarAnteriores(activa.id)}
               escribiendo={escribiendo.has(activa.id)}
               esMia={activa.asignadoA === ME}
               onBack={() => setActivaId(null)}

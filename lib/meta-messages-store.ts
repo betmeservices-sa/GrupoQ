@@ -138,6 +138,110 @@ export async function addMetaOutbound(
   return guardar({ ...m, direction: "out" });
 }
 
+function deFila(r: Record<string, unknown>): MetaMensaje {
+  return {
+    seq: Number(r.id),
+    mid: (r.mid as string | null) ?? `meta-fila-${r.id}`,
+    tenant: r.tenant as string,
+    canal: (r.canal as MetaCanal) ?? "facebook",
+    pageId: r.page_id as string,
+    senderId: r.sender_id as string,
+    senderName: (r.sender_name as string | null) ?? undefined,
+    texto: r.texto as string,
+    ts: r.ts as string,
+    direction: ((r.direction as string | null) ?? "in") as MetaDireccion,
+    historiaUrl: (r.historia_url as string | null) ?? undefined,
+  };
+}
+
+/** Las columnas a pedir, con o sin la de historias según lo que haya en la base. */
+function columnasMeta(): string {
+  const base = "id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction";
+  return columnaHistoria.hay ? `${base}, historia_url` : base;
+}
+
+export interface ResumenMeta {
+  ultimos: MetaMensaje[];
+  cursor: number;
+  sinVista?: boolean;
+}
+
+/**
+ * El último mensaje de cada conversación. Mismo motivo que en WhatsApp: la
+ * lista se arma de una fila por conversación, no releyendo todo.
+ */
+export async function ultimoPorConversacion(tenant?: string): Promise<ResumenMeta> {
+  const sb = getSupabase(tenant);
+  if (!sb) {
+    const por = new Map<string, MetaMensaje>();
+    for (const m of mem.rows) {
+      if (!tenant || m.tenant === tenant) por.set(`${m.canal}|${m.pageId}|${m.senderId}`, m);
+    }
+    return { ultimos: [...por.values()], cursor: mem.seq };
+  }
+  const ultimos: MetaMensaje[] = [];
+  for (let desde = 0; ; desde += 1000) {
+    let q = sb.from("meta_ultimo_por_conversacion").select(columnasMeta());
+    if (tenant) q = q.eq("tenant", tenant);
+    let { data, error } = await q.order("id", { ascending: false }).range(desde, desde + 999);
+    if (error && faltaLaColumna(error.message)) {
+      columnaHistoria.hay = false;
+      let q2 = sb.from("meta_ultimo_por_conversacion").select(columnasMeta());
+      if (tenant) q2 = q2.eq("tenant", tenant);
+      ({ data, error } = await q2.order("id", { ascending: false }).range(desde, desde + 999));
+    }
+    if (error) {
+      console.error("[meta-messages] resumen:", error.message);
+      return { ultimos: [], cursor: 0, sinVista: true };
+    }
+    const filas = (data ?? []) as unknown as Record<string, unknown>[];
+    ultimos.push(...filas.map(deFila));
+    if (filas.length < 1000) break;
+  }
+  return { ultimos, cursor: ultimos.reduce((max, m) => Math.max(max, m.seq), 0) };
+}
+
+/** Los mensajes de una conversación anteriores a una fecha, del más nuevo al más viejo. */
+export async function mensajesAnteriores(
+  clave: { canal: MetaCanal; pageId: string; senderId: string },
+  antes: string | null,
+  limite: number,
+  tenant?: string,
+): Promise<{ mensajes: MetaMensaje[]; hayMas: boolean }> {
+  const sb = getSupabase(tenant);
+  const tope = Math.min(Math.max(limite, 1), 200);
+  const esDeLaConv = (m: MetaMensaje) =>
+    m.canal === clave.canal && m.pageId === clave.pageId && m.senderId === clave.senderId;
+  if (!sb) {
+    const todos = mem.rows
+      .filter((m) => esDeLaConv(m) && (!tenant || m.tenant === tenant) && (!antes || m.ts < antes))
+      .sort((a, b) => b.ts.localeCompare(a.ts));
+    return { mensajes: todos.slice(0, tope), hayMas: todos.length > tope };
+  }
+  const armar = () => {
+    let q = sb
+      .from("meta_messages")
+      .select(columnasMeta())
+      .eq("canal", clave.canal)
+      .eq("page_id", clave.pageId)
+      .eq("sender_id", clave.senderId);
+    if (tenant) q = q.eq("tenant", tenant);
+    if (antes) q = q.lt("ts", antes);
+    return q.order("ts", { ascending: false }).limit(tope + 1);
+  };
+  let { data, error } = await armar();
+  if (error && faltaLaColumna(error.message)) {
+    columnaHistoria.hay = false;
+    ({ data, error } = await armar());
+  }
+  if (error) {
+    console.error("[meta-messages] hilo:", error.message);
+    return { mensajes: [], hayMas: false };
+  }
+  const filas = (data ?? []) as unknown as Record<string, unknown>[];
+  return { mensajes: filas.slice(0, tope).map(deFila), hayMas: filas.length > tope };
+}
+
 // Devuelve los mensajes con cursor (seq/id) mayor al del cliente. Si se pasa
 // `tenant`, solo los de ese cliente (así cada dashboard ve lo suyo).
 /**

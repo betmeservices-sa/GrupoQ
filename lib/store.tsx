@@ -399,7 +399,10 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
             c.id === conv.id
               ? {
                   ...c,
-                  ultimoMensajeTs: action.ts,
+                  // Solo hacia adelante. Cuando el hilo carga mensajes VIEJOS
+                  // (al abrirlo, o al subir), la conversación no puede
+                  // moverse al fondo de la lista como si hubiera envejecido.
+                  ultimoMensajeTs: action.ts > c.ultimoMensajeTs ? action.ts : c.ultimoMensajeTs,
                   noLeidos: cuenta ? c.noLeidos + 1 : c.noLeidos,
                   // Un mensaje nuevo reabre una conversación cerrada. Releer el
                   // respaldo no: si no, abrir la bandeja reabría las mil
@@ -486,14 +489,18 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
           c.id === conversationId
             ? {
                 ...c,
-                ultimoMensajeTs: action.ts,
+                // Solo hacia adelante, por lo mismo que en WhatsApp.
+                ultimoMensajeTs: action.ts > c.ultimoMensajeTs ? action.ts : c.ultimoMensajeTs,
                 noLeidos: cuenta ? c.noLeidos + 1 : c.noLeidos,
                 // Contestar es atender: deja de ser "nuevo". Vale igual si la
                 // respuesta salio desde el panel o desde el celular, porque
                 // Meta nos avisa de las dos.
-                estado: action.historico
-                  ? estadoHistorico
-                  : !esEntrante && c.estado === "nuevo"
+                estado:
+                  action.historico && action.ts < c.ultimoMensajeTs
+                    ? c.estado // un mensaje viejo no cambia lo que ya se decidió con el nuevo
+                    : action.historico
+                      ? estadoHistorico
+                      : !esEntrante && c.estado === "nuevo"
                     ? "en_progreso"
                     : c.estado === "resuelto"
                       ? "en_progreso"

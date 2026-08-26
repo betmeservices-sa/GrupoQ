@@ -93,18 +93,54 @@ export function useWhatsappBridge(dispatch: Dispatch<StoreAction>) {
       return Boolean(data.hayMas);
     }
 
+    /**
+     * La lista de una: el ultimo mensaje de cada conversacion.
+     *
+     * Devuelve false si la base todavia no tiene la vista (la migracion la
+     * corre una persona, el deploy sale solo). En ese caso se cae al camino
+     * viejo de releer todo, que es lento pero funciona.
+     */
+    async function cargarResumen(): Promise<boolean> {
+      const r = await fetch("/api/whatsapp/inbox?resumen=1");
+      if (!r.ok || !activo) return false;
+      const data = (await r.json()) as {
+        ultimos: WaInboundDTO[];
+        cursor: number;
+        sinVista?: boolean;
+      };
+      if (data.sinVista) return false;
+      for (const m of data.ultimos) {
+        dispatch({
+          type: "WHATSAPP_INCOMING",
+          waId: m.waId,
+          from: m.from,
+          nombre: m.nombre,
+          texto: m.texto,
+          ts: m.ts,
+          direccion: m.direccion,
+          media: m.media,
+          historico: true,
+        });
+      }
+      // El sondeo arranca desde donde llego la base, no desde cero: si no,
+      // volveria a bajar el historial entero que justamente se evito.
+      cursor.current = data.cursor;
+      return true;
+    }
+
     async function sondear() {
       try {
         if (alDia.current) {
           await traerPagina(PAGINA_SONDEO, false);
         } else {
-          // Ponerse al dia: se encadenan las paginas sin esperar el proximo
-          // tick. Son unas pocas vueltas seguidas y la lista queda completa.
-          let vueltas = 0;
-          let quedaMas = true;
-          while (quedaMas && activo && vueltas < MAX_VUELTAS) {
-            quedaMas = await traerPagina(PAGINA_HISTORIAL, true);
-            vueltas++;
+          if (!(await cargarResumen())) {
+            // Sin la vista: releer todo, de a paginas grandes encadenadas.
+            let vueltas = 0;
+            let quedaMas = true;
+            while (quedaMas && activo && vueltas < MAX_VUELTAS) {
+              quedaMas = await traerPagina(PAGINA_HISTORIAL, true);
+              vueltas++;
+            }
           }
           if (!activo) return;
           alDia.current = true;

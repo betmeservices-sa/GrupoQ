@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Ban, Check, ChevronLeft, Info, UserPlus } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { Ban, Check, ChevronLeft, Info, Loader2, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { depto } from "@/lib/format";
 import { Avatar, inicialesDe } from "@/components/ui/Avatar";
@@ -27,6 +27,9 @@ export function Thread({
   onSendTemplate,
   ventanaCerrada,
   escribiendo,
+  hayAnteriores,
+  cargandoAnteriores,
+  onCargarAnteriores,
 }: {
   conversation: Conversation;
   contact: Contact;
@@ -44,13 +47,42 @@ export function Thread({
   onAttach?: (file: File) => void | Promise<void>;
   onSendTemplate?: (t: EnvioPlantilla) => void | Promise<void>;
   ventanaCerrada?: boolean;
+  /** Quedan mensajes mas viejos en la base que todavia no se trajeron. */
+  hayAnteriores?: boolean;
+  cargandoAnteriores?: boolean;
+  onCargarAnteriores?: () => void;
 }) {
   const finRef = useRef<HTMLDivElement>(null);
+  const listaRef = useRef<HTMLDivElement>(null);
   const d = depto(conversation.departamento);
 
+  // Al fondo cuando llega un mensaje NUEVO, no cuando se cargan viejos arriba.
+  // Antes miraba la cantidad, y cargar cincuenta anteriores mandaba la vista
+  // al fondo: justo lo contrario de lo que se queria ver.
+  const ultimoId = messages[messages.length - 1]?.id;
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length, escribiendo]);
+  }, [ultimoId, escribiendo]);
+
+  // Al cargar mensajes viejos arriba, la vista se queda donde estaba: se mide
+  // cuanto crecio la lista y se corre el scroll esa misma cantidad. Sin esto,
+  // el navegador deja el scroll en el mismo pixel y lo que se estaba leyendo
+  // se va cincuenta mensajes para abajo.
+  const altoAntes = useRef(0);
+  const primerId = messages[0]?.id;
+  useLayoutEffect(() => {
+    const el = listaRef.current;
+    if (!el) return;
+    if (altoAntes.current > 0 && el.scrollHeight > altoAntes.current) {
+      el.scrollTop += el.scrollHeight - altoAntes.current;
+    }
+    altoAntes.current = 0;
+  }, [primerId]);
+
+  function pedirAnteriores() {
+    if (listaRef.current) altoAntes.current = listaRef.current.scrollHeight;
+    onCargarAnteriores?.();
+  }
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-surface">
@@ -135,7 +167,20 @@ export function Thread({
       {/* Mensajes */}
       {/* min-h-0: sin esto el hilo se niega a encoger y empuja el composer
           fuera de la pantalla en monitores bajos. */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div ref={listaRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        {hayAnteriores && (
+          <div className="flex justify-center pb-1">
+            <button
+              type="button"
+              onClick={pedirAnteriores}
+              disabled={cargandoAnteriores}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1 text-[12px] font-semibold text-[var(--text-2)] hover:border-brand hover:text-brand disabled:opacity-60"
+            >
+              {cargandoAnteriores && <Loader2 size={12} className="animate-spin" />}
+              {cargandoAnteriores ? "Trayendo" : "Ver mensajes anteriores"}
+            </button>
+          </div>
+        )}
         {messages.map((m, i) => (
           <MessageBubble
             key={m.id}
