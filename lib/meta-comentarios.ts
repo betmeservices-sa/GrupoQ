@@ -10,6 +10,7 @@
 
 import type { MetaConnection } from "./meta-store";
 import { esComentarioInstagram, ocultarComentarioIg, responderComentarioIg } from "./meta-ig-login";
+import { autoresDeComentarios } from "./meta-feed-autores";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
@@ -43,6 +44,11 @@ export interface Comentario {
   enlace?: string;
   /** Meta deja mandarle un Messenger privado a quien comentó. */
   privadoPosible?: boolean;
+  /**
+   * Id de quien comentó, con alcance de página (no es su id global). Sirve
+   * para agrupar comentarios de la misma persona; no para abrir su perfil.
+   */
+  autorId?: string;
 }
 
 interface RespuestaGraph<T> {
@@ -175,6 +181,20 @@ export async function comentariosFacebook(
         enlace: co.permalink_url,
         privadoPosible: co.can_reply_privately === true,
       });
+    }
+  }
+
+  // Lo que la API no dice, el aviso de Meta sí lo dijo cuando llegó: el
+  // nombre de quien comentó se guardó en ese momento. Se rellena desde ahí.
+  const sinNombre = out.filter((x) => x.autor === "Sin identificar").map((x) => x.id);
+  if (sinNombre.length) {
+    const autores = await autoresDeComentarios(sinNombre);
+    for (const x of out) {
+      const a = autores.get(x.id);
+      if (a) {
+        x.autor = a.nombre;
+        x.autorId = a.fromId ?? undefined;
+      }
     }
   }
   return out;

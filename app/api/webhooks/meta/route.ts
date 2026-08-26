@@ -5,6 +5,7 @@ import { textoDelMensaje } from "@/lib/meta-texto-mensaje";
 import { guardarEventoMeta } from "@/lib/meta-webhook-log";
 import { conexionPorActivo } from "@/lib/meta-store";
 import { nombreDelRemitente } from "@/lib/meta-perfil";
+import { autorDeCambioFeed, guardarAutorFeed } from "@/lib/meta-feed-autores";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,8 @@ interface MetaMessagingEvent {
 interface MetaEntry {
   id?: string; // object=page: page id | object=instagram: ig business id
   messaging?: MetaMessagingEvent[];
+  /** Cambios del feed de la página (comentarios, reacciones, posts). */
+  changes?: Parameters<typeof autorDeCambioFeed>[1][];
   /**
    * Lo mismo que `messaging`, pero cuando el hilo lo tiene agarrado otra app.
    *
@@ -135,6 +138,13 @@ export async function POST(req: Request) {
   try {
     for (const entry of body.entry ?? []) {
       const activoId = String(entry.id ?? "");
+
+      // Comentarios del feed: el aviso trae quién comentó, cosa que la API
+      // después no dice sin App Review. Se guarda ahora y se usa al listar.
+      for (const cambio of entry.changes ?? []) {
+        const autor = autorDeCambioFeed(activoId, cambio);
+        if (autor) await guardarAutorFeed(autor);
+      }
       // Los dos, y en el mismo saco: para la bandeja da igual quién tenga
       // agarrado el hilo, el mensaje del huésped hay que verlo igual.
       const eventos = [...(entry.messaging ?? []), ...(entry.standby ?? [])];
