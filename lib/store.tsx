@@ -108,6 +108,8 @@ export type StoreAction =
       texto: string;
       ts: string;
       direction?: "in" | "out";
+      /** La historia que contestaron, si contestaron una. */
+      historiaUrl?: string;
       /**
        * Se está releyendo lo que ya pasó, no llegando ahora.
        *
@@ -540,6 +542,7 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
         autor: esEntrante ? "cliente" : "staff",
         texto: action.texto,
         ts: action.ts,
+        historiaUrl: action.historiaUrl,
       };
 
       return { ...state, contacts, conversations, messages: [...state.messages, msg] };

@@ -24,6 +24,14 @@ export interface MetaMensaje {
   texto: string;
   ts: string; // ISO 8601
   direction: MetaDireccion;
+  /**
+   * Enlace a la historia que esta persona contestó, si contestó una.
+   *
+   * Lo sirve Meta y vence en unas horas: pasado ese rato la miniatura deja de
+   * cargar y queda solo el rótulo. Está bien así, una historia se contesta
+   * mientras está publicada.
+   */
+  historiaUrl?: string;
 }
 
 // Fallback en memoria, anclado en globalThis: en dev cada ruta compila su
@@ -68,6 +76,7 @@ async function guardar(m: Omit<MetaMensaje, "seq">): Promise<void> {
         texto: m.texto,
         ts: m.ts,
         direction: m.direction,
+        historia_url: m.historiaUrl ?? null,
       },
       { onConflict: "mid", ignoreDuplicates: true },
     );
@@ -106,7 +115,7 @@ export async function getMetaSince(after: number, tenant?: string, limite = 100)
   if (sb) {
     let q = sb
       .from("meta_messages")
-      .select("id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction")
+      .select("id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction, historia_url")
       .gt("id", after);
     if (tenant) q = q.eq("tenant", tenant);
     const { data, error } = await q.order("id", { ascending: true }).limit(Math.min(limite, 1000));
@@ -122,6 +131,7 @@ export async function getMetaSince(after: number, tenant?: string, limite = 100)
         texto: r.texto as string,
         ts: r.ts as string,
         direction: ((r.direction as string | null) ?? "in") as MetaDireccion,
+        historiaUrl: (r.historia_url as string | null) ?? undefined,
       }));
     }
     console.error("[meta-messages] select falló, cae a memoria:", error.message);

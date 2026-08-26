@@ -14,6 +14,7 @@ interface MetaMensajeDTO {
   texto: string;
   ts: string;
   direction?: "in" | "out";
+  historiaUrl?: string;
 }
 
 // Puente: sondea el inbox server-side y mete los mensajes reales de Messenger
@@ -56,6 +57,7 @@ export function useMetaBridge(dispatch: Dispatch<StoreAction>) {
           texto: m.texto,
           ts: m.ts,
           direction: m.direction,
+          historiaUrl: m.historiaUrl,
           historico,
         });
         if (m.seq > cursor.current) cursor.current = m.seq;

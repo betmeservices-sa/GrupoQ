@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import { addMetaInbound, addMetaOutbound, type MetaCanal } from "@/lib/meta-messages-store";
+import { esRespuestaAComentario } from "@/lib/respuesta-a-comentario";
+import { textoDelMensaje } from "@/lib/meta-texto-mensaje";
 import { conexionPorActivo } from "@/lib/meta-store";
 import { nombreDelRemitente } from "@/lib/meta-perfil";
 
@@ -44,6 +46,15 @@ interface MetaMessagingEvent {
     text?: string;
     is_echo?: boolean;
     attachments?: Array<{ type?: string }>;
+    /**
+     * A qué está contestando.
+     *
+     * Cuando alguien responde una historia, Meta manda el texto normal y
+     * aparte este bloque con la historia. Sin leerlo, en la bandeja aparecía
+     * "cuánto vale?" suelto y sin contexto: quien lo atiende no tenía forma de
+     * saber que hablaba de la historia de ayer.
+     */
+    reply_to?: { story?: { url?: string; id?: string }; mid?: string };
   };
 }
 
@@ -114,11 +125,12 @@ export async function POST(req: Request) {
           continue;
         }
 
-        // Texto vs adjunto: por ahora el adjunto se muestra como marca en el hilo.
-        const texto =
-          msg.text ??
-          (msg.attachments?.length ? `[${msg.attachments[0]?.type ?? "adjunto"}]` : null);
+        // Qué se guarda: texto, marca de adjunto, o marca de historia.
+        const texto = textoDelMensaje(msg);
         if (!texto) continue;
+        // Contestar un comentario en privado deja una nota de Meta en el hilo,
+        // que no la escribió nadie. Eso es de Comentarios, no de la bandeja.
+        if (esRespuestaAComentario(texto)) continue;
 
         const ts = ev.timestamp
           ? new Date(Number(ev.timestamp)).toISOString()
@@ -143,6 +155,9 @@ export async function POST(req: Request) {
           senderId,
           texto,
           ts,
+          // La historia que contestaron, para poder mostrarla al lado del
+          // rótulo. Meta solo la manda en ese caso.
+          historiaUrl: msg.reply_to?.story?.url,
         });
       }
     }

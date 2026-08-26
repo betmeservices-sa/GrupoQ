@@ -16,6 +16,16 @@
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
+// Mismas señales que lib/respuesta-a-comentario.ts, que es la fuente. Hay una
+// prueba que compara las dos listas para que no se separen: este archivo es
+// .mjs y no puede importar el .ts.
+const RESPUESTA_A_COMENTARIO = [
+  /responding to a user comment/i,
+  /respondiendo a un comentario/i,
+  /est[aá]s respondiendo.{0,40}comentario/i,
+];
+const esRespuestaAComentario = (t) => Boolean(t) && RESPUESTA_A_COMENTARIO.some((s) => s.test(t));
+
 const args = process.argv.slice(2);
 const SECO = args.includes("--seco");
 const DIAS = Number(args[args.indexOf("--dias") + 1]) || 180;
@@ -99,7 +109,10 @@ async function conversacionesDe(pageId, token, plataforma) {
 
 async function guardar(filas) {
   if (SECO || filas.length === 0) return filas.length;
-  const r = await fetch(`${SB_URL}/rest/v1/meta_messages`, {
+  // on_conflict=mid es lo que hace que "ignore-duplicates" funcione de verdad.
+  // Sin eso, un solo mensaje repetido tumba el lote ENTERO de 200 y esos 200 se
+  // pierden sin que se note: el script sigue como si nada.
+  const r = await fetch(`${SB_URL}/rest/v1/meta_messages?on_conflict=mid`, {
     method: "POST",
     headers: { ...cabeceras, Prefer: "resolution=ignore-duplicates,return=minimal" },
     body: JSON.stringify(filas),
@@ -138,6 +151,9 @@ async function main() {
 
         for (const m of conv.messages?.data ?? []) {
           if (!m.created_time || m.created_time < desde) continue;
+          // Contestar un comentario en privado deja una nota de Meta en el
+          // hilo, que no escribió nadie. Eso va en Comentarios.
+          if (esRespuestaAComentario(m.message)) continue;
           const salida = casa.has(m.from?.id);
           filas.push({
             mid: m.id,

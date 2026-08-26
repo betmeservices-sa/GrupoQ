@@ -52,6 +52,15 @@ export function MessageBubble({
 }) {
   const esStaff = message.autor === "staff";
   const caption = message.media ? captionDeMedia(message.texto) : null;
+
+  // Respuesta a una historia. El rótulo va SIEMPRE que el mensaje lo diga, con
+  // miniatura o sin ella: el enlace que da Meta vence en unas horas, y quedarse
+  // sin foto no puede quedarse también sin la explicación de qué se contestó.
+  const esRespuestaAHistoria = message.texto.startsWith("[respuesta a tu historia]");
+  const textoLimpio = esRespuestaAHistoria
+    ? message.texto.slice("[respuesta a tu historia]".length).trim()
+    : message.texto;
+  const [historiaRota, setHistoriaRota] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const [reaccion, setReaccion] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +103,27 @@ export function MessageBubble({
             reaccion && !esStaff && "mb-3",
           )}
         >
+          {esRespuestaAHistoria && (
+            <div
+              className={cn(
+                "mb-1.5 flex items-center gap-2 border-l-2 pl-2",
+                esStaff ? "border-white/40" : "border-brand/50",
+              )}
+            >
+              {message.historiaUrl && !historiaRota && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={message.historiaUrl}
+                  alt="La historia que contestó"
+                  onError={() => setHistoriaRota(true)}
+                  className="h-10 w-7 shrink-0 rounded object-cover"
+                />
+              )}
+              <span className={cn("text-[11px]", esStaff ? "text-white/80" : "text-[var(--text-3)]")}>
+                Respondió a tu historia
+              </span>
+            </div>
+          )}
           {message.media ? (
             <>
               <MediaContenido media={message.media} />
@@ -102,7 +132,7 @@ export function MessageBubble({
               {caption && <p className="mt-1.5 whitespace-pre-wrap">{caption}</p>}
             </>
           ) : (
-            message.texto
+            textoLimpio
           )}
         </div>
 

@@ -101,6 +101,13 @@ export interface Message {
   texto: string;
   ts: string; // ISO 8601
   media?: MessageMedia;
+  /**
+   * La historia que esta persona estaba contestando.
+   *
+   * El enlace lo sirve Meta y vence en unas horas. Cuando vence queda el
+   * rótulo sin la miniatura, que es preferible a mostrar una imagen rota.
+   */
+  historiaUrl?: string;
 }
 
 export interface Conversation {
