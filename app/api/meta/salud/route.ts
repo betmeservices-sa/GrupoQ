@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { conexionesDe } from "@/lib/meta-store";
+import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,32 @@ const NECESARIOS = [
   "instagram_manage_messages",
 ];
 
+// ¿Se están guardando los avisos crudos de Meta?
+//
+// Contesta sin abrir la base si la migración de meta_webhook_eventos corrió en
+// producción y si de verdad está entrando algo. Un total en cero con la tabla
+// puesta significa que Meta no ha avisado nada desde que se creó.
+async function estadoEventos() {
+  const sb = getSupabase();
+  if (!sb) return { guardando: false, motivo: "Sin base configurada." };
+  const { count, error } = await sb
+    .from("meta_webhook_eventos")
+    .select("id", { count: "exact", head: true });
+  if (error) return { guardando: false, motivo: error.message };
+  const { data } = await sb
+    .from("meta_webhook_eventos")
+    .select("recibido, objeto")
+    .order("recibido", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return {
+    guardando: true,
+    total: count ?? 0,
+    ultimo: data?.recibido ?? null,
+    ultimoObjeto: data?.objeto ?? null,
+  };
+}
+
 export async function GET(req: Request) {
   const tenant = tenantFromRequest(req);
   const appId = process.env.META_APP_ID;
@@ -47,9 +74,9 @@ export async function GET(req: Request) {
   }
   const appToken = `${appId}|${appSecret}`;
 
-  const conexiones = await conexionesDe(tenant);
+  const [conexiones, eventos] = await Promise.all([conexionesDe(tenant), estadoEventos()]);
   if (!conexiones.length) {
-    return NextResponse.json({ ok: true, paginas: [], mensaje: "Ninguna página conectada." });
+    return NextResponse.json({ ok: true, paginas: [], mensaje: "Ninguna página conectada.", eventos });
   }
 
   const paginas = await Promise.all(
@@ -83,5 +110,5 @@ export async function GET(req: Request) {
     }),
   );
 
-  return NextResponse.json({ ok: true, paginas });
+  return NextResponse.json({ ok: true, paginas, eventos });
 }
