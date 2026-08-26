@@ -28,11 +28,20 @@ export const META_APP_ID = process.env.META_APP_ID || "1049131010901646";
 // Que llegue el eco no duplica lo que mandamos nosotros: los mensajes se
 // guardan por su id de Meta, y el eco de un mensaje propio trae ese mismo id.
 //
+// `standby` es el otro que faltaba, y el más difícil de sospechar. Una
+// conversación de Meta tiene un dueño a la vez: mientras nadie la toca es
+// nuestra, pero apenas alguien del hotel contesta desde el celular, esa app se
+// queda con el hilo y los mensajes siguientes nos llegan por `standby` en vez
+// de por `messages`. Sin pedirlo, el panel recibía SOLO las conversaciones que
+// nadie más estaba atendiendo: justo las activas desaparecían a mitad de
+// camino.
+//
 // Vive acá, en un solo lugar, porque estaba escrito a mano en tres rutas
 // distintas y ya se habían separado entre ellas: una pedía `feed` y otra no,
 // así que una página conectada por un camino recibía los comentarios y por el
 // otro no.
-export const CAMPOS_WEBHOOK = "messages,message_echoes,messaging_postbacks,feed";
+export const CAMPOS_WEBHOOK =
+  "messages,message_echoes,messaging_postbacks,feed,standby,messaging_handovers";
 
 // Permisos de la bandeja omnicanal: Messenger + DMs/comentarios/publicación de
 // IG + posts/comentarios de la página + estadísticas. Todos requieren acceso

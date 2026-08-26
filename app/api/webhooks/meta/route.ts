@@ -61,6 +61,21 @@ interface MetaMessagingEvent {
 interface MetaEntry {
   id?: string; // object=page: page id | object=instagram: ig business id
   messaging?: MetaMessagingEvent[];
+  /**
+   * Lo mismo que `messaging`, pero cuando el hilo lo tiene agarrado otra app.
+   *
+   * ASI FUNCIONA META Y NO ES OBVIO. Una conversación tiene un dueño a la vez.
+   * Mientras nadie la toca, es nuestra y los mensajes llegan en `messaging`.
+   * Pero apenas alguien del hotel contesta desde la app de Meta, esa app se
+   * queda con el hilo, y a nosotros los mensajes siguientes nos llegan acá, en
+   * `standby`, que es la fila de los que están mirando sin poder contestar.
+   *
+   * Leer solo `messaging` era, entonces, recibir SOLO las conversaciones que
+   * nadie más atendió. Justo las que ya estaban atendiendo desde el celular
+   * desaparecían del panel a mitad de camino, que es lo que se veía: el
+   * mensaje del cliente en el teléfono, y en el panel nada.
+   */
+  standby?: MetaMessagingEvent[];
 }
 
 // 2) Recepción: Meta hace POST con los mensajes entrantes.
@@ -107,7 +122,14 @@ export async function POST(req: Request) {
   try {
     for (const entry of body.entry ?? []) {
       const activoId = String(entry.id ?? "");
-      for (const ev of entry.messaging ?? []) {
+      // Los dos, y en el mismo saco: para la bandeja da igual quién tenga
+      // agarrado el hilo, el mensaje del huésped hay que verlo igual.
+      const eventos = [...(entry.messaging ?? []), ...(entry.standby ?? [])];
+      if (entry.standby?.length) {
+        console.log(`[meta-webhook] ${entry.standby.length} en standby (el hilo lo tiene otra app)`);
+      }
+
+      for (const ev of eventos) {
         const msg = ev.message;
         if (!msg) continue;
 

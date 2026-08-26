@@ -22,6 +22,14 @@ describe("campos del webhook de Meta", () => {
     expect(CAMPOS_WEBHOOK.split(",")).toContain("message_echoes");
   });
 
+  it("pide los mensajes de las conversaciones que ya atiende alguien más", () => {
+    // Una conversación de Meta tiene un dueño a la vez. Sin `standby`, apenas
+    // alguien del hotel contestaba desde el celular, esa conversación
+    // desaparecía del panel a mitad de camino: llegaban solo las que nadie
+    // estaba atendiendo.
+    expect(CAMPOS_WEBHOOK.split(",")).toContain("standby");
+  });
+
   it("sigue pidiendo lo demás que ya funcionaba", () => {
     const campos = CAMPOS_WEBHOOK.split(",");
     expect(campos).toContain("messages"); // mensajes del huésped
