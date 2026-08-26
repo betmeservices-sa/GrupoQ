@@ -64,16 +64,23 @@ export async function POST(req: Request) {
     accion?: string;
     canalId?: string;
     texto?: string;
+    imagen?: string;
     canal?: Partial<CanalInterno>;
     ultimoId?: number;
   };
 
   if (body.accion === "mensaje") {
     const texto = (body.texto ?? "").trim();
-    if (!body.canalId || !texto) {
+    const imagen = typeof body.imagen === "string" ? body.imagen : undefined;
+    if (!body.canalId || (!texto && !imagen)) {
       return NextResponse.json({ ok: false, error: "Falta el mensaje." }, { status: 400 });
     }
-    const m = await enviarMensaje(tenant, body.canalId, staffId, texto);
+    // Tope de tamaño: el navegador ya la achica, así que algo mucho mayor no
+    // vino de nuestro formulario y no hay motivo para guardarlo.
+    if (imagen && imagen.length > 900_000) {
+      return NextResponse.json({ ok: false, error: "La imagen es muy pesada." }, { status: 413 });
+    }
+    const m = await enviarMensaje(tenant, body.canalId, staffId, texto, imagen);
     if (!m) return NextResponse.json({ ok: false, error: "No se pudo enviar." }, { status: 500 });
     return NextResponse.json({ ok: true, mensaje: m });
   }

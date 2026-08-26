@@ -7,7 +7,7 @@ import { getWaTenant } from "@/lib/wa-routing";
 import { TENANTS } from "@/lib/tenants";
 import { origenDelContacto, type ReferralWa } from "@/lib/origen-sede";
 import { getEstadoSucursal, guardarSucursal } from "@/lib/sucursal-store";
-import { hayTranscripcion, textoDeAudio, transcribirAudioWa } from "@/lib/transcribir";
+import { pasarAPersona } from "@/lib/pasar-a-persona";
 import { registrarConsumo } from "@/lib/tokens-store";
 import { USO_CERO } from "@/lib/tokens-precios";
 
@@ -89,12 +89,8 @@ export async function POST(req: Request) {
   // (se la baja y se la manda al modelo en lib/ai-reply). Si no, la imagen se
   // guarda y la atiende una persona, como siempre.
   const veImagenes = TENANTS[tenantActivo].ai.imagenes === true;
-  // Y si escucha las notas de voz: se transcriben ANTES de guardarlas, así el
-  // agente lee texto igual que si el huésped lo hubiera escrito. Necesita la
-  // llave de Gemini; sin ella el audio sigue quedando para una persona.
-  const oyeAudios = TENANTS[tenantActivo].ai.audios === true && hayTranscripcion();
 
-  const entrantes: Array<{ from: string; wamid: string }> = [];
+  let entrantes: Array<{ from: string; wamid: string }> = [];
   try {
     const entries = (payload as { entry?: unknown[] })?.entry ?? [];
     for (const entry of entries) {
@@ -105,6 +101,11 @@ export async function POST(req: Request) {
         for (const c of (value.contacts as Array<{ wa_id?: string; profile?: { name?: string } }>) ?? []) {
           if (c?.wa_id) nombrePorWaId.set(c.wa_id, c?.profile?.name ?? "");
         }
+        // Los números que mandaron una nota de voz en este lote. Se pasan a
+        // una persona después de guardar, no en medio del bucle: si el
+        // traspaso falla, el mensaje ya quedó guardado igual.
+        const audiosParaPersona = new Set<string>();
+
         for (const m of (value.messages as WaMessage[]) ?? []) {
           const ts = m.timestamp
             ? new Date(Number(m.timestamp) * 1000).toISOString()
@@ -114,10 +115,6 @@ export async function POST(req: Request) {
           // muestra como una marca en el hilo (la IA no puede abrirlo).
           let texto: string | null = null;
           let adjunto: { tipo: string; media?: WaMedia } | null = null;
-          // Una nota de voz que sí se pudo transcribir cuenta como texto para
-          // todo lo que sigue (dispara al agente y sirve para saber de qué sede
-          // viene, igual que un mensaje escrito).
-          let transcrito = false;
           if (m.type === "text" && m.text?.body) {
             texto = m.text.body;
           } else if (m.type === "image") {
@@ -129,31 +126,17 @@ export async function POST(req: Request) {
           } else if (m.type === "audio") {
             texto = "[audio]";
             adjunto = { tipo: "audio", media: m.audio };
-            // La nota de voz se pasa a texto acá, antes de guardarla, para que
-            // el hilo y el agente vean lo mismo. Si falla, se queda en "[audio]"
-            // y lo atiende una persona: nunca se inventa lo que dijo el huésped.
-            if (oyeAudios && m.audio?.id) {
-              const t = await transcribirAudioWa(m.audio.id, tenantActivo);
-              if (t) {
-                texto = textoDeAudio(t.texto);
-                transcrito = true;
-                // Lo que costó pasar el audio a texto queda medido, no
-                // estimado: Gemini devuelve sus tokens en cada respuesta y
-                // tirarlos obligaba a calcular el costo a mano después.
-                await registrarConsumo({
-                  ts,
-                  tenant: tenantActivo,
-                  waFrom: m.from,
-                  waId: m.id,
-                  modelo: t.modelo,
-                  uso: { ...USO_CERO, input_tokens: t.tokensEntrada, output_tokens: t.tokensSalida },
-                  tokensImagen: 0,
-                  imagenes: 0,
-                  llamadas: 1,
-                  tipo: "transcripcion",
-                });
-              }
-            }
+            // UNA NOTA DE VOZ LA ATIENDE UNA PERSONA, SIEMPRE.
+            //
+            // Antes se pasaba a texto y el agente contestaba sobre esa
+            // transcripción. El problema no es que fallara: es que cuando fallaba
+            // a medias nadie se enteraba. Una fecha mal entendida, un nombre
+            // cambiado, un "no" que se oyó como "dos", y el agente contestaba con
+            // total seguridad sobre algo que el huésped no dijo.
+            //
+            // Ahora el audio queda tal cual, se apaga el agente en ese chat y se
+            // le asigna a reservas. La persona lo escucha y contesta.
+            audiosParaPersona.add(m.from);
           } else if (m.type === "sticker") {
             texto = "[sticker]";
             adjunto = { tipo: "sticker", media: m.sticker };
@@ -218,9 +201,21 @@ export async function POST(req: Request) {
           // Qué dispara a la IA: el TEXTO siempre, y la IMAGEN cuando el
           // cliente tiene la visión encendida. PDF, audios y stickers los sigue
           // atendiendo un humano (el agente no puede abrirlos ni escucharlos).
-          if (m.type === "text" || transcrito || (m.type === "image" && veImagenes)) {
+          if (m.type === "text" || (m.type === "image" && veImagenes)) {
             entrantes.push({ from: m.from, wamid: m.id });
           }
+        }
+
+        // Las notas de voz, a una persona. Va acá, cuando los mensajes del lote
+        // ya se guardaron: si el traspaso falla, el audio igual quedó en el
+        // hilo y alguien lo va a ver.
+        for (const numero of audiosParaPersona) {
+          const r = await pasarAPersona(numero, "audio", "reservas");
+          if (!r.ok) console.error("[whatsapp] no se pudo pasar el audio a una persona:", r.error);
+          // Y no se le contesta con el agente aunque en el mismo lote haya
+          // llegado texto: quien manda un audio y un texto seguidos espera que
+          // le respondan las dos cosas juntas, no media.
+          entrantes = entrantes.filter((t) => t.from !== numero);
         }
       }
     }

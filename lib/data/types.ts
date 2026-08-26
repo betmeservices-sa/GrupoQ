@@ -137,6 +137,8 @@ export interface InternalMessage {
   staffId: string;
   texto: string;
   ts: string; // ISO 8601
+  /** Imagen adjunta, ya achicada por el navegador. */
+  imagen?: string;
 }
 
 export type RedSocial = "facebook" | "instagram" | "tiktok";

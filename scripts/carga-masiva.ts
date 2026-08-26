@@ -2,7 +2,7 @@
  * Banco de pruebas de carga: cuánto cuesta atender volumen de verdad.
  *
  * Corre el MISMO código que producción (lib/ai.ts para responder,
- * lib/transcribir.ts para las notas de voz), con el guion de Sofía, sus
+ * con el guion de Sofía, sus
  * herramientas y su inventario. Lo único que no toca es WhatsApp: no se manda
  * ni un mensaje a Meta.
  *
@@ -16,10 +16,9 @@
  *
  * Uso:
  *   node --env-file=.env.local node_modules/tsx/dist/cli.mjs scripts/carga-masiva.ts \
- *     --texto 3000 --audio 100 --imagenes 100
+ *     --texto 3000 --imagenes 100
  *
  *   --texto N      mensajes de texto respondidos por el agente
- *   --audio MIN    minutos de audio transcritos
  *   --imagenes N   fotos enviadas al agente
  *   --conc N       cuántas en paralelo (por defecto 6)
  *   --salida ruta  dónde escribir el informe JSON
@@ -27,7 +26,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { generarRespuesta, type TurnoIA } from "../lib/ai";
-import { transcribirAudio } from "../lib/transcribir";
 import { costoDeUso, tokensPrompt, type UsoTokens } from "../lib/tokens-precios";
 import { TENANTS } from "../lib/tenants";
 
@@ -186,8 +184,8 @@ async function enTandas<T>(tareas: (() => Promise<T>)[], conc: number, alAvanzar
   return resultados;
 }
 
-// OJO con el `||`: `--audio 0` es cero, no "sin valor". Con el fallback
-// ingenuo, pedir cero audios corria los dos por defecto.
+// OJO con el `||`: `--imagenes 0` es cero, no "sin valor". Con el fallback
+// ingenuo, pedir cero imagenes corria el valor por defecto igual.
 function arg(nombre: string, def: number): number {
   const i = process.argv.indexOf(`--${nombre}`);
   if (i < 0) return def;
@@ -197,14 +195,12 @@ function arg(nombre: string, def: number): number {
 
 async function main() {
   const nTexto = arg("texto", 30);
-  const minAudio = arg("audio", 2);
   const nImagenes = arg("imagenes", 5);
   const conc = arg("conc", 6);
   const iSalida = process.argv.indexOf("--salida");
   const salida = iSalida > 0 ? process.argv[iSalida + 1] : "medicion/carga-masiva.json";
 
   const texto = vacio();
-  const audio = vacio();
   const imagenes = vacio();
   const arranque = Date.now();
 
@@ -252,50 +248,6 @@ async function main() {
     await enTandas(tareas, conc, avanzar);
   }
 
-  // ── AUDIO ──
-  if (minAudio > 0) {
-    const dir = "medicion/audios";
-    const archivos = fs.existsSync(dir)
-      ? fs.readdirSync(dir).filter((f) => f.endsWith(".ogg")).map((f) => path.join(dir, f))
-      : [];
-    if (archivos.length === 0) {
-      console.log(`\nAUDIO: falta ${dir} con notas .ogg (ver scripts/generar-audios.ps1)`);
-    } else {
-      // El BOM que deja PowerShell rompe JSON.parse; se quita antes de leer.
-      const duraciones = JSON.parse(
-        fs.readFileSync(path.join(dir, "duraciones.json"), "utf8").replace(/^﻿/, ""),
-      ) as Record<string, number>;
-      const objetivo = minAudio * 60;
-      let acumulado = 0;
-      const tareas: (() => Promise<void>)[] = [];
-      for (let i = 0; acumulado < objetivo; i++) {
-        const archivo = archivos[i % archivos.length];
-        const dur = duraciones[path.basename(archivo)] ?? 15;
-        acumulado += dur;
-        tareas.push(async () => {
-          const t0 = Date.now();
-          const buf = fs.readFileSync(archivo);
-          const r = await transcribirAudio(buf, "audio/ogg", TENANT);
-          if (!r) {
-            audio.errores++;
-            return;
-          }
-          sumar(
-            audio,
-            { input_tokens: r.tokensEntrada, output_tokens: r.tokensSalida, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
-            r.modelo,
-            1,
-            Date.now() - t0,
-            0,
-            `${path.basename(archivo)} · ${dur.toFixed(1)} s`,
-          );
-        });
-      }
-      console.log(`\nAUDIO: ${tareas.length} notas (${(acumulado / 60).toFixed(1)} min)`);
-      await enTandas(tareas, conc, () => {});
-    }
-  }
-
   // ── IMÁGENES ──
   if (nImagenes > 0) {
     const dir = "public/inmobiliaria";
@@ -334,7 +286,6 @@ async function main() {
   const seg = (Date.now() - arranque) / 1000;
   const bloques = [
     { nombre: "texto", unidad: "mensaje", a: texto },
-    { nombre: "audio", unidad: "nota de voz", a: audio },
     { nombre: "imagenes", unidad: "foto", a: imagenes },
   ];
 

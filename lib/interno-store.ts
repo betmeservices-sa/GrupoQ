@@ -23,6 +23,8 @@ export interface MensajeInterno {
   autor: string;
   texto: string;
   ts: string;
+  /** La imagen ya achicada, si el mensaje lleva una. */
+  imagen?: string;
 }
 
 const faltaTabla = latchDeTabla();
@@ -103,7 +105,7 @@ export async function mensajesDesde(
   }
   const { data, error } = await sb
     .from("interno_mensajes")
-    .select("id,canal_id,autor,texto,ts")
+    .select("id,canal_id,autor,texto,ts,imagen")
     .eq("tenant", tenant)
     .gt("id", after)
     .order("id", { ascending: true })
@@ -118,6 +120,7 @@ export async function mensajesDesde(
     autor: r.autor as string,
     texto: r.texto as string,
     ts: r.ts as string,
+    imagen: (r.imagen as string | null) ?? undefined,
   }));
 }
 
@@ -126,6 +129,7 @@ export async function enviarMensaje(
   canalId: string,
   autor: string,
   texto: string,
+  imagen?: string,
 ): Promise<MensajeInterno | null> {
   const sb = getSupabase(tenant);
   if (!sb || faltaTabla.activo()) {
@@ -135,6 +139,7 @@ export async function enviarMensaje(
       autor,
       texto,
       ts: new Date().toISOString(),
+      imagen,
     };
     mem.mensajes.push(m);
     if (mem.mensajes.length > 500) mem.mensajes.shift();
@@ -142,8 +147,8 @@ export async function enviarMensaje(
   }
   const { data, error } = await sb
     .from("interno_mensajes")
-    .insert({ tenant, canal_id: canalId, autor, texto })
-    .select("id,canal_id,autor,texto,ts")
+    .insert({ tenant, canal_id: canalId, autor, texto, imagen: imagen ?? null })
+    .select("id,canal_id,autor,texto,ts,imagen")
     .single();
   if (error || !data) {
     faltaTabla.marcar();
@@ -155,6 +160,7 @@ export async function enviarMensaje(
     autor: data.autor as string,
     texto: data.texto as string,
     ts: data.ts as string,
+    imagen: (data.imagen as string | null) ?? undefined,
   };
 }
 

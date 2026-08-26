@@ -27,6 +27,7 @@ import { sumarUso, USO_CERO, type UsoTokens } from "./tokens-precios";
 import type { MimeImagenIA } from "./wa-media";
 import type { TipoTicket } from "./tickets";
 import { areaYaliPara } from "./tickets-tenant";
+import { pasarAPersona, type Traspaso } from "./pasar-a-persona";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -541,7 +542,26 @@ export async function ejecutarHerramienta(
         contactoTelefono: contexto?.telefono,
         area: areaYaliPara(t.tipo ?? "otro", contexto?.sucursal?.id ?? null),
       });
-      return JSON.stringify({ ok: true, numero: ticket.numero, area: ticket.area });
+      // Un socio no se atiende con un ticket y ya: hay que SALIR del chat.
+      //
+      // Antes solo se abria el caso. Olga recibia el ticket mientras Sofia
+      // seguia conversando con el socio, asi que el socio hablaba con la
+      // maquina y con Olga a la vez, y con precios distintos.
+      let traspaso: Traspaso | null = null;
+      if (t.tipo === "membresia" || t.tipo === "pago" || t.tipo === "queja") {
+        const motivo = t.tipo === "membresia" ? "socio" : t.tipo === "pago" ? "pago" : "reclamo";
+        traspaso = await pasarAPersona(contexto?.telefono ?? "", motivo, ticket.area);
+      }
+
+      return JSON.stringify({
+        ok: true,
+        numero: ticket.numero,
+        area: ticket.area,
+        // Si el traspaso fallo, el modelo NO puede decir que alguien le va a
+        // escribir: prometer seguimiento que nadie va a ver es peor que no
+        // ofrecerlo.
+        pasado_a_persona: traspaso ? traspaso.ok : false,
+      });
     } catch (e) {
       // Si el caso no se pudo anotar, el modelo NO puede decir que quedó
       // anotado: prometer seguimiento que nadie va a ver es peor que no

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, Hash } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Composer } from "@/components/inbox/Composer";
 import { horaDe, staffMeta } from "@/lib/format";
 import { ME } from "@/lib/data/seed";
+import { achicarImagen } from "@/lib/achicar-imagen";
 import type { InternalChannel, InternalMessage } from "@/lib/data/types";
 
 export function InternalThread({
@@ -16,10 +17,24 @@ export function InternalThread({
 }: {
   channel: InternalChannel;
   messages: InternalMessage[];
-  onSend: (texto: string) => void;
+  onSend: (texto: string, imagen?: string) => void;
   onBack?: () => void;
 }) {
   const finRef = useRef<HTMLDivElement>(null);
+  const [avisoAdjunto, setAvisoAdjunto] = useState<string | null>(null);
+
+  // Adjuntar una imagen la manda como su propio mensaje, sin texto. Es lo que
+  // se hace en la práctica: se pega la captura de la reserva y después se
+  // escribe lo que hay que decir sobre ella.
+  async function adjuntar(file: File) {
+    setAvisoAdjunto(null);
+    const img = await achicarImagen(file);
+    if (!img) {
+      setAvisoAdjunto("Ese archivo no es una imagen.");
+      return;
+    }
+    onSend("", img.datos);
+  }
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -66,7 +81,27 @@ export function InternalThread({
                   </span>
                   <span className="text-[11px] text-[var(--text-3)]">{horaDe(m.ts)}</span>
                 </div>
-                <p className="mt-0.5 text-sm leading-relaxed text-[var(--text-2)]">{m.texto}</p>
+                {m.texto && (
+                  <p className="mt-0.5 text-sm leading-relaxed text-[var(--text-2)]">{m.texto}</p>
+                )}
+                {m.imagen && (
+                  /* Se abre en pestaña aparte para verla completa: acá va
+                     achicada para que no empuje la conversación fuera de
+                     pantalla. */
+                  <a
+                    href={m.imagen}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1.5 block w-fit overflow-hidden rounded-xl border border-line"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={m.imagen}
+                      alt={`Imagen de ${esYo ? "Tú" : meta.nombre}`}
+                      className="max-h-64 w-auto max-w-full object-contain"
+                    />
+                  </a>
+                )}
               </div>
             </div>
           );
@@ -74,7 +109,15 @@ export function InternalThread({
         <div ref={finRef} />
       </div>
 
-      <Composer onSend={onSend} placeholder={`Mensaje para ${titulo}`} />
+      {avisoAdjunto && (
+        <p className="px-4 pb-1 text-[12px] text-[var(--danger,#e5484d)]">{avisoAdjunto}</p>
+      )}
+      <Composer
+        onSend={onSend}
+        onAttach={adjuntar}
+        aceptar="image/*"
+        placeholder={`Mensaje para ${titulo}`}
+      />
     </div>
   );
 }

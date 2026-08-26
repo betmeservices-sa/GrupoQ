@@ -126,7 +126,6 @@ describe("el guion de Sofía no contradice las barandas", () => {
     expect(p).toMatch(/SÍ ves las imágenes/);
     expect(p).toMatch(/NUNCA inventes lo que no se ve/);
     // Y sigue sin poder abrir lo que de verdad no puede abrir.
-    expect(p).toContain("[audio]");
     expect(p).toContain("[sticker]");
   });
 

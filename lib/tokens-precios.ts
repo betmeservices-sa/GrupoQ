@@ -36,10 +36,9 @@ export const PRECIOS_POR_MILLON: Record<string, TarifaModelo> = {
   "claude-haiku-4-5": { input: 1.0, output: 5.0 },
   "claude-sonnet-5": { input: 3.0, output: 15.0 },
   "claude-opus-5": { input: 5.0, output: 25.0 },
-  // Gemini transcribe las notas de voz (lib/transcribir.ts). Vive en la misma
-  // tabla porque la pregunta que importa es cuánto costó ATENDER un mensaje, y
-  // eso incluye pasarlo a texto. Cada fila guarda su modelo, así que el
-  // histórico no se mezcla.
+  // Gemini transcribía las notas de voz. Ya no se usa, pero los precios se
+  // quedan: hay filas viejas guardadas con ese modelo y sin su tarifa el
+  // histórico de gasto quedaría en cero justo en los meses en que sí se gastó.
   "gemini-3.5-flash-lite": { input: 0.3, output: 2.5 },
   "gemini-3.6-flash": { input: 0.75, output: 3.75 },
 };

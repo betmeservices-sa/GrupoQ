@@ -51,7 +51,14 @@ export default function InternoPage() {
     return estado.mensajes
       .filter((m) => m.canalId === canal.id)
       .sort((a, b) => a.id - b.id)
-      .map((m) => ({ id: String(m.id), channelId: m.canalId, staffId: m.autor, texto: m.texto, ts: m.ts }));
+      .map((m) => ({
+        id: String(m.id),
+        channelId: m.canalId,
+        staffId: m.autor,
+        texto: m.texto,
+        ts: m.ts,
+        imagen: m.imagen,
+      }));
   }, [estado.mensajes, canal]);
 
   const sinLeer = useMemo(() => sinLeerPorCanal(estado), [estado]);
@@ -105,7 +112,7 @@ export default function InternoPage() {
               channel={canal}
               messages={mensajes}
               onBack={() => setActivoId(null)}
-              onSend={(texto) => void enviar(canal.id, texto)}
+              onSend={(texto, imagen) => void enviar(canal.id, texto, imagen)}
             />
           ) : (
             <div className="hidden h-full place-items-center lg:grid">

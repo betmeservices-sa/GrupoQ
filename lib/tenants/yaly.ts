@@ -12,10 +12,10 @@
 //      Los nombres viven en lib/tenants/yaly-sucursales.ts.
 //   2. TOPE DURO de 10 mensajes por conversación. Al llegar, el chat pasa a una
 //      persona; la IA no sigue.
-//   3. VE LAS IMÁGENES y ESCUCHA LAS NOTAS DE VOZ (ai.imagenes y ai.audios).
-//      Las fotos van al modelo; los audios se pasan a texto antes, con Gemini
-//      (lib/transcribir.ts). Por eso su guion habla de fotos y de notas de voz
-//      en vez de decir que no puede abrir archivos.
+//   3. VE LAS IMÁGENES (ai.imagenes). Las notas de voz no: esas van derecho a
+//      una persona, que las escucha y contesta (lib/pasar-a-persona.ts). Por
+//      eso su guion habla de fotos y de notas de voz en vez de decir que no
+//      puede abrir archivos.
 //   4. COTIZA Y RESERVA con el inventario real de las tres sedes
 //      (lib/yali-inventario.ts, herramientas en lib/yali-agente.ts). Solo chat:
 //      este cliente no tiene voz contratada, así que no ve Llamadas ni Agentes.
@@ -60,7 +60,8 @@ Cómo se hace sin que parezca un formulario:
 
 SI ES SOCIO
 No le des tarifas, ni disponibilidad, ni Day Pass, ni beneficios. A los socios los atiende Olga, de Membresías, y nadie más.
-Llama a "crear_ticket" con tipo "membresia" y dile que Olga le escribe para atenderle como socio. Después de eso no sigas cotizando.
+Llama a "crear_ticket" con tipo "membresia". Con eso la conversación pasa a Olga y TÚ DEJAS DE RESPONDER en ese chat: despídete en una frase diciendo que Olga le escribe, y no contestes nada más aunque siga escribiendo.
+Si la herramienta devuelve "pasado_a_persona": false, algo falló: NO le prometas que alguien le va a escribir. Decile que en un momento le contestan y ya.
 
 SI NO ES SOCIO PERO LE INTERESA LA MEMBRESÍA
 Solo puedes decir estas tres cosas, ni una más:
@@ -152,6 +153,7 @@ Entre semana atiende de ocho de la mañana a ocho de la noche. Los fines de sema
 
 CUÁNDO LE PASAS EL CASO A UNA PERSONA
 Llama a "crear_ticket" y después dile al huésped, con naturalidad, que ya quedó anotado y quién le va a escribir. NUNCA digas la palabra ticket, ni número de caso, ni menciones el sistema.
+En los casos de socio, pago y reclamo la conversación además PASA a esa persona y vos dejás de responder ahí. Despedite en una frase y listo.
 Se abre caso cuando:
 - Es socio, o le interesa serlo (membresia).
 - El comprobante no cuadra, pagó de menos o de más, o dice que después manda el resto (pago).
@@ -184,10 +186,8 @@ Tú SÍ ves las imágenes que te envían por WhatsApp. Cuando llegue una:
 Si en cambio ves marcas como "[documento: ...]" o "[sticker]", eso NO lo puedes abrir: ofrece que alguien del equipo lo revise.
 
 NOTAS DE VOZ
-Las notas de voz te llegan ya pasadas a texto, con la marca "[audio]" adelante y la transcripción detrás. Trátalas como cualquier mensaje escrito: responde a lo que dice, sin mencionar que fue un audio ni que lo transcribiste.
-Dos cuidados:
-1. La transcripción puede traer errores, sobre todo en nombres, fechas y cantidades. Antes de reservar, repite esos datos en tu respuesta para que el huésped los confirme ("perfecto, del viernes 22 al domingo 24, dos adultos, ¿está bien?").
-2. Si ves "[audio]" SOLO, sin texto detrás, es que no se entendió. No adivines: dile con amabilidad que no se escuchó bien y pídele que lo repita o lo escriba.
+Tú NO escuchas las notas de voz. Cuando alguien manda una, la conversación pasa sola a una persona del equipo y tú dejas de responder en ese chat.
+No pidas que la repitan por escrito ni intentes adivinar de qué se trata: alguien la va a escuchar en un momento.
 
 LO QUE NO PROMETES
 - No inventes tarifas: salen de la herramienta, y son las mismas que el hotel tiene publicadas.
@@ -257,10 +257,13 @@ export const yalyTenant: TenantConfig = {
     // prenderlo en otro cliente hay que actualizar antes su guion, porque los
     // demás dicen que no pueden abrir archivos.
     imagenes: true,
-    // Las notas de voz se transcriben antes de llegarle (lib/transcribir.ts).
-    // En un hotel de playa media conversación entra por audio, así que sin esto
-    // el agente se queda mudo justo cuando el huésped está más apurado.
-    audios: true,
+    // Las notas de voz NO se transcriben: van derecho a una persona.
+    //
+    // Se probó transcribirlas y el problema no fue que fallara, fue que cuando
+    // fallaba a medias nadie se enteraba. Una fecha mal oída, un nombre
+    // cambiado, un "no" que sonó a "dos", y el agente contestaba con total
+    // seguridad sobre algo que el huésped no había dicho. En un hotel eso
+    // termina en una reserva equivocada.
     // Lo que la transcripción tiene que escribir bien. Los nombres de las tres
     // sedes se agregan solos; acá van las habitaciones y los lugares.
     vocabulario: [

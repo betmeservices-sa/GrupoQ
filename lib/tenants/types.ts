@@ -160,7 +160,10 @@ export interface TenantAi {
   // (lib/transcribir.ts, con la Gemini API). Vale lo mismo que `imagenes`: el
   // guion del tenant tiene que decir que SÍ escucha, o se contradice cuando le
   // manden un audio. Default: false, y sin GEMINI_API_KEY tampoco corre.
-  audios?: boolean;
+  // Nota: las notas de voz NUNCA las atiende el agente. Se probó pasarlas a
+  // texto y el problema no fue que fallara, fue que al fallar a medias nadie se
+  // enteraba. Ahora un audio apaga al agente en ese chat y se lo pasa a una
+  // persona (lib/pasar-a-persona.ts).
   /**
    * Nombres propios que la transcripción tiene que escribir bien: habitaciones,
    * playas, municipios. Sin esto, un modelo que nunca oyó hablar del cliente

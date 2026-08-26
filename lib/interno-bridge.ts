@@ -73,11 +73,11 @@ export function useInterno() {
   }, [sondear]);
 
   const enviar = useCallback(
-    async (canalId: string, texto: string) => {
+    async (canalId: string, texto: string, imagen?: string) => {
       await fetch("/api/interno", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ accion: "mensaje", canalId, texto }),
+        body: JSON.stringify({ accion: "mensaje", canalId, texto, imagen }),
       });
       await sondear();
     },

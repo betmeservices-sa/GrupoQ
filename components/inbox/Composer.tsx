@@ -51,6 +51,7 @@ export function Composer({
   onSend,
   onTyping,
   onAttach,
+  aceptar,
   onSendTemplate,
   ventanaCerrada,
   placeholder = "Escribe una respuesta...",
@@ -58,6 +59,8 @@ export function Composer({
   onSend: (texto: string) => void | Promise<void>;
   onTyping?: () => void;
   onAttach?: (file: File) => void | Promise<void>;
+  /** Qué archivos ofrece el selector. Por defecto imagen o PDF. */
+  aceptar?: string;
   onSendTemplate?: (t: EnvioPlantilla) => void | Promise<void>;
   ventanaCerrada?: boolean;
   placeholder?: string;
@@ -286,7 +289,7 @@ export function Composer({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept={aceptar ?? "image/*,application/pdf"}
               className="hidden"
               onChange={handleFile}
             />
