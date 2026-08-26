@@ -112,6 +112,11 @@ export async function POST(req: Request) {
   console.log(
     `[meta-webhook] llego object=${body.object ?? "?"} entradas=${body.entry?.length ?? 0}`,
   );
+  // El aviso ENTERO, tal cual vino. Meta no documenta bien la forma de cada
+  // cosa (una respuesta a historia de Facebook no viene igual que una de
+  // Instagram) y sin ver el crudo se adivina. Recortado para no reventar el
+  // log; lo que importa cabe.
+  console.log(`[meta-webhook-crudo] ${raw.slice(0, 6000)}`);
 
   if (body.object !== "page" && body.object !== "instagram") {
     // Otros objetos (permissions, etc.): 200 para que Meta no reintente.
