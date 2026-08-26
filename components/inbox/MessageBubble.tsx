@@ -60,7 +60,10 @@ export function MessageBubble({
   const textoLimpio = esRespuestaAHistoria
     ? message.texto.slice("[respuesta a tu historia]".length).trim()
     : message.texto;
-  const [historiaRota, setHistoriaRota] = useState(false);
+  // Meta manda el enlace de la historia sin decir qué es. Muchas son videos, y
+  // un video puesto como imagen da ícono roto. Se intenta como imagen; si no
+  // carga, como video; si tampoco, queda el rótulo solo.
+  const [historiaComo, setHistoriaComo] = useState<"imagen" | "video" | "nada">("imagen");
   const [abierto, setAbierto] = useState(false);
   const [reaccion, setReaccion] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -110,14 +113,28 @@ export function MessageBubble({
                 esStaff ? "border-white/40" : "border-brand/50",
               )}
             >
-              {message.historiaUrl && !historiaRota && (
+              {message.historiaUrl && historiaComo === "imagen" && (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={message.historiaUrl}
                   alt="La historia que contestó"
-                  onError={() => setHistoriaRota(true)}
+                  onError={() => setHistoriaComo("video")}
                   className="h-10 w-7 shrink-0 rounded object-cover"
                 />
+              )}
+              {message.historiaUrl && historiaComo === "video" && (
+                <a href={message.historiaUrl} target="_blank" rel="noreferrer" className="shrink-0">
+                  {/* Solo la portada: 9 MB de historia no se bajan enteros por
+                      un cuadrito de 40 px. Se abre aparte para verla. */}
+                  <video
+                    src={message.historiaUrl}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    onError={() => setHistoriaComo("nada")}
+                    className="h-10 w-7 rounded bg-black object-cover"
+                  />
+                </a>
               )}
               <span className={cn("text-[11px]", esStaff ? "text-white/80" : "text-[var(--text-3)]")}>
                 Respondió a tu historia
