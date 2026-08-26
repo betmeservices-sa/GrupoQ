@@ -9,6 +9,10 @@
 // gente que YA le escribió a esa página, que es justamente nuestro caso.
 
 const GRAPH = "https://graph.facebook.com/v21.0";
+// Perfil por la cuenta de Instagram misma (API con inicio de sesión de
+// Instagram). Es la única que da el nombre de un desconocido sin App Review:
+// el token de la página, con acceso estándar, no lo ve.
+const IG_GRAPH = "https://graph.instagram.com/v23.0";
 
 // Cache en memoria: la misma persona manda varios mensajes seguidos y no tiene
 // sentido preguntarle a Meta por cada uno. Vive en globalThis porque en dev
@@ -75,6 +79,22 @@ async function nombresDeLaPagina(
 const HORAS = 6 * 60 * 60 * 1000;
 const MAX = 500;
 
+async function nombrePorCuentaIg(senderId: string, igToken: string): Promise<string | null> {
+  try {
+    const url = `${IG_GRAPH}/${encodeURIComponent(senderId)}?fields=name,username&access_token=${encodeURIComponent(igToken)}`;
+    const r = await fetch(url, { cache: "no-store" });
+    const j = (await r.json()) as { name?: string; username?: string; error?: { message?: string } };
+    if (j.error) {
+      console.error("[meta-perfil] cuenta ig", senderId.slice(-6), j.error.message);
+      return null;
+    }
+    return (j.name ?? "").trim() || (j.username ? `@${j.username}` : null);
+  } catch (e) {
+    console.error("[meta-perfil] no se pudo consultar por la cuenta:", e);
+    return null;
+  }
+}
+
 /**
  * El nombre de un remitente, o null si Meta no lo da.
  *
@@ -89,11 +109,25 @@ export async function nombreDelRemitente(
   pageToken: string,
   ahora = Date.now(),
   pageId?: string,
+  igToken?: string | null,
 ): Promise<string | null> {
-  if (!senderId || !pageToken) return null;
+  if (!senderId || (!pageToken && !igToken)) return null;
 
   const guardado = cache.get(senderId);
   if (guardado && guardado.hasta > ahora) return guardado.nombre;
+
+  // Primera puerta en Instagram: la cuenta misma. Con acceso estándar, el
+  // token de la página no ve el perfil de un desconocido y la bandeja mostraba
+  // "IG 381463"; el token de la cuenta sí lo ve (nombre y usuario).
+  if (canal === "instagram" && igToken) {
+    const porCuenta = await nombrePorCuentaIg(senderId, igToken);
+    if (porCuenta) {
+      if (cache.size >= MAX) cache.clear();
+      cache.set(senderId, { nombre: porCuenta, hasta: ahora + HORAS });
+      return porCuenta;
+    }
+  }
+  if (!pageToken) return null;
 
   // Messenger e Instagram no devuelven lo mismo, y ahi estuvo el error: para un
   // PSID de Messenger el campo "name" viene vacio. Los que si trae son

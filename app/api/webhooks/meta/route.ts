@@ -186,7 +186,7 @@ export async function POST(req: Request) {
         // el token de la pagina; si no viene, la bandeja cae al canal mas el
         // final del id, que es lo que hacia antes.
         const senderName =
-          (await nombreDelRemitente(senderId, canal, cx.pageToken, Date.now(), cx.pageId)) ??
+          (await nombreDelRemitente(senderId, canal, cx.pageToken, Date.now(), cx.pageId, cx.igToken)) ??
           undefined;
 
         const guardar = esEco ? addMetaOutbound : addMetaInbound;

@@ -17,6 +17,30 @@ afterEach(() => {
 });
 
 describe("el nombre de quien escribe", () => {
+  it("en Instagram con token de la cuenta pregunta primero por graph.instagram.com", async () => {
+    // Con acceso estándar el token de la página no ve el perfil de un
+    // desconocido; el de la cuenta sí. Hoy la bandeja mostraba "IG 381463".
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).includes("graph.instagram.com")
+        ? respuesta({ name: "Sofía Zárate", username: "ktherinezarate" })
+        : respuesta({ error: { message: "no" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await nombreDelRemitente("1081081354381463", "instagram", "PAGE", 0, "108", "IGTOK")).toBe("Sofía Zárate");
+    const url = String(fetchMock.mock.calls[0][0]);
+    expect(url).toContain("graph.instagram.com");
+    expect(url).toContain("access_token=IGTOK");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("en Instagram sin token de la cuenta sigue por la página", async () => {
+    const fetchMock = vi.fn(async (_url: string) => respuesta({ name: "Alguien", username: "alguien" }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await nombreDelRemitente("55", "instagram", "PAGE", 0, "108")).toBe("Alguien");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("graph.facebook.com");
+  });
+
   it("en Messenger arma el nombre con first_name y last_name", async () => {
     // El error que tuvimos en produccion: se pedia "name" y para un PSID de
     // Messenger ese campo viene vacio, asi que la bandeja mostraba "FB 971486".
