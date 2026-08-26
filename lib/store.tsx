@@ -35,6 +35,15 @@ export interface StoreState {
   metrics: Metric[];
   // Conversaciones donde el agente está redactando (indicador de escribiendo).
   escribiendo: string[];
+  /**
+   * Cuántas conversaciones viejas faltan por traer de la base.
+   *
+   * La bandeja se arma leyendo el historial completo, y con seis meses
+   * importados eso son miles de mensajes que no caben en una sola respuesta.
+   * Mientras esto sea mayor que cero la lista está incompleta, y la pantalla
+   * tiene que decirlo en vez de fingir que ya está todo.
+   */
+  historialPendiente: boolean;
   tsSeq: number;
   idSeq: number;
 }
@@ -64,6 +73,7 @@ export type StoreAction =
   // Respuesta automática del agente de IA (staff sin persona detrás).
   | { type: "RESPUESTA_IA"; conversationId: string; texto: string }
   | { type: "ESCRIBIENDO"; conversationId: string; activo: boolean }
+  | { type: "HISTORIAL_PENDIENTE"; pendiente: boolean }
   | { type: "SEND_INTERNAL"; channelId: string; texto: string; staffId: string }
   | { type: "ADD_SOCIAL_POST"; red: SocialPost["red"]; texto: string; fecha: string }
   | {
@@ -75,6 +85,15 @@ export type StoreAction =
       ts: string;
       direccion?: "in" | "out";
       media?: Message["media"];
+      /**
+       * Esto no está llegando ahora: se está releyendo lo que ya pasó.
+       *
+       * Importa porque la bandeja se arma releyendo el historial completo cada
+       * vez que se abre. Sin esta marca, las conversaciones importadas del
+       * respaldo aparecían con miles de mensajes sin leer y se reabrían solas,
+       * como si acabaran de escribir. Son de agosto y ya están contestadas.
+       */
+      historico?: boolean;
     }
   | {
       // Mensaje real de Messenger o Instagram (sondea /api/meta/inbox).
@@ -128,6 +147,10 @@ export function createInitialState(): StoreState {
     socialStats: fakeProvider.getSocialStats(),
     metrics: fakeProvider.getMetrics(),
     escribiendo: [],
+    // Arranca en true: hasta que el puente confirme lo contrario, damos por
+    // hecho que falta historial. Al revés se vería "Sin conversaciones" un
+    // instante, que es mentira y asusta.
+    historialPendiente: true,
     tsSeq: 1,
     idSeq: 1,
   };
@@ -293,6 +316,11 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
         idSeq: state.idSeq + 1,
       };
     }
+    case "HISTORIAL_PENDIENTE": {
+      if (state.historialPendiente === action.pendiente) return state;
+      return { ...state, historialPendiente: action.pendiente };
+    }
+
     case "ESCRIBIENDO": {
       const dentro = state.escribiendo.includes(action.conversationId);
       if (action.activo === dentro) return state;
@@ -338,6 +366,8 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
       if (state.messages.some((m) => m.id === action.waId)) return state;
 
       const esEntrante = action.direccion !== "out"; // out = lo envió la empresa
+      // Releer el respaldo no deja mensajes sin leer ni reabre nada.
+      const cuenta = esEntrante && !action.historico;
       // Departamento de arranque de una conversación nueva, según el tenant.
       const deptDefault = activeTenant().defaultDepartment;
 
@@ -360,8 +390,12 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
               ? {
                   ...c,
                   ultimoMensajeTs: action.ts,
-                  noLeidos: esEntrante ? c.noLeidos + 1 : c.noLeidos,
-                  estado: c.estado === "resuelto" ? "en_progreso" : c.estado,
+                  noLeidos: cuenta ? c.noLeidos + 1 : c.noLeidos,
+                  // Un mensaje nuevo reabre una conversación cerrada. Releer el
+                  // respaldo no: si no, abrir la bandeja reabría las mil
+                  // setecientas conversaciones archivadas.
+                  estado:
+                    !action.historico && c.estado === "resuelto" ? "en_progreso" : c.estado,
                 }
               : c,
           );
@@ -373,8 +407,8 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
               canal: "whatsapp",
               contactId: existente.id,
               departamento: deptDefault,
-              estado: "nuevo",
-              noLeidos: esEntrante ? 1 : 0,
+              estado: action.historico ? "resuelto" : "nuevo",
+              noLeidos: cuenta ? 1 : 0,
               ultimoMensajeTs: action.ts,
             },
             ...state.conversations,
@@ -397,8 +431,8 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
             canal: "whatsapp",
             contactId,
             departamento: deptDefault,
-            estado: "nuevo",
-            noLeidos: esEntrante ? 1 : 0,
+            estado: action.historico ? "resuelto" : "nuevo",
+            noLeidos: cuenta ? 1 : 0,
             ultimoMensajeTs: action.ts,
           },
           ...state.conversations,

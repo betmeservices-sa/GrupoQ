@@ -15,8 +15,62 @@ const GRAPH = "https://graph.facebook.com/v21.0";
 // cada ruta compila su propia instancia del módulo.
 const g = globalThis as unknown as {
   __metaPerfiles?: Map<string, { nombre: string | null; hasta: number }>;
+  __metaParticipantes?: Map<string, { nombres: Map<string, string>; hasta: number }>;
 };
 const cache = (g.__metaPerfiles ??= new Map());
+// Nombres sacados de la lista de conversaciones de la página, por page_id.
+const participantes = (g.__metaParticipantes ??= new Map());
+
+// Se guarda poco tiempo a propósito: quien escribe por primera vez todavía no
+// está en la última lista que trajimos, y con seis horas de cache se quedaría
+// sin nombre durante seis horas.
+const MINUTOS = 10 * 60 * 1000;
+const CONVERSACIONES = 200;
+
+/**
+ * Los nombres de quienes le escribieron a una página, por su id.
+ *
+ * Existe porque preguntar por una persona suelta está prohibido para esta app:
+ * Meta responde "(#3) Application does not have the capability to make this API
+ * call" hasta que pase el App Review. La lista de conversaciones de la página,
+ * en cambio, SÍ trae el nombre de cada participante, y es la misma información.
+ *
+ * Por eso la bandeja mostraba "FB 515838" en vez de "Ruth Ibarra": no es que el
+ * nombre no se pudiera saber, es que se estaba preguntando por donde no era.
+ */
+async function nombresDeLaPagina(
+  pageId: string,
+  pageToken: string,
+  ahora: number,
+): Promise<Map<string, string>> {
+  const guardado = participantes.get(pageId);
+  if (guardado && guardado.hasta > ahora) return guardado.nombres;
+
+  const nombres = new Map<string, string>();
+  try {
+    const url = `${GRAPH}/${encodeURIComponent(pageId)}/conversations?fields=participants&limit=${CONVERSACIONES}&access_token=${encodeURIComponent(pageToken)}`;
+    const r = await fetch(url, { cache: "no-store" });
+    const j = (await r.json()) as {
+      data?: { participants?: { data?: { id?: string; name?: string }[] } }[];
+      error?: { message?: string };
+    };
+    if (j.error) {
+      console.error("[meta-perfil] conversaciones de", pageId, j.error.message);
+    }
+    for (const conv of j.data ?? []) {
+      for (const p of conv.participants?.data ?? []) {
+        // La página también figura como participante de su propia
+        // conversación; se guarda igual y no molesta, porque nadie la busca.
+        if (p?.id && p?.name) nombres.set(p.id, p.name);
+      }
+    }
+  } catch (e) {
+    console.error("[meta-perfil] no se pudo listar conversaciones:", e);
+  }
+
+  participantes.set(pageId, { nombres, hasta: ahora + MINUTOS });
+  return nombres;
+}
 
 const HORAS = 6 * 60 * 60 * 1000;
 const MAX = 500;
@@ -34,6 +88,7 @@ export async function nombreDelRemitente(
   canal: "facebook" | "instagram",
   pageToken: string,
   ahora = Date.now(),
+  pageId?: string,
 ): Promise<string | null> {
   if (!senderId || !pageToken) return null;
 
@@ -73,8 +128,19 @@ export async function nombreDelRemitente(
     nombre = null;
   }
 
+  // Segunda puerta: la lista de conversaciones de la página. Se intenta solo si
+  // la primera no dio nombre, que hoy es siempre en Messenger y nunca en
+  // Instagram.
+  if (!nombre && pageId) {
+    const nombres = await nombresDeLaPagina(pageId, pageToken, ahora);
+    nombre = nombres.get(senderId) ?? null;
+  }
+
   if (cache.size >= MAX) cache.clear();
-  cache.set(senderId, { nombre, hasta: ahora + HORAS });
+  // Un nombre encontrado se guarda por horas; no haberlo encontrado, por
+  // minutos: si la persona acaba de escribir por primera vez, en la próxima
+  // vuelta ya va a estar en la lista.
+  cache.set(senderId, { nombre, hasta: ahora + (nombre ? HORAS : MINUTOS) });
   return nombre;
 }
 

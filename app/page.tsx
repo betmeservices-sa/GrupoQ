@@ -167,7 +167,12 @@ export default function BandejaPage() {
           )}
         >
           <InboxFilters filtros={filtros} onChange={setFiltros} />
-          <ConversationList items={items} activaId={activaId} onSelect={seleccionar} />
+          <ConversationList
+            items={items}
+            activaId={activaId}
+            onSelect={seleccionar}
+            cargandoHistorial={state.historialPendiente}
+          />
         </section>
 
         {/* Columna 2: hilo */}

@@ -22,12 +22,28 @@ interface ConversacionDTO {
   departamento?: string | null;
 }
 
+// Cuántos mensajes se piden por vuelta.
+//
+// Al abrir la bandeja hay que leer el historial entero, porque la lista de
+// conversaciones se arma con él. Con seis meses importados eso son dieciséis mil
+// mensajes: en páginas de cien y una por tick, la lista tardaba más de diez
+// minutos en quedar completa y volvía a empezar en cada recarga. Se piden
+// páginas grandes y se encadenan sin esperar hasta vaciar lo que falta.
+const PAGINA_HISTORIAL = 1000;
+// Ya al día, cada tick trae dos o tres mensajes: pedir de a mil sería cargar la
+// consulta para nada.
+const PAGINA_SONDEO = 100;
+// Freno: si algo hace que el servidor devuelva siempre página llena, esto corta
+// en vez de pedir para siempre. Alcanza para un cuarto de millón de mensajes.
+const MAX_VUELTAS = 250;
+
 // Puente: sondea el webhook server-side y mete los mensajes reales de WhatsApp
 // en el store (como conversaciones nuevas o existentes). Corre siempre, no
 // depende del toggle "en vivo" del demo.
 export function useWhatsappBridge(dispatch: Dispatch<StoreAction>) {
   const cursor = useRef(0);
   const hidratado = useRef(false);
+  const alDia = useRef(false);
 
   // Sondeo continuo cada 4s.
   useEffect(() => {
@@ -55,23 +71,44 @@ export function useWhatsappBridge(dispatch: Dispatch<StoreAction>) {
       }
     }
 
+    /** Una vuelta. Devuelve si el servidor dice que todavia queda historial. */
+    async function traerPagina(limite: number, historico: boolean): Promise<boolean> {
+      const r = await fetch(`/api/whatsapp/inbox?after=${cursor.current}&limite=${limite}`);
+      if (!r.ok || !activo) return false;
+      const data = (await r.json()) as { mensajes: WaInboundDTO[]; hayMas?: boolean };
+      for (const m of data.mensajes) {
+        dispatch({
+          type: "WHATSAPP_INCOMING",
+          waId: m.waId,
+          from: m.from,
+          nombre: m.nombre,
+          texto: m.texto,
+          ts: m.ts,
+          direccion: m.direccion,
+          media: m.media,
+          historico,
+        });
+        if (m.seq > cursor.current) cursor.current = m.seq;
+      }
+      return Boolean(data.hayMas);
+    }
+
     async function sondear() {
       try {
-        const r = await fetch(`/api/whatsapp/inbox?after=${cursor.current}`);
-        if (!r.ok || !activo) return;
-        const data = (await r.json()) as { mensajes: WaInboundDTO[] };
-        for (const m of data.mensajes) {
-          dispatch({
-            type: "WHATSAPP_INCOMING",
-            waId: m.waId,
-            from: m.from,
-            nombre: m.nombre,
-            texto: m.texto,
-            ts: m.ts,
-            direccion: m.direccion,
-            media: m.media,
-          });
-          if (m.seq > cursor.current) cursor.current = m.seq;
+        if (alDia.current) {
+          await traerPagina(PAGINA_SONDEO, false);
+        } else {
+          // Ponerse al dia: se encadenan las paginas sin esperar el proximo
+          // tick. Son unas pocas vueltas seguidas y la lista queda completa.
+          let vueltas = 0;
+          let quedaMas = true;
+          while (quedaMas && activo && vueltas < MAX_VUELTAS) {
+            quedaMas = await traerPagina(PAGINA_HISTORIAL, true);
+            vueltas++;
+          }
+          if (!activo) return;
+          alDia.current = true;
+          dispatch({ type: "HISTORIAL_PENDIENTE", pendiente: false });
         }
         // Tras el primer sondeo, las conversaciones ya existen: rehidrata su estado.
         if (!hidratado.current) {
@@ -79,7 +116,10 @@ export function useWhatsappBridge(dispatch: Dispatch<StoreAction>) {
           await hidratar();
         }
       } catch {
-        // silencioso: reintenta en el proximo tick
+        // Silencioso: reintenta en el proximo tick. Se marca como al dia igual
+        // para no reintentar el historial entero cada cuatro segundos si lo que
+        // falla es la red.
+        if (!alDia.current) dispatch({ type: "HISTORIAL_PENDIENTE", pendiente: false });
       }
     }
 

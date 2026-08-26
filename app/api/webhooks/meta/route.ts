@@ -127,7 +127,9 @@ export async function POST(req: Request) {
         // Meta no manda el nombre en el evento, solo el id. Se pide aparte con
         // el token de la pagina; si no viene, la bandeja cae al canal mas el
         // final del id, que es lo que hacia antes.
-        const senderName = (await nombreDelRemitente(senderId, canal, cx.pageToken)) ?? undefined;
+        const senderName =
+          (await nombreDelRemitente(senderId, canal, cx.pageToken, Date.now(), cx.pageId)) ??
+          undefined;
 
         const guardar = esEco ? addMetaOutbound : addMetaInbound;
         await guardar({

@@ -88,7 +88,22 @@ export async function addOutbound(m: {
 
 // Devuelve los mensajes con cursor (seq/id) mayor al del cliente. Si se pasa
 // `tenant`, solo los de ese cliente (así cada dashboard ve lo suyo).
-export async function getSince(after: number, tenant?: string): Promise<WaInbound[]> {
+/**
+ * Los mensajes con id mayor a `after`.
+ *
+ * `limite` existe porque esto hace dos trabajos distintos con la misma
+ * consulta: el sondeo de cada cuatro segundos, que trae dos o tres mensajes, y
+ * la carga inicial del historial, que con seis meses importados son dieciseis
+ * mil. Con paginas de cien, esa carga tardaba mas de diez minutos en aparecer
+ * completa, y volvia a empezar en cada recarga.
+ *
+ * Mil es el techo de PostgREST; pedir mas no trae mas.
+ */
+export async function getSince(
+  after: number,
+  tenant?: string,
+  limite = 100,
+): Promise<WaInbound[]> {
   const sb = getSupabase(tenant);
   if (sb) {
     let q = sb
@@ -98,7 +113,7 @@ export async function getSince(after: number, tenant?: string): Promise<WaInboun
       )
       .gt("id", after);
     if (tenant) q = q.eq("tenant", tenant);
-    const { data, error } = await q.order("id", { ascending: true }).limit(100);
+    const { data, error } = await q.order("id", { ascending: true }).limit(Math.min(limite, 1000));
     if (error) {
       console.error("Supabase select WA:", error.message);
       return [];
