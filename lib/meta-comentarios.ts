@@ -9,6 +9,7 @@
 // Instagram. No hay que volver a autorizar nada.
 
 import type { MetaConnection } from "./meta-store";
+import { esComentarioInstagram, ocultarComentarioIg, responderComentarioIg } from "./meta-ig-login";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
@@ -264,6 +265,10 @@ async function accion(url: string, metodo: "POST" | "DELETE", cuerpo?: URLSearch
 export async function responderComentario(c: MetaConnection, comentarioId: string, texto: string) {
   const t = texto.trim();
   if (!t) throw new Error("La respuesta viene vacía.");
+  // Con login propio de Instagram, la respuesta sale por la cuenta de IG.
+  if (c.igToken && esComentarioInstagram(comentarioId)) {
+    return responderComentarioIg(c, comentarioId, t);
+  }
   const cuerpo = new URLSearchParams({ message: t, access_token: c.pageToken });
   return accion(`${GRAPH}/${comentarioId}/replies`, "POST", cuerpo);
 }
@@ -276,6 +281,9 @@ export async function responderComentario(c: MetaConnection, comentarioId: strin
  * siente censurado vuelve más enojado. Por eso acá no hay borrar.
  */
 export async function ocultarComentario(c: MetaConnection, comentarioId: string, oculto: boolean) {
+  if (c.igToken && esComentarioInstagram(comentarioId)) {
+    return ocultarComentarioIg(c, comentarioId, oculto);
+  }
   const cuerpo = new URLSearchParams({ is_hidden: String(oculto), access_token: c.pageToken });
   return accion(`${GRAPH}/${comentarioId}`, "POST", cuerpo);
 }

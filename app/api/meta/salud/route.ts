@@ -96,6 +96,9 @@ export async function GET(req: Request) {
       return {
         pagina: c.pageName,
         instagram: Boolean(c.igId),
+        // Login propio de Instagram: el que sirve sin App Review.
+        igDirecto: Boolean(c.igToken),
+        igDirectoVence: c.igTokenVence ?? null,
         sirve: Boolean(d.is_valid),
         // 0 = no vence. Es lo normal en un token de página sacado de un token
         // de usuario de larga duración, y es justo lo que queremos ver.

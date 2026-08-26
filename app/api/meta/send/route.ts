@@ -3,6 +3,7 @@ import { GRAPH } from "@/lib/meta-oauth";
 import { conexionesDe } from "@/lib/meta-store";
 import { addMetaOutbound, type MetaCanal } from "@/lib/meta-messages-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
+import { enviarDmIg } from "@/lib/meta-ig-login";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +48,22 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Instagram con login propio: sale por graph.instagram.com con el token de
+    // la cuenta. Es el camino que sirve sin App Review para gente sin rol.
+    if (canal === "instagram" && cx.igToken) {
+      const midIg = (await enviarDmIg(cx, recipientId, texto)) ?? `out-instagram-${recipientId}-${Date.now()}`;
+      await addMetaOutbound({
+        mid: midIg,
+        tenant,
+        canal: "instagram",
+        pageId,
+        senderId: recipientId,
+        texto,
+        ts: new Date().toISOString(),
+      });
+      return NextResponse.json({ ok: true, id: midIg });
+    }
+
     const r = await fetch(
       `${GRAPH}/${pageId}/messages?access_token=${encodeURIComponent(cx.pageToken)}`,
       {

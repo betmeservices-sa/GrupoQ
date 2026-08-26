@@ -111,7 +111,7 @@ export default function SettingsPage() {
   // null = todavía no sabemos (cargando). Así el botón no parpadea a "Conectar"
   // cuando en realidad la cuenta ya está conectada.
   const [conexiones, setConexiones] = useState<
-    { pageId: string; nombre: string; instagram: boolean }[] | null
+    { pageId: string; nombre: string; instagram: boolean; igDirecto?: boolean; igUsername?: string | null }[] | null
   >(null);
   useEffect(() => {
     const tenant = window.localStorage.getItem("ccg.tenant") || "x";
@@ -276,6 +276,23 @@ export default function SettingsPage() {
             </a>
           </div>
 
+          {/* Instagram con su propio usuario. Sin App Review, Meta solo avisa
+              de los DMs de Instagram por este camino (la cuenta tiene que
+              estar agregada como tester en la app). Entra con la cuenta de
+              Instagram del negocio, no con Facebook. */}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <a
+              href="/api/meta/ig/connect"
+              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2 text-[13px] font-bold text-[var(--text)] transition hover:bg-slate-50"
+            >
+              <Instagram size={15} className="text-brand" />
+              Conectar Instagram con su usuario
+            </a>
+            <span className="text-[12px] text-[var(--text-2)]">
+              Para recibir los mensajes directos de Instagram de cualquier persona.
+            </span>
+          </div>
+
           {conexiones && conexiones.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {conexiones.map((c) => (
@@ -287,7 +304,7 @@ export default function SettingsPage() {
                   {c.nombre}
                   {c.instagram && (
                     <span className="flex items-center gap-0.5 text-[var(--text-3)]">
-                      · <Instagram size={11} /> vinculado
+                      · <Instagram size={11} /> {c.igDirecto ? `@${c.igUsername ?? "directo"}` : "vinculado"}
                     </span>
                   )}
                 </span>

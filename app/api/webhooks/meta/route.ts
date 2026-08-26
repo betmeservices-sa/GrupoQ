@@ -85,10 +85,14 @@ export async function POST(req: Request) {
 
   // Valida la firma con el App Secret. Sin secret (seam FAKE / prueba local)
   // se acepta con un aviso en el log.
-  const secret = process.env.META_APP_SECRET;
-  if (secret) {
+  // Dos secretos posibles: los avisos de una cuenta con login de Instagram
+  // vienen firmados con el secret de Instagram, no con el de la app.
+  const secretos = [process.env.META_APP_SECRET, process.env.IG_APP_SECRET].filter(
+    (s): s is string => Boolean(s),
+  );
+  if (secretos.length) {
     const firma = req.headers.get("x-hub-signature-256");
-    if (!firmaValida(raw, firma, secret)) {
+    if (!secretos.some((s) => firmaValida(raw, firma, s))) {
       return new Response("Invalid signature", { status: 401 });
     }
   } else {

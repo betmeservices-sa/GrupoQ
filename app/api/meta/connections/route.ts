@@ -17,6 +17,8 @@ export async function GET(req: Request) {
       pageId: c.pageId,
       nombre: c.pageName,
       instagram: Boolean(c.igId),
+      igDirecto: Boolean(c.igToken),
+      igUsername: c.igUsername ?? null,
     })),
   });
 }
