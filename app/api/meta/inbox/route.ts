@@ -1,3 +1,5 @@
+// `after` de Next, con otro nombre: acá `after` ya es el cursor del sondeo.
+import { after as alTerminar } from "next/server";
 import {
   getMetaSince,
   mensajesAnteriores,
@@ -52,10 +54,12 @@ export async function GET(req: Request) {
     return Response.json(r);
   }
 
-  // Antes de contestar, ver si Meta tiene mensajes de Messenger que el
+  // Después de contestar, ver si Meta tiene mensajes de Messenger que el
   // webhook no entregó (sin App Review no avisa de gente sin rol en la app).
-  // Se frena solo a una vuelta cada 30 s; el resto de los ticks no cuesta nada.
-  await sincronizarMessenger(tenant);
+  // Va después de la respuesta para no frenar este tick: lo que encuentre sale
+  // en el que sigue, cuatro segundos más tarde. Se frena solo a una vuelta
+  // cada 30 s.
+  alTerminar(() => sincronizarMessenger(tenant));
 
   const mensajes = await getMetaSince(Number.isFinite(after) ? after : 0, tenant, limite);
 

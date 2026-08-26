@@ -18,7 +18,7 @@
 // Se dispara desde el sondeo de la bandeja (cada 4 s) y se frena solo a una
 // vuelta cada 30 s por cliente: una llamada a Meta por página cada 30 s.
 
-import { addMetaInbound, addMetaOutbound } from "./meta-messages-store";
+import { addMetaLote } from "./meta-messages-store";
 import { conexionesDe, type MetaConnection } from "./meta-store";
 import { esRespuestaAComentario } from "./respuesta-a-comentario";
 
@@ -142,20 +142,20 @@ async function conversacionesDePagina(cx: MetaConnection): Promise<ConversacionG
 async function sincronizarPagina(cx: MetaConnection, desdeMs: number): Promise<number> {
   const casa = new Set([cx.pageId, cx.igId].filter(Boolean) as string[]);
   const filas = filasDeConversaciones(await conversacionesDePagina(cx), casa, desdeMs);
-  // De a uno y en orden: el seq de la base es el orden de llegada.
-  for (const f of filas) {
-    const guardar = f.direction === "out" ? addMetaOutbound : addMetaInbound;
-    await guardar({
+  // En un solo lote y en orden: el seq de la base es el orden de llegada.
+  await addMetaLote(
+    filas.map((f) => ({
       mid: f.mid,
       tenant: cx.tenant,
-      canal: "facebook",
+      canal: "facebook" as const,
       pageId: cx.pageId,
       senderId: f.senderId,
       senderName: f.senderName,
       texto: f.texto,
       ts: f.ts,
-    });
-  }
+      direction: f.direction,
+    })),
+  );
   return filas.length;
 }
 

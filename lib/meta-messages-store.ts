@@ -303,3 +303,42 @@ export async function getMetaSince(after: number, tenant?: string, limite = 100)
   }
   return mem.rows.filter((m) => m.seq > after && (!tenant || m.tenant === tenant));
 }
+
+/**
+ * Varios mensajes de una vez, en el orden en que vienen.
+ *
+ * Lo usa el sondeo de Messenger: la primera vuelta de una instancia trae hasta
+ * 150 mensajes por página, y guardarlos de a uno tardaba 14 segundos, que era
+ * lo que esperaba la bandeja. Un solo upsert los deja en menos de uno. Postgres
+ * los inserta en el orden del arreglo, así que el seq respeta la cronología
+ * igual que guardándolos de a uno.
+ *
+ * Si el lote falla por lo que sea, cae al camino de a uno, que ya sabe
+ * arreglárselas (columna que falta, memoria).
+ */
+export async function addMetaLote(mensajes: Omit<MetaMensaje, "seq">[]): Promise<void> {
+  if (mensajes.length === 0) return;
+  const sb = getSupabase(mensajes[0].tenant);
+  if (sb) {
+    const filas = mensajes.map((m) => {
+      const base = {
+        mid: m.mid,
+        tenant: m.tenant,
+        canal: m.canal,
+        page_id: m.pageId,
+        sender_id: m.senderId,
+        sender_name: m.senderName ?? null,
+        texto: m.texto,
+        ts: m.ts,
+        direction: m.direction,
+      };
+      return columnaHistoria.hay ? { ...base, historia_url: m.historiaUrl ?? null } : base;
+    });
+    const { error } = await sb
+      .from("meta_messages")
+      .upsert(filas, { onConflict: "mid", ignoreDuplicates: true });
+    if (!error) return;
+    console.error("[meta-messages] lote falló, se guarda de a uno:", error.message);
+  }
+  for (const m of mensajes) await guardar(m);
+}
