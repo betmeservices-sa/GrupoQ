@@ -28,6 +28,11 @@ export const META_APP_ID = process.env.META_APP_ID || "1049131010901646";
 // Que llegue el eco no duplica lo que mandamos nosotros: los mensajes se
 // guardan por su id de Meta, y el eco de un mensaje propio trae ese mismo id.
 //
+// OJO al pedir esto: el endpoint rechaza el pedido ENTERO si un solo campo no
+// está permitido. Por eso `standby` en Instagram pareció bloqueado un día
+// entero: se pedía junto con `message_echoes`, que sí lo está, y el rechazo
+// era del eco. Al agregar un campo, probarlo solo primero.
+//
 // `standby` es el otro que faltaba, y el más difícil de sospechar. Una
 // conversación de Meta tiene un dueño a la vez: mientras nadie la toca es
 // nuestra, pero apenas alguien del hotel contesta desde el celular, esa app se
@@ -40,8 +45,11 @@ export const META_APP_ID = process.env.META_APP_ID || "1049131010901646";
 // distintas y ya se habían separado entre ellas: una pedía `feed` y otra no,
 // así que una página conectada por un camino recibía los comentarios y por el
 // otro no.
+// Es TODO lo que Meta acepta para una página, probado campo por campo. Los que
+// no sirven hoy (lecturas, entregas, menciones) no molestan y evitan volver a
+// descubrir un hueco de estos por sorpresa.
 export const CAMPOS_WEBHOOK =
-  "messages,message_echoes,messaging_postbacks,feed,standby,messaging_handovers";
+  "messages,message_echoes,standby,messaging_handovers,messaging_postbacks,messaging_optins,messaging_referrals,message_reactions,message_deliveries,feed,mention,ratings";
 
 // Permisos de la bandeja omnicanal: Messenger + DMs/comentarios/publicación de
 // IG + posts/comentarios de la página + estadísticas. Todos requieren acceso
