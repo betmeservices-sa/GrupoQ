@@ -7,6 +7,7 @@ import {
 } from "@/lib/meta-messages-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { conexionesDe } from "@/lib/meta-store";
+import { sincronizarMessenger } from "@/lib/meta-sondeo-messenger";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,11 @@ export async function GET(req: Request) {
     );
     return Response.json(r);
   }
+
+  // Antes de contestar, ver si Meta tiene mensajes de Messenger que el
+  // webhook no entregó (sin App Review no avisa de gente sin rol en la app).
+  // Se frena solo a una vuelta cada 30 s; el resto de los ticks no cuesta nada.
+  await sincronizarMessenger(tenant);
 
   const mensajes = await getMetaSince(Number.isFinite(after) ? after : 0, tenant, limite);
 
