@@ -18,6 +18,22 @@ const DIALOG = `https://www.facebook.com/${VERSION}/dialog/oauth`;
 // App "MiAgentIA" (tipo Negocios) del panel de Meta.
 export const META_APP_ID = process.env.META_APP_ID || "1049131010901646";
 
+// A qué avisos se suscribe cada página conectada.
+//
+// `message_echoes` es el que faltaba y el que menos se nota: sin él, cuando
+// alguien del hotel contesta desde la bandeja de Facebook o desde el celular,
+// Meta no avisa nada y el panel se queda con la pregunta del huésped y sin la
+// respuesta. El hilo parece abandonado y termina contestado dos veces.
+//
+// Que llegue el eco no duplica lo que mandamos nosotros: los mensajes se
+// guardan por su id de Meta, y el eco de un mensaje propio trae ese mismo id.
+//
+// Vive acá, en un solo lugar, porque estaba escrito a mano en tres rutas
+// distintas y ya se habían separado entre ellas: una pedía `feed` y otra no,
+// así que una página conectada por un camino recibía los comentarios y por el
+// otro no.
+export const CAMPOS_WEBHOOK = "messages,message_echoes,messaging_postbacks,feed";
+
 // Permisos de la bandeja omnicanal: Messenger + DMs/comentarios/publicación de
 // IG + posts/comentarios de la página + estadísticas. Todos requieren acceso
 // avanzado vía App Review para servir a clientes sin rol en la app.

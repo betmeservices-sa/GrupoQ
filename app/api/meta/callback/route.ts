@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  CAMPOS_WEBHOOK,
   GRAPH,
   META_APP_ID,
   hayCredencialesMeta,
@@ -175,7 +176,7 @@ export async function GET(req: Request) {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
-              subscribed_fields: "messages,messaging_postbacks",
+              subscribed_fields: CAMPOS_WEBHOOK,
               access_token: p.access_token,
             }),
           });

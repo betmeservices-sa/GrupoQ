@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { tenantFromRequest } from "@/lib/tenants/server";
+import { CAMPOS_WEBHOOK } from "@/lib/meta-oauth";
 import { conexionesDe, guardarConexiones } from "@/lib/meta-store";
 import type { MetaConnection } from "@/lib/meta-store";
 
@@ -68,7 +69,7 @@ async function suscribir(pageId: string, token: string): Promise<boolean> {
     const r = await fetch(`${GRAPH}/${pageId}/subscribed_apps`, {
       method: "POST",
       body: new URLSearchParams({
-        subscribed_fields: "messages,messaging_postbacks,feed",
+        subscribed_fields: CAMPOS_WEBHOOK,
         access_token: token,
       }),
     });
@@ -197,7 +198,7 @@ export async function POST(req: Request) {
     const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/subscribed_apps`, {
       method: "POST",
       body: new URLSearchParams({
-        subscribed_fields: "messages,messaging_postbacks,feed",
+        subscribed_fields: CAMPOS_WEBHOOK,
         access_token: pageToken0,
       }),
     });
