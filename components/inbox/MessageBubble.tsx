@@ -46,10 +46,13 @@ export function MessageBubble({
   message,
   isNew,
   onReact,
+  emojis = EMOJIS,
 }: {
   message: Message;
   isNew?: boolean;
   onReact?: (messageId: string, emoji: string) => void;
+  /** Qué emojis se ofrecen. Por la página de Facebook, Meta solo acepta ❤️. */
+  emojis?: string[];
 }) {
   const esStaff = message.autor === "staff";
   const caption = message.media ? captionDeMedia(message.texto) : null;
@@ -225,7 +228,7 @@ export function MessageBubble({
             ref={pickerRef}
             className="absolute left-0 top-full z-20 mt-1.5 flex gap-0.5 rounded-xl border border-line bg-card p-1.5 shadow-lg"
           >
-            {EMOJIS.map((e) => (
+            {emojis.map((e) => (
               <button
                 key={e}
                 type="button"

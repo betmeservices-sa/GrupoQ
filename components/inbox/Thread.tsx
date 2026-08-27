@@ -23,6 +23,7 @@ export function Thread({
   onInfo,
   onTyping,
   onReact,
+  emojis,
   onAttach,
   onSendTemplate,
   ventanaCerrada,
@@ -44,6 +45,8 @@ export function Thread({
   onInfo?: () => void;
   onTyping?: () => void;
   onReact?: (messageId: string, emoji: string) => void;
+  /** Los emojis que se ofrecen para reaccionar; por defecto, todos. */
+  emojis?: string[];
   onAttach?: (file: File) => void | Promise<void>;
   onSendTemplate?: (t: EnvioPlantilla) => void | Promise<void>;
   ventanaCerrada?: boolean;
@@ -187,6 +190,7 @@ export function Thread({
             message={m}
             isNew={i === messages.length - 1}
             onReact={onReact}
+            emojis={emojis}
           />
         ))}
         {escribiendo && (

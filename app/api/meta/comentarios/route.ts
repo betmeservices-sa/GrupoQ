@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { conexionesDe } from "@/lib/meta-store";
-import { comentariosDe, ocultarComentario, responderComentario, responderEnPrivado } from "@/lib/meta-comentarios";
+import {
+  comentariosDe,
+  meGustaComentario,
+  ocultarComentario,
+  responderComentario,
+  responderEnPrivado,
+} from "@/lib/meta-comentarios";
 import { addMetaOutbound } from "@/lib/meta-messages-store";
 import { esComentarioInstagram } from "@/lib/meta-ig-login";
 
@@ -37,6 +43,8 @@ export async function POST(req: Request) {
     ocultar?: boolean;
     /** true = contestar por mensaje privado en vez de debajo del comentario. */
     privado?: boolean;
+    /** true = me gusta de la página; false = quitarlo. Solo Facebook. */
+    meGusta?: boolean;
   };
   if (!body.id || !body.pageId) {
     return NextResponse.json({ ok: false, error: "Falta el comentario." }, { status: 400 });
@@ -53,6 +61,10 @@ export async function POST(req: Request) {
     if (body.ocultar !== undefined) {
       await ocultarComentario(conexion, body.id, body.ocultar);
       return NextResponse.json({ ok: true, oculto: body.ocultar });
+    }
+    if (body.meGusta !== undefined) {
+      await meGustaComentario(conexion, body.id, body.meGusta);
+      return NextResponse.json({ ok: true, meGusta: body.meGusta });
     }
     if (!(body.texto ?? "").trim()) {
       return NextResponse.json({ ok: false, error: "La respuesta viene vacía." }, { status: 400 });

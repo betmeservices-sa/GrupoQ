@@ -34,11 +34,14 @@ export interface Comentario {
   /** true si es respuesta a otro comentario, no un comentario de primer nivel. */
   esRespuesta: boolean;
   /**
-   * La cuenta YA le contestó. Es lo que decide "sin responder": que otra
-   * persona le haya respondido no cuenta, y antes contaba. Un reclamo con una
-   * respuesta de otro cliente quedaba como atendido.
+   * El hilo está atendido: lo último que se dijo es nuestro. Que otra persona
+   * le haya respondido no cuenta (un reclamo con una respuesta de otro cliente
+   * quedaba como atendido), y si alguien vuelve a escribir después de nuestra
+   * respuesta, vuelve a "sin responder".
    */
   respondido: boolean;
+  /** Lo escribió la página o la cuenta (nuestra respuesta). */
+  nuestro?: boolean;
   /** Si es respuesta: a quién le respondió (para leer el hilo). */
   respuestaA?: string;
   /**
@@ -48,6 +51,10 @@ export interface Comentario {
   padreId?: string;
   oculto: boolean;
   meGusta: number;
+  /** La página ya le dio me gusta (solo Facebook: Instagram no lo da por API). */
+  meGustaNuestro?: boolean;
+  /** Se le puede dar me gusta desde el panel (solo Facebook). */
+  puedeMeGusta?: boolean;
   /** Página o cuenta a la que pertenece, para responder con el token correcto. */
   pageId: string;
   /**
@@ -62,6 +69,26 @@ export interface Comentario {
    * para agrupar comentarios de la misma persona; no para abrir su perfil.
    */
   autorId?: string;
+}
+
+/**
+ * ¿El hilo está atendido? Sí cuando lo último que se dijo es nuestro.
+ *
+ * Es la regla de "sin responder". Se prueba aparte porque el modo de fallar
+ * es silencioso: un reclamo mal marcado como atendido no salta en ningún
+ * lado, simplemente nadie lo contesta.
+ */
+export function hiloRespondido(hilo: { ts: string; nuestra: boolean }[]): boolean {
+  let ultimaNuestra = "";
+  let ultimaAjena = "";
+  for (const m of hilo) {
+    if (m.nuestra) {
+      if (m.ts > ultimaNuestra) ultimaNuestra = m.ts;
+    } else if (m.ts > ultimaAjena) {
+      ultimaAjena = m.ts;
+    }
+  }
+  return Boolean(ultimaNuestra) && ultimaNuestra >= ultimaAjena;
 }
 
 interface RespuestaGraph<T> {
@@ -87,6 +114,7 @@ async function pedir<T>(url: string): Promise<RespuestaGraph<T>> {
 // el hueco.
 const LIMITE_POSTS = 25;
 const LIMITE_COMENTARIOS = 100;
+const LIMITE_RESPUESTAS = 25;
 // Tope de páginas a seguir. 6 x 25 = 150 publicaciones, más de un año para
 // quien publica tres veces por semana.
 const MAX_PAGINAS = 6;
@@ -124,39 +152,35 @@ function resumir(t?: string): string | undefined {
 
 // ── Facebook ─────────────────────────────────────────────────────────────────
 
+interface ComentarioFb {
+  id: string;
+  message?: string;
+  created_time?: string;
+  from?: { id?: string; name?: string };
+  like_count?: number;
+  is_hidden?: boolean;
+  user_likes?: boolean;
+  can_like?: boolean;
+}
+
 interface PostFb {
   id: string;
   permalink_url?: string;
   message?: string;
   full_picture?: string;
   comments?: {
-    data?: {
-      id: string;
-      message?: string;
-      created_time?: string;
-      from?: { name?: string };
-      like_count?: number;
-      is_hidden?: boolean;
+    data?: (ComentarioFb & {
       comment_count?: number;
       parent?: { id?: string };
       permalink_url?: string;
       can_reply_privately?: boolean;
-      comments?: {
-        data?: {
-          id: string;
-          message?: string;
-          created_time?: string;
-          from?: { id?: string; name?: string };
-          is_hidden?: boolean;
-          like_count?: number;
-        }[];
-      };
-    }[];
+      comments?: { data?: ComentarioFb[] };
+    })[];
   };
 }
 
 /**
- * Comentarios de las últimas publicaciones de una página.
+ * Comentarios de las últimas publicaciones de una página, con sus respuestas.
  *
  * Se piden anidados dentro de los posts en una sola llamada en vez de un pedido
  * por post: con veinte publicaciones eso serían veintiún viajes, y la pantalla
@@ -172,62 +196,76 @@ export async function comentariosFacebook(
   c: MetaConnection,
   limitePosts = LIMITE_POSTS,
 ): Promise<Comentario[]> {
-  // `from{id,name}` desarmado en vez de `from` a secas, y `permalink_url` para
-  // poder abrir la publicacion desde el panel.
+  const camposComentario = "id,message,created_time,from{id,name},like_count,is_hidden,user_likes,can_like";
   const campos =
-    `id,message,full_picture,permalink_url,created_time,comments.limit(${LIMITE_COMENTARIOS}).order(reverse_chronological){id,message,created_time,from{id,name},like_count,is_hidden,comment_count,parent,permalink_url,can_reply_privately,comments.limit(25){id,message,created_time,from{id,name},is_hidden,like_count}}`;
+    `id,message,full_picture,permalink_url,created_time,` +
+    `comments.limit(${LIMITE_COMENTARIOS}).order(reverse_chronological)` +
+    `{${camposComentario},comment_count,parent,permalink_url,can_reply_privately,` +
+    `comments.limit(${LIMITE_RESPUESTAS}){${camposComentario}}}`;
   const url = `${GRAPH}/${c.pageId}/posts?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
   const posts = await pedirTodo<PostFb>(url);
 
   const out: Comentario[] = [];
   for (const post of posts) {
+    const delPost = {
+      postId: post.id,
+      postResumen: resumir(post.message),
+      postImagen: post.full_picture,
+      postEnlace: post.permalink_url,
+      pageId: c.pageId,
+    };
     for (const co of post.comments?.data ?? []) {
+      const respuestas = co.comments?.data ?? [];
+      const esNuestra = (r: ComentarioFb) => r.from?.id === c.pageId;
+      const nombre = (r: ComentarioFb) =>
+        esNuestra(r) ? c.pageName : (r.from?.name ?? "Sin identificar");
+
       out.push({
+        ...delPost,
         id: co.id,
         red: "facebook",
-        postId: post.id,
-        postResumen: resumir(post.message),
-        postImagen: post.full_picture,
-        postEnlace: post.permalink_url,
         // Meta no siempre dice quien comento. Con Acceso Estandar solo da el
         // nombre de quien tiene un rol en la pagina; para el resto hace falta
         // Acceso Avanzado a pages_read_user_content, que se pide en la revision
         // de la app. Cuando falta se dice que no se sabe, no se inventa.
-        autor: co.from?.name ?? "Sin identificar",
+        autor: nombre(co),
+        nuestro: esNuestra(co),
         texto: co.message ?? "",
         ts: co.created_time ?? new Date().toISOString(),
-        respuestas: co.comment_count ?? 0,
+        respuestas: co.comment_count ?? respuestas.length,
         esRespuesta: Boolean(co.parent?.id),
         oculto: co.is_hidden === true,
         meGusta: co.like_count ?? 0,
-        pageId: c.pageId,
+        meGustaNuestro: co.user_likes === true,
+        puedeMeGusta: co.can_like !== false,
         enlace: co.permalink_url,
         privadoPosible: co.can_reply_privately === true,
-        respondido: (co.comments?.data ?? []).some((r) => r.from?.id === c.pageId),
+        respondido: hiloRespondido([
+          { ts: co.created_time ?? "", nuestra: esNuestra(co) },
+          ...respuestas.map((r) => ({ ts: r.created_time ?? "", nuestra: esNuestra(r) })),
+        ]),
       });
-      // Las respuestas de otras personas también son comentarios que hay que
-      // ver: un reclamo suele venir como respuesta a otro. Las nuestras no se
-      // listan, ya están contadas en "respondido".
-      for (const r of co.comments?.data ?? []) {
-        if (r.from?.id === c.pageId) continue;
+      // Las respuestas también se ven, las de otras personas y las nuestras:
+      // un reclamo suele venir como respuesta a otro, y lo que ya contestó el
+      // hotel tiene que verse en el mismo hilo para no contestar dos veces.
+      for (const r of respuestas) {
         out.push({
+          ...delPost,
           id: r.id,
           red: "facebook",
-          postId: post.id,
-          postResumen: resumir(post.message),
-          postImagen: post.full_picture,
-          postEnlace: post.permalink_url,
-          autor: r.from?.name ?? "Sin identificar",
+          autor: nombre(r),
+          nuestro: esNuestra(r),
           texto: r.message ?? "",
           ts: r.created_time ?? co.created_time ?? new Date().toISOString(),
           respuestas: 0,
           esRespuesta: true,
-          respuestaA: co.from?.name ?? "Sin identificar",
+          respuestaA: nombre(co),
           padreId: co.id,
           oculto: r.is_hidden === true,
           meGusta: r.like_count ?? 0,
-          pageId: c.pageId,
-          respondido: false,
+          meGustaNuestro: r.user_likes === true,
+          puedeMeGusta: !esNuestra(r) && r.can_like !== false,
+          respondido: true,
         });
       }
     }
@@ -238,11 +276,19 @@ export async function comentariosFacebook(
   const sinNombre = out.filter((x) => x.autor === "Sin identificar").map((x) => x.id);
   if (sinNombre.length) {
     const autores = await autoresDeComentarios(sinNombre);
+    const porId = new Map(out.map((x) => [x.id, x] as const));
     for (const x of out) {
       const a = autores.get(x.id);
       if (a) {
         x.autor = a.nombre;
         x.autorId = a.fromId ?? undefined;
+      }
+    }
+    // Y el "respondió a Sin identificar" de las respuestas, con el nombre ya puesto.
+    for (const x of out) {
+      if (x.padreId && x.respuestaA === "Sin identificar") {
+        const padre = porId.get(x.padreId);
+        if (padre && padre.autor !== "Sin identificar") x.respuestaA = padre.autor;
       }
     }
   }
@@ -251,6 +297,15 @@ export async function comentariosFacebook(
 
 // ── Instagram ────────────────────────────────────────────────────────────────
 
+interface ComentarioIg {
+  id: string;
+  text?: string;
+  timestamp?: string;
+  username?: string;
+  like_count?: number;
+  hidden?: boolean;
+}
+
 interface MediaIg {
   id: string;
   permalink?: string;
@@ -258,24 +313,7 @@ interface MediaIg {
   media_url?: string;
   thumbnail_url?: string;
   comments?: {
-    data?: {
-      id: string;
-      text?: string;
-      timestamp?: string;
-      username?: string;
-      like_count?: number;
-      hidden?: boolean;
-      replies?: {
-        data?: {
-          id: string;
-          text?: string;
-          timestamp?: string;
-          username?: string;
-          hidden?: boolean;
-          like_count?: number;
-        }[];
-      };
-    }[];
+    data?: (ComentarioIg & { replies?: { data?: ComentarioIg[] } })[];
   };
 }
 
@@ -288,54 +326,65 @@ export async function comentariosInstagram(
   // usuario guardado (cuentas sin login propio) no se puede saber, y se queda
   // como sin responder, que es el lado seguro.
   const cuenta = (c.igUsername ?? "").toLowerCase();
-  const esNuestra = (username: string | undefined) =>
-    Boolean(cuenta) && (username ?? "").toLowerCase() === cuenta;
+  const esNuestra = (r: ComentarioIg) =>
+    Boolean(cuenta) && (r.username ?? "").toLowerCase() === cuenta;
+  const nombre = (r: ComentarioIg) => (r.username ? `@${r.username}` : "Sin identificar");
+
+  const camposComentario = "id,text,timestamp,username,like_count,hidden";
   const campos =
-    `id,caption,media_url,thumbnail_url,permalink,comments.limit(${LIMITE_COMENTARIOS}){id,text,timestamp,username,like_count,hidden,replies{id,text,timestamp,username,hidden,like_count}}`;
+    `id,caption,media_url,thumbnail_url,permalink,` +
+    `comments.limit(${LIMITE_COMENTARIOS}){${camposComentario},replies.limit(${LIMITE_RESPUESTAS}){${camposComentario}}}`;
   const url = `${GRAPH}/${c.igId}/media?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
   const medias = await pedirTodo<MediaIg>(url);
 
   const out: Comentario[] = [];
   for (const m of medias) {
+    const delPost = {
+      postId: m.id,
+      postResumen: resumir(m.caption),
+      // Los videos no traen media_url usable como miniatura; para eso está thumbnail_url.
+      postImagen: m.thumbnail_url ?? m.media_url,
+      postEnlace: m.permalink,
+      pageId: c.pageId,
+    };
     for (const co of m.comments?.data ?? []) {
+      const respuestas = co.replies?.data ?? [];
       out.push({
+        ...delPost,
         id: co.id,
         red: "instagram",
-        postId: m.id,
-        postResumen: resumir(m.caption),
-        // Los videos no traen media_url usable como miniatura; para eso está thumbnail_url.
-        postImagen: m.thumbnail_url ?? m.media_url,
-        postEnlace: m.permalink,
-        autor: co.username ? `@${co.username}` : "Sin identificar",
+        autor: nombre(co),
+        nuestro: esNuestra(co),
         texto: co.text ?? "",
         ts: co.timestamp ?? new Date().toISOString(),
-        respuestas: co.replies?.data?.length ?? 0,
+        respuestas: respuestas.length,
         esRespuesta: false,
         oculto: co.hidden === true,
         meGusta: co.like_count ?? 0,
-        pageId: c.pageId,
-        respondido: (co.replies?.data ?? []).some((r) => esNuestra(r.username)),
+        // Instagram no deja dar me gusta a comentarios por API.
+        puedeMeGusta: false,
+        respondido: hiloRespondido([
+          { ts: co.timestamp ?? "", nuestra: esNuestra(co) },
+          ...respuestas.map((r) => ({ ts: r.timestamp ?? "", nuestra: esNuestra(r) })),
+        ]),
       });
-      for (const r of co.replies?.data ?? []) {
-        if (esNuestra(r.username)) continue;
+      for (const r of respuestas) {
         out.push({
+          ...delPost,
           id: r.id,
           red: "instagram",
-          postId: m.id,
-          postResumen: resumir(m.caption),
-          postImagen: m.thumbnail_url ?? m.media_url,
-          postEnlace: m.permalink,
-          autor: r.username ? `@${r.username}` : "Sin identificar",
+          autor: nombre(r),
+          nuestro: esNuestra(r),
           texto: r.text ?? "",
           ts: r.timestamp ?? co.timestamp ?? new Date().toISOString(),
           respuestas: 0,
           esRespuesta: true,
-          respuestaA: co.username ? `@${co.username}` : "Sin identificar",
+          respuestaA: nombre(co),
           padreId: co.id,
           oculto: r.hidden === true,
           meGusta: r.like_count ?? 0,
-          pageId: c.pageId,
-          respondido: false,
+          puedeMeGusta: false,
+          respondido: true,
         });
       }
     }
@@ -439,4 +488,16 @@ export async function ocultarComentario(c: MetaConnection, comentarioId: string,
   }
   const cuerpo = new URLSearchParams({ is_hidden: String(oculto), access_token: c.pageToken });
   return accion(`${GRAPH}/${comentarioId}`, "POST", cuerpo);
+}
+
+/**
+ * Me gusta de la página a un comentario, o quitarlo. Solo Facebook: la API de
+ * Instagram no tiene cómo dar me gusta a un comentario.
+ */
+export async function meGustaComentario(c: MetaConnection, comentarioId: string, dar: boolean) {
+  if (esComentarioInstagram(comentarioId)) {
+    throw new Error("Instagram no deja dar me gusta a comentarios desde fuera de la app.");
+  }
+  const url = `${GRAPH}/${comentarioId}/likes?access_token=${encodeURIComponent(c.pageToken)}`;
+  return accion(url, dar ? "POST" : "DELETE");
 }

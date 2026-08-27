@@ -9,17 +9,16 @@
 // La pantalla abre en "sin responder" a propósito. Ver todos los comentarios
 // ordenados por fecha no sirve para trabajar: lo que hay que ver es la cola.
 //
-// Va en dos columnas, igual que la bandeja: a la izquierda las publicaciones y
-// a la derecha la que se está atendiendo, con la publicación arriba y sus
-// comentarios abajo. Antes era una sola lista larga con todas las
-// publicaciones apiladas: para contestar un comentario había que acordarse de
-// cuál foto estaba diez centímetros más arriba.
+// Cada comentario va con su hilo: las respuestas cuelgan debajo, con una línea
+// a la izquierda, las de otras personas y las nuestras. Un reclamo suele venir
+// como respuesta a otro comentario, y lo que ya contestó el hotel tiene que
+// verse ahí mismo para no contestar dos veces.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ChevronLeft,
   EyeOff,
   Eye,
+  Heart,
   Instagram,
   Facebook,
   Loader2,
@@ -33,6 +32,14 @@ import type { Comentario } from "@/lib/meta-comentarios";
 type Filtro = "pendientes" | "todos" | "ocultos";
 
 const ICONO = { facebook: Facebook, instagram: Instagram };
+// Se vuelve a pedir cada dos minutos: los comentarios llegan mientras la
+// pantalla está abierta, y antes había que recargar para verlos.
+const CADA_MS = 2 * 60_000;
+
+interface Hilo {
+  c: Comentario;
+  respuestas: Comentario[];
+}
 
 function haceCuanto(iso: string) {
   const min = Math.floor((Date.now() - Date.parse(iso)) / 60000);
@@ -44,6 +51,28 @@ function haceCuanto(iso: string) {
   return d === 1 ? "ayer" : `hace ${d} días`;
 }
 
+/**
+ * Los comentarios de primer nivel con sus respuestas colgadas, en el orden en
+ * que vinieron (los más nuevos primero). Las respuestas van cronológicas: un
+ * hilo se lee de arriba hacia abajo.
+ */
+function armarHilos(cs: Comentario[]): Hilo[] {
+  const porPadre = new Map<string, Comentario[]>();
+  for (const c of cs) {
+    if (c.padreId) {
+      const lista = porPadre.get(c.padreId) ?? [];
+      lista.push(c);
+      porPadre.set(c.padreId, lista);
+    }
+  }
+  return cs
+    .filter((c) => !c.padreId)
+    .map((c) => ({
+      c,
+      respuestas: (porPadre.get(c.id) ?? []).slice().sort((a, b) => (a.ts < b.ts ? -1 : 1)),
+    }));
+}
+
 export default function ComentariosPage() {
   const [datos, setDatos] = useState<{ comentarios: Comentario[]; sinConexion?: boolean } | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -52,26 +81,29 @@ export default function ComentariosPage() {
 
   const cargar = useCallback(async () => {
     setCargando(true);
-    const r = await fetch("/api/meta/comentarios", { cache: "no-store" });
-    const j = await r.json();
-    setDatos({ comentarios: j.comentarios ?? [], sinConexion: j.sinConexion });
+    try {
+      const r = await fetch("/api/meta/comentarios", { cache: "no-store" });
+      const j = await r.json();
+      if (j.ok !== false) setDatos({ comentarios: j.comentarios ?? [], sinConexion: j.sinConexion });
+    } catch {
+      // Se queda con lo que ya tenía; el próximo tick vuelve a intentar.
+    }
     setCargando(false);
   }, []);
 
   useEffect(() => {
     void cargar();
+    const t = window.setInterval(() => void cargar(), CADA_MS);
+    return () => window.clearInterval(t);
   }, [cargar]);
 
-  const todos = datos?.comentarios ?? [];
-  // "Sin responder" es una aproximación honesta: Meta no dice quién respondió,
-  // solo cuántas respuestas hay. Un comentario sin ninguna respuesta es, sin
-  // duda, uno que nadie atendió.
-  const pendientes = useMemo(() => todos.filter((c) => !c.respondido && !c.oculto), [todos]);
+  const hilos = useMemo(() => armarHilos(datos?.comentarios ?? []), [datos]);
+  const pendientes = useMemo(() => hilos.filter((h) => !h.c.respondido && !h.c.oculto), [hilos]);
   const visibles = useMemo(() => {
-    if (filtro === "ocultos") return todos.filter((c) => c.oculto);
-    if (filtro === "todos") return todos.filter((c) => !c.oculto);
+    if (filtro === "ocultos") return hilos.filter((h) => h.c.oculto);
+    if (filtro === "todos") return hilos.filter((h) => !h.c.oculto);
     return pendientes;
-  }, [todos, pendientes, filtro]);
+  }, [hilos, pendientes, filtro]);
 
   return (
     <div className="flex h-full flex-col">
@@ -150,8 +182,7 @@ export default function ComentariosPage() {
                           {g.resumen || "Publicación sin texto"}
                         </p>
                         <p className="mt-1 text-[11.5px] text-[var(--text-3)]">
-                          {g.comentarios.length}{" "}
-                          {g.comentarios.length === 1 ? "comentario" : "comentarios"}
+                          {g.hilos.length} {g.hilos.length === 1 ? "comentario" : "comentarios"}
                           {g.enlace && (
                             <>
                               {" · "}
@@ -169,14 +200,26 @@ export default function ComentariosPage() {
                       </div>
                     </div>
                     <ul className="divide-y divide-[var(--line)]">
-                      {g.comentarios.map((c) => (
-                        <li key={c.id}>
+                      {g.hilos.map((h) => (
+                        <li key={h.c.id}>
                           <Fila
-                            c={c}
-                            abierto={abierto === c.id}
-                            onToggle={() => setAbierto(abierto === c.id ? null : c.id)}
+                            c={h.c}
+                            abierto={abierto === h.c.id}
+                            onToggle={() => setAbierto(abierto === h.c.id ? null : h.c.id)}
                             onHecho={cargar}
                           />
+                          {h.respuestas.length > 0 && (
+                            // El hilo: las respuestas cuelgan del comentario con
+                            // una línea a la izquierda. Se ven siempre, no solo
+                            // al abrir: un reclamo puede estar en la respuesta.
+                            <ul className="ml-10 mr-4 mb-3 space-y-1.5 border-l-2 border-line pl-3">
+                              {h.respuestas.map((r) => (
+                                <li key={r.id}>
+                                  <Respuesta r={r} onHecho={cargar} />
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -216,6 +259,104 @@ function Pestana({
   );
 }
 
+/** Manda una acción sobre un comentario y devuelve el error de Meta, si lo hubo. */
+async function accionar(c: Comentario, cuerpo: Record<string, unknown>): Promise<string | null> {
+  const r = await fetch("/api/meta/comentarios", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    // Responder a una respuesta va contra el comentario de arriba: ni
+    // Facebook ni Instagram dejan colgar una respuesta de otra respuesta.
+    // Ocultar, me gusta y el privado sí van contra la respuesta misma.
+    body: JSON.stringify({
+      id: cuerpo.texto && !cuerpo.privado ? (c.padreId ?? c.id) : c.id,
+      pageId: c.pageId,
+      ...cuerpo,
+    }),
+  });
+  const j = await r.json().catch(() => ({ ok: false }));
+  return j.ok ? null : (j.error ?? "No se pudo.");
+}
+
+/** Corazón de la página. Solo Facebook: Instagram no lo da por API. */
+function MeGusta({ c, onHecho }: { c: Comentario; onHecho: () => Promise<void> }) {
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!c.puedeMeGusta || c.nuestro) return null;
+  return (
+    <>
+      <button
+        type="button"
+        disabled={enviando}
+        onClick={async (e) => {
+          e.stopPropagation();
+          setEnviando(true);
+          setError(await accionar(c, { meGusta: !c.meGustaNuestro }));
+          setEnviando(false);
+          await onHecho();
+        }}
+        title={c.meGustaNuestro ? "Quitar el me gusta de la página" : "Me gusta, como la página"}
+        className={cn(
+          "inline-flex items-center gap-1 text-[12px] font-semibold disabled:opacity-50",
+          c.meGustaNuestro ? "text-[#e0245e]" : "text-[var(--text-2)]",
+        )}
+      >
+        <Heart size={13} fill={c.meGustaNuestro ? "currentColor" : "none"} />
+        {c.meGustaNuestro ? "Te gusta" : "Me gusta"}
+      </button>
+      {error && <span className="text-[11.5px] text-[var(--bad-fg,#991b1b)]">{error}</span>}
+    </>
+  );
+}
+
+/** Una respuesta dentro del hilo: de otra persona o nuestra. */
+function Respuesta({ r, onHecho }: { r: Comentario; onHecho: () => Promise<void> }) {
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div
+      className={cn(
+        "rounded-lg px-3 py-2",
+        r.nuestro ? "bg-brand/10 ring-1 ring-brand/20" : "bg-surface/60",
+        r.oculto && "opacity-60",
+      )}
+    >
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <span className={cn("text-[12.5px] font-semibold", r.nuestro ? "text-brand" : "text-[var(--text-1)]")}>
+          {r.nuestro ? `${r.autor} (nosotros)` : r.autor}
+        </span>
+        <span className="text-[11px] text-[var(--text-3)]">{haceCuanto(r.ts)}</span>
+        {r.oculto && (
+          <span className="rounded-full bg-[var(--bg-2,#f1f5f9)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+            Oculto
+          </span>
+        )}
+      </div>
+      <p className="mt-0.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[var(--text-2)]">{r.texto}</p>
+      {!r.nuestro && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-3">
+          <MeGusta c={r} onHecho={onHecho} />
+          <button
+            type="button"
+            disabled={enviando}
+            onClick={async () => {
+              setEnviando(true);
+              setError(await accionar(r, { ocultar: !r.oculto }));
+              setEnviando(false);
+              await onHecho();
+            }}
+            className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-2)] disabled:opacity-50"
+          >
+            {r.oculto ? <Eye size={12} /> : <EyeOff size={12} />}
+            {r.oculto ? "Mostrar" : "Ocultar"}
+          </button>
+          {r.meGusta > 0 && <span className="text-[11px] text-[var(--text-3)]">{r.meGusta} me gusta</span>}
+          {error && <span className="text-[11.5px] text-[var(--bad-fg,#991b1b)]">{error}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Fila({
   c,
   abierto,
@@ -232,25 +373,13 @@ function Fila({
   const [error, setError] = useState<string | null>(null);
   const Icono = ICONO[c.red];
 
-  async function accionar(cuerpo: Record<string, unknown>) {
+  async function mandar(cuerpo: Record<string, unknown>) {
     setEnviando(true);
     setError(null);
-    const r = await fetch("/api/meta/comentarios", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      // Responder a una respuesta va contra el comentario de arriba: ni
-      // Facebook ni Instagram dejan colgar una respuesta de otra respuesta.
-      // Ocultar y el privado sí van contra la respuesta misma.
-      body: JSON.stringify({
-        id: cuerpo.texto && !cuerpo.privado ? (c.padreId ?? c.id) : c.id,
-        pageId: c.pageId,
-        ...cuerpo,
-      }),
-    });
-    const j = await r.json();
+    const e = await accionar(c, cuerpo);
     setEnviando(false);
-    if (!j.ok) {
-      setError(j.error ?? "No se pudo.");
+    if (e) {
+      setError(e);
       return;
     }
     setTexto("");
@@ -258,7 +387,7 @@ function Fila({
   }
 
   return (
-    <div className={cn("rounded-xl border bg-card", c.oculto ? "border-dashed border-[var(--border-2)]" : "border-line")}>
+    <div className={cn("bg-card", c.oculto && "opacity-70")}>
       <button type="button" onClick={onToggle} className="flex w-full items-start gap-3 px-4 py-3 text-left">
         <span className="mt-0.5 shrink-0 text-[var(--text-3)]">
           <Icono size={15} />
@@ -266,10 +395,12 @@ function Fila({
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-[13.5px] font-semibold text-[var(--text-1)]">{c.autor}</span>
-            {c.respuestaA && (
-              <span className="text-[11.5px] text-[var(--text-3)]">respondió a {c.respuestaA}</span>
-            )}
             <span className="text-[11.5px] text-[var(--text-3)]">{haceCuanto(c.ts)}</span>
+            {c.respondido && (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-[#2f9e2f]">
+                Respondido
+              </span>
+            )}
             {c.enlace && (
               // Sin App Review, Facebook no dice quién comentó. Abrirlo allá sí
               // lo muestra; el enlace va al comentario, no a la publicación.
@@ -289,7 +420,7 @@ function Fila({
               </span>
             )}
           </span>
-          <span className="mt-0.5 block text-[13px] leading-relaxed text-[var(--text-2)]">{c.texto}</span>
+          <span className="mt-0.5 block whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--text-2)]">{c.texto}</span>
         </span>
       </button>
 
@@ -298,7 +429,7 @@ function Fila({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (texto.trim()) void accionar({ texto });
+              if (texto.trim()) void mandar({ texto });
             }}
             className="flex gap-2"
           >
@@ -320,7 +451,7 @@ function Fila({
               <button
                 type="button"
                 onClick={() => {
-                  if (texto.trim()) void accionar({ texto, privado: true });
+                  if (texto.trim()) void mandar({ texto, privado: true });
                 }}
                 disabled={enviando || !texto.trim()}
                 title="Le llega como mensaje privado, no debajo del comentario. Una sola vez por comentario."
@@ -333,9 +464,10 @@ function Fila({
           </form>
 
           <div className="flex flex-wrap items-center gap-3">
+            <MeGusta c={c} onHecho={onHecho} />
             <button
               type="button"
-              onClick={() => void accionar({ ocultar: !c.oculto })}
+              onClick={() => void mandar({ ocultar: !c.oculto })}
               disabled={enviando}
               className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-2)] disabled:opacity-50"
             >
@@ -343,7 +475,9 @@ function Fila({
               {c.oculto ? "Volver a mostrar" : "Ocultar"}
             </button>
             <span className="text-[11.5px] text-[var(--text-3)]">
-              {c.respondido ? "respondido" : c.respuestas === 0 ? "sin respuestas" : `${c.respuestas} respuesta${c.respuestas > 1 ? "s" : ""}, ninguna nuestra`}
+              {c.respuestas === 0
+                ? "sin respuestas"
+                : `${c.respuestas} respuesta${c.respuestas > 1 ? "s" : ""}${c.respondido ? "" : ", ninguna nuestra"}`}
               {c.meGusta > 0 && ` · ${c.meGusta} me gusta`}
             </span>
           </div>
@@ -363,21 +497,21 @@ function Fila({
 }
 
 /**
- * Los comentarios, juntos por publicacion.
+ * Los hilos, juntos por publicacion.
  *
  * Se conserva el orden en que vinieron: la publicacion con el comentario mas
  * nuevo queda arriba, que es la que hay que mirar primero.
  */
-function agrupar(cs: Comentario[]) {
+function agrupar(hs: Hilo[]) {
   const orden: string[] = [];
-  const mapa = new Map<string, { postId: string; resumen?: string; imagen?: string; enlace?: string; comentarios: Comentario[] }>();
-  for (const c of cs) {
-    const k = c.postId || "sin-publicacion";
+  const mapa = new Map<string, { postId: string; resumen?: string; imagen?: string; enlace?: string; hilos: Hilo[] }>();
+  for (const h of hs) {
+    const k = h.c.postId || "sin-publicacion";
     if (!mapa.has(k)) {
       orden.push(k);
-      mapa.set(k, { postId: k, resumen: c.postResumen, imagen: c.postImagen, enlace: c.postEnlace, comentarios: [] });
+      mapa.set(k, { postId: k, resumen: h.c.postResumen, imagen: h.c.postImagen, enlace: h.c.postEnlace, hilos: [] });
     }
-    mapa.get(k)!.comentarios.push(c);
+    mapa.get(k)!.hilos.push(h);
   }
   return orden.map((k) => mapa.get(k)!);
 }

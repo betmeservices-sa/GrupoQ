@@ -110,6 +110,10 @@ export default function BandejaPage() {
   function seleccionar(id: string) {
     setActivaId(id);
     dispatch({ type: "MARK_READ", conversationId: id });
+    // Messenger e Instagram: la persona ve "Visto" al abrir su conversación,
+    // igual que cuando lo abren desde el celular.
+    const meta = partesMeta(id);
+    if (meta) void accionMeta({ ...meta, accion: "visto" });
   }
 
   /**
@@ -266,6 +270,11 @@ export default function BandejaPage() {
               onBack={() => setActivaId(null)}
               onInfo={() => setCtxOpen(true)}
               onTyping={() => {
+                const meta = partesMeta(activa.id);
+                if (meta) {
+                  void accionMeta({ ...meta, accion: "escribiendo" });
+                  return;
+                }
                 if (activa.canal !== "whatsapp") return;
                 const ultimoEntrante = [...mensajesActivos]
                   .reverse()
@@ -370,7 +379,12 @@ export default function BandejaPage() {
                   : undefined
               }
               onReact={async (messageId, emoji) => {
-                // Solo aplica a conversaciones de WhatsApp.
+                const meta = partesMeta(activa.id);
+                if (meta) {
+                  await accionMeta({ ...meta, accion: "reaccionar", mid: messageId, emoji });
+                  return;
+                }
+                // WhatsApp.
                 if (activa.canal !== "whatsapp" || !contactoActivo.telefono) return;
                 try {
                   await fetch("/api/whatsapp/react", {
@@ -382,6 +396,9 @@ export default function BandejaPage() {
                   console.error("react error:", err);
                 }
               }}
+              // Por la página, Meta solo acepta el corazón; por la cuenta de
+              // Instagram, cualquier emoji.
+              emojis={activa.id.startsWith("metac-facebook-") ? ["❤️"] : undefined}
               onAttach={async (file) => {
                 // Solo aplica a conversaciones de WhatsApp.
                 if (activa.canal !== "whatsapp" || !contactoActivo.telefono) return;
@@ -526,4 +543,28 @@ export default function BandejaPage() {
       )}
     </div>
   );
+}
+
+/**
+ * Canal, página y persona de una conversación real de Messenger o Instagram
+ * (id metac-<canal>-<pageId>-<senderId>); null si no es una de esas.
+ */
+function partesMeta(id: string): { canal: "facebook" | "instagram"; pageId: string; recipientId: string } | null {
+  const m = /^metac-(facebook|instagram)-(\d+)-(\d+)$/.exec(id);
+  return m ? { canal: m[1] as "facebook" | "instagram", pageId: m[2], recipientId: m[3] } : null;
+}
+
+/** Reaccionar, visto o escribiendo en Messenger e Instagram. No lanza. */
+async function accionMeta(cuerpo: Record<string, unknown>): Promise<void> {
+  try {
+    const r = await fetch("/api/meta/accion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
+    const d = await r.json().catch(() => ({ ok: false }));
+    if (!d.ok && cuerpo.accion === "reaccionar") console.error("reaccionar fallo:", d.error);
+  } catch (err) {
+    console.error("accion meta error:", err);
+  }
 }
