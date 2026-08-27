@@ -19,6 +19,8 @@ import {
   type InputReservaYali,
 } from "./yali-agente";
 import { disponibilidadEnVivo, escrituraHabilitada, reservarEnVivo, sedeEnVivo } from "./yali-cloudbeds";
+import { upsertContacto } from "./contacts-store";
+import { contactoDeClave } from "./contacto-canal";
 
 export type EstadoPreReserva = "pendiente_pago" | "comprobante_recibido" | "confirmada" | "rechazada";
 
@@ -467,6 +469,22 @@ export async function confirmarPreReserva(
     actualizada: ahora,
   };
   await guardar(nuevo);
+  // A Contactos: quién reservó, con qué correo y qué reservó. Si falla no
+  // frena la confirmación (la reserva ya está tomada).
+  try {
+    const [nombre, ...resto] = p.huesped.split(/\s+/);
+    await upsertContacto({
+      from: contactoDeClave(p.clave),
+      nombre,
+      apellido: resto.join(" ") || undefined,
+      correo: p.correo ?? undefined,
+      // Sin notas: upsertContacto las reemplaza y pisaría lo que escribió el equipo.
+      tags: ["Reserva confirmada"],
+      tenant,
+    });
+  } catch (e) {
+    console.error("[prereservas] no se pudo guardar el contacto:", e);
+  }
   return { ok: true, reserva: nuevo, enCloudbeds: Boolean(numeroCloudbeds) };
 }
 

@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/cn";
 import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import { telefonoBonito } from "@/lib/phone";
+import { esContactoDeMeta, etiquetaDeContacto } from "@/lib/contacto-canal";
 import { Avatar, inicialesDe } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HuespedPms } from "@/components/hotel/HuespedPms";
@@ -330,7 +331,7 @@ export default function ContactosPage() {
                       <Avatar iniciales={inicialesDe(nombreDe(c))} size={38} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-[var(--text)]">{nombreDe(c)}</p>
-                        <p className="truncate text-[12px] text-[var(--text-3)]">{telefonoBonito(c.telefono)}</p>
+                        <p className="truncate text-[12px] text-[var(--text-3)]">{etiquetaDeContacto(c.telefono)}</p>
                         {c.tags.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {c.tags.slice(0, 2).map((t) => (
@@ -445,7 +446,11 @@ function Ficha({
         <div className="mx-auto max-w-lg space-y-5 px-5 py-6">
           {/* Información */}
           <Seccion titulo="Información">
-            <DatoFila Icon={Phone} label="Teléfono" valor={telefonoBonito(contacto.telefono)} />
+            <DatoFila
+              Icon={Phone}
+              label={esContactoDeMeta(contacto.telefono) ? "Escribe por" : "Teléfono"}
+              valor={etiquetaDeContacto(contacto.telefono)}
+            />
             <DatoFila Icon={Mail} label="Correo" valor={contacto.correo || "Sin correo"} />
           </Seccion>
 

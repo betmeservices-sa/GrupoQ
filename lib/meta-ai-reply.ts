@@ -27,6 +27,7 @@ import { conexionesDe, type MetaConnection } from "./meta-store";
 import { RESPONSABLE, type Motivo, type Traspaso } from "./pasar-a-persona";
 import { decidirTurno, limiteDe } from "./sucursal-gate";
 import { sinMarkdown } from "./negritas";
+import { upsertContacto } from "./contacts-store";
 import { registrarConsumo } from "./tokens-store";
 import { TENANTS } from "./tenants";
 import type { TenantId } from "./tenants/types";
@@ -195,6 +196,18 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
     const respuesta = await generarRespuesta(
       historial,
       {
+        // La ficha del contacto, con la clave de la conversación como llave
+        // (en WhatsApp es el teléfono). Antes en Meta esto no se guardaba.
+        onGuardarContacto: async (d) => {
+          await upsertContacto({
+            from: clave,
+            nombre: d.nombre,
+            apellido: d.apellido,
+            correo: d.correo,
+            tags: d.interes ? [d.interes] : undefined,
+            tenant: t.tenant,
+          });
+        },
         onReaccionar: (emoji) =>
           accionEnMensaje(cx, t.canal, t.senderId, { accion: "reaccionar", mid: t.mid, emoji }).then(() => {}),
         onElegirHotel: async (sede) => {
