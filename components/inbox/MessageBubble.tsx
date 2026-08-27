@@ -122,31 +122,30 @@ export function MessageBubble({
                 Respondió a tu historia
               </span>
               {/* Grande y a proporción de historia (9:16): hay que poder ver
-                  qué historia era sin abrirla. Clic para verla completa. */}
+                  qué historia era sin abrirla. Sin enlace a propósito: el
+                  archivo lo sirve Meta con cabecera de descarga, y un clic
+                  bajaba la foto en vez de mostrarla. */}
               {message.historiaUrl && historiaComo === "imagen" && (
-                <a href={message.historiaUrl} target="_blank" rel="noreferrer" className="shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={message.historiaUrl}
-                    alt="La historia que contestó"
-                    onError={() => setHistoriaComo("video")}
-                    className="h-56 w-[7.875rem] rounded-lg object-cover"
-                  />
-                </a>
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={message.historiaUrl}
+                  alt="La historia que contestó"
+                  draggable={false}
+                  onError={() => setHistoriaComo("video")}
+                  className="h-72 w-[10.125rem] shrink-0 select-none rounded-lg object-cover"
+                />
               )}
               {message.historiaUrl && historiaComo === "video" && (
-                <a href={message.historiaUrl} target="_blank" rel="noreferrer" className="shrink-0">
-                  {/* Solo la portada: 9 MB de historia no se bajan enteros por
-                      una miniatura. Se abre aparte para verla. */}
-                  <video
-                    src={message.historiaUrl}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    onError={() => setHistoriaComo("nada")}
-                    className="h-56 w-[7.875rem] rounded-lg bg-black object-cover"
-                  />
-                </a>
+                /* Se reproduce acá mismo; solo baja la portada hasta que le
+                   den play. */
+                <video
+                  src={message.historiaUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  onError={() => setHistoriaComo("nada")}
+                  className="h-72 w-[10.125rem] shrink-0 rounded-lg bg-black object-cover"
+                />
               )}
             </div>
           )}
