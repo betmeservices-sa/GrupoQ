@@ -26,6 +26,7 @@ import { mensajesAnteriores, type MetaCanal, type MetaMensaje } from "./meta-mes
 import { conexionesDe, type MetaConnection } from "./meta-store";
 import { RESPONSABLE, type Motivo, type Traspaso } from "./pasar-a-persona";
 import { decidirTurno, limiteDe } from "./sucursal-gate";
+import { sinMarkdown } from "./negritas";
 import { registrarConsumo } from "./tokens-store";
 import { TENANTS } from "./tenants";
 import type { TenantId } from "./tenants/types";
@@ -213,7 +214,7 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
       },
     );
 
-    const mid = await enviarYGuardarMeta(cx, t.canal, t.senderId, respuesta.texto, ia);
+    const mid = await enviarYGuardarMeta(cx, t.canal, t.senderId, sinMarkdown(respuesta.texto), ia);
 
     // El consumo se registra AUNQUE falle el envío: los tokens ya se gastaron.
     await registrarConsumo({

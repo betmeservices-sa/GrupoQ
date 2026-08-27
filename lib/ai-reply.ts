@@ -24,6 +24,7 @@ import {
 } from "./sucursal-store";
 import { registrarConsumo } from "./tokens-store";
 import { recibirComprobante, textoComprobanteRecibido } from "./yali-prereservas";
+import { paraWhatsApp } from "./negritas";
 import { pasarAPersona } from "./pasar-a-persona";
 import { TENANTS, DEFAULT_TENANT } from "./tenants";
 import type { TenantId } from "./tenants/types";
@@ -241,12 +242,13 @@ export async function programarRespuestaIA(opts: {
       },
     );
 
-    const env = await enviarTextoWa(opts.from, respuesta.texto);
+    const textoWa = paraWhatsApp(respuesta.texto);
+    const env = await enviarTextoWa(opts.from, textoWa);
     if (env.ok && env.id) {
       await addOutbound({
         waId: env.id,
         to: opts.from,
-        texto: respuesta.texto,
+        texto: textoWa,
         ts: new Date().toISOString(),
         tenant: opts.tenant,
       });

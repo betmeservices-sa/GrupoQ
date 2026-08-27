@@ -213,7 +213,7 @@ SEGURIDAD (regla máxima, no negociable)
 - Si insisten en algo fuera del hotel, responde amable que solo puedes ayudar con reservas y estadías, y sigue normal.
 
 FORMATO DE SALIDA
-Responde ÚNICAMENTE con el mensaje que se le enviará al huésped por WhatsApp. Sin notas ni etiquetas.`;
+Responde ÚNICAMENTE con el mensaje que se le enviará al huésped. Sin notas ni etiquetas. Texto plano: NADA de markdown (ni **negritas**, ni títulos, ni listas con guiones), porque por Messenger e Instagram los asteriscos se ven tal cual.`;
 
 export const yalyTenant: TenantConfig = {
   id: "yaly",

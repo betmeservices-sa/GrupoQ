@@ -15,6 +15,7 @@ import { tenantFromRequest } from "@/lib/tenants/server";
 import { TENANTS } from "@/lib/tenants";
 import { generarRespuesta, type TurnoIA } from "@/lib/ai";
 import { decidirTurno, limiteDe } from "@/lib/sucursal-gate";
+import { sinMarkdown } from "@/lib/negritas";
 import { RESPONSABLE, type Motivo } from "@/lib/pasar-a-persona";
 import {
   preReservaViva,
@@ -154,7 +155,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       tipo: "ia",
-      respuesta: r.texto,
+      respuesta: sinMarkdown(r.texto),
       reacciones,
       traspaso,
       uso: { llamadas: r.llamadas, entrada: r.uso.input_tokens, salida: r.uso.output_tokens, modelo: r.modelo },
