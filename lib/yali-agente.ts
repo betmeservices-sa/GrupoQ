@@ -17,6 +17,7 @@ import {
 } from "./tenants/yali-inventario";
 import { cargarLibro, disponibilidad, hoyYali, type OpcionYali } from "./yali-pms";
 import { crearReservaYali, solapeYali } from "./yali-reservas";
+import { disponibilidadEnVivo, escrituraHabilitada, reservarEnVivo, sedeEnVivo } from "./yali-cloudbeds";
 
 // Cuántos días de libro se cargan alrededor del rango consultado. Sobra para
 // cualquier estadía de vacaciones y evita barrer un año entero por gusto.
@@ -65,7 +66,8 @@ function rangoValido(
 // esta advertencia pegada: el agente puede cotizar, pero no puede presentarla
 // como cerrada.
 function notaTarifas(sede: SedeYali): string | undefined {
-  if (sede.tarifasConfirmadas) return undefined;
+  // Con Cloudbeds conectado la tarifa es la real: no hay nada que advertir.
+  if (sede.tarifasConfirmadas || sedeEnVivo(sede.id)) return undefined;
   return "Estas tarifas son de referencia mientras el hotel termina de cargar su lista de precios. Puedes darlas, pero aclara en una frase corta que el equipo confirma el precio final.";
 }
 
@@ -93,8 +95,14 @@ export async function consultarDisponibilidadYali(
 
   const adultos = Math.max(1, Number(input.adultos) || 1);
   const ninos = Math.max(0, Number(input.ninos) || 0);
-  const libro = cargarLibro(sumarDias(hoy, -3), VENTANA_DIAS);
-  const opciones = disponibilidad(sede, libro, rango.desde, rango.hasta, adultos + ninos);
+  // Primero el Cloudbeds de la sede (tarifas y disponibilidad reales). Si no
+  // hay llave, o Cloudbeds no responde, el libro de demostración.
+  const enVivo = sedeEnVivo(sede.id)
+    ? await disponibilidadEnVivo(sede, rango.desde, rango.hasta, adultos, ninos, rango.n)
+    : null;
+  const opciones: OpcionYali[] =
+    enVivo ??
+    disponibilidad(sede, cargarLibro(sumarDias(hoy, -3), VENTANA_DIAS), rango.desde, rango.hasta, adultos + ninos);
 
   return {
     ok: true,
@@ -113,6 +121,7 @@ export async function consultarDisponibilidadYali(
 
 export interface InputReservaYali {
   nombre?: string;
+  correo?: string;
   habitacion?: string;
   llegada?: string;
   salida?: string;
@@ -217,6 +226,35 @@ export async function reservarHabitacionYali(
     };
   }
 
+  // Con Cloudbeds conectado y la escritura habilitada, la reserva se toma
+  // allá y el número es el de Cloudbeds. Si no, queda en el registro del panel
+  // y el equipo la carga a mano.
+  let numeroCloudbeds: string | undefined;
+  if (sedeEnVivo(sede.id) && escrituraHabilitada()) {
+    const vivo = await disponibilidadEnVivo(sede, rango.desde, rango.hasta, adultos, ninos, rango.n);
+    const tipo = vivo?.find((o) => o.habitacion_id === hab.id);
+    if (!tipo) {
+      return { ok: false, motivo: "ocupada", error: `${hab.nombre} ya no está libre en esas fechas.` };
+    }
+    const r = await reservarEnVivo({
+      sede,
+      roomTypeId: tipo.roomTypeId,
+      roomRateId: tipo.roomRateId,
+      desde: rango.desde,
+      hasta: rango.hasta,
+      adultos,
+      ninos,
+      nombre,
+      correo: (input.correo ?? "").trim() || "sin-correo@yalihospitality.com",
+      telefono: input.telefono,
+      notas: input.notas?.trim() || undefined,
+    });
+    if (!r.ok) {
+      console.error("[yali] reserva en Cloudbeds falló:", r.error);
+      return { ok: false, motivo: "ocupada", error: "No se pudo tomar la reserva en el sistema del hotel. Una persona del equipo la confirma." };
+    }
+    numeroCloudbeds = r.reservationId;
+  }
   const reserva = crearReservaYali({
     sedeId: sede.id,
     sedeNombre: sede.nombre,
@@ -235,7 +273,7 @@ export async function reservarHabitacionYali(
 
   return {
     ok: true,
-    reserva: reserva.id,
+    reserva: numeroCloudbeds ?? reserva.id,
     sede: sede.nombre,
     habitacion: hab.nombre,
     llegada: rango.desde,
