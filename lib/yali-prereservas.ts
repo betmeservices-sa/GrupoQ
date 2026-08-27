@@ -415,8 +415,17 @@ export async function recibirComprobante(
   };
   await guardar(nuevo);
   if (url && url.startsWith("/api/comprobantes/")) {
-    // A la ficha del contacto, y el mensaje de la bandeja apunta al archivo
-    // guardado (no al enlace que vence).
+    // La ficha del contacto (con el nombre y correo del apartado, para que
+    // exista en Contactos) y el archivo pegado a ella; el mensaje de la
+    // bandeja apunta al archivo guardado (no al enlace que vence).
+    const [nombre, ...resto] = p.huesped.split(/s+/);
+    await upsertContacto({
+      from: contactoDeClave(clave),
+      nombre,
+      apellido: resto.join(" ") || undefined,
+      correo: p.correo ?? undefined,
+      tenant,
+    }).catch((e) => console.error("[prereservas] contacto:", e));
     await addAdjunto({
       from: contactoDeClave(clave),
       tipo: "image",
