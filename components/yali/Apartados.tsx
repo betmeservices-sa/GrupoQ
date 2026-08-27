@@ -222,7 +222,13 @@ export function ReservasPorConfirmar() {
   const { lista, cargar } = useApartados(undefined, 0, true);
   useEffect(() => {
     const t = setInterval(() => void cargar(), 60_000);
-    return () => clearInterval(t);
+    // Una reserva tomada a mano avisa para no esperar al próximo minuto.
+    const alCambiar = () => void cargar();
+    window.addEventListener("yali:reservas", alCambiar);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("yali:reservas", alCambiar);
+    };
   }, [cargar]);
   if (!lista) return null;
   const vivas = lista.filter((a) => a.estado === "pendiente_pago" || a.estado === "comprobante_recibido");

@@ -192,7 +192,11 @@ export function YaliDashboard() {
             </button>
           </div>
           {reservando && (
-            <NuevaReserva sedeInicial={tab === "general" ? undefined : tab} onCerrar={() => setReservando(false)} onCreada={() => void cargar(true)} />
+            <NuevaReserva sedeInicial={tab === "general" ? undefined : tab} onCerrar={() => setReservando(false)} onCreada={() => {
+                void cargar(true);
+                window.dispatchEvent(new Event("yali:reservas"));
+              }}
+            />
           )}
         </div>
 
