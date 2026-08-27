@@ -253,6 +253,22 @@ export async function ultimoPorConversacion(tenant?: string): Promise<ResumenMet
     ultimos.push(...filas.map(deFila));
     if (filas.length < 1000) break;
   }
+  // El último mensaje suele ser nuestro y no trae el nombre de la persona;
+  // sin esto la bandeja muestra "IG 381463" hasta que alguien abre el chat.
+  const sinNombre = ultimos.filter((m) => !m.senderName);
+  if (sinNombre.length) {
+    let qn = sb.from("meta_nombre_por_conversacion").select("canal, page_id, sender_id, sender_name");
+    if (tenant) qn = qn.eq("tenant", tenant);
+    const { data: nombres } = await qn.limit(5000);
+    const porClave = new Map<string, string>();
+    for (const n of (nombres ?? []) as { canal: string; page_id: string; sender_id: string; sender_name: string }[]) {
+      porClave.set(`${n.canal}|${n.page_id}|${n.sender_id}`, n.sender_name);
+    }
+    for (const m of sinNombre) {
+      const nombre = porClave.get(`${m.canal}|${m.pageId}|${m.senderId}`);
+      if (nombre) m.senderName = nombre;
+    }
+  }
   return { ultimos, cursor: ultimos.reduce((max, m) => Math.max(max, m.seq), 0) };
 }
 
