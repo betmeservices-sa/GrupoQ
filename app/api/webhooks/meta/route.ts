@@ -7,9 +7,16 @@ import { conexionPorActivo } from "@/lib/meta-store";
 import { nombreDelRemitente } from "@/lib/meta-perfil";
 import { autorDeCambioFeed, guardarAutorFeed } from "@/lib/meta-feed-autores";
 import { previewDeAdjunto } from "@/lib/meta-media-compartida";
+import { temaDe } from "@/lib/tema";
+import { pasarAPersonaMeta, programarRespuestaIAMeta, type TurnoMeta } from "@/lib/meta-ai-reply";
+import { TENANTS } from "@/lib/tenants";
+import type { TenantId } from "@/lib/tenants/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// La IA espera hasta 12 s de silencio antes de contestar y despues llama a
+// Claude: el turno entero cabe holgado en 60 s.
+export const maxDuration = 60;
 
 // Webhook de Messenger e Instagram (productos Messenger + Instagram de la app
 // MiAgentIA). UNA URL sirve a todos los clientes: el tenant se resuelve por el
@@ -139,6 +146,11 @@ export async function POST(req: Request) {
   }
   const canal: MetaCanal = body.object === "instagram" ? "instagram" : "facebook";
 
+  // Lo que dispara a la IA (texto, historias, fotos) y lo que va derecho a una
+  // persona (notas de voz). Se decide despues de guardar todo el lote.
+  const turnos: TurnoMeta[] = [];
+  const audios: Omit<TurnoMeta, "mid">[] = [];
+
   try {
     for (const entry of body.entry ?? []) {
       const activoId = String(entry.id ?? "");
@@ -224,8 +236,34 @@ export async function POST(req: Request) {
           historiaUrl: msg.reply_to?.story?.url,
           adjuntoMiniatura: preview.miniatura,
           adjuntoVideo: preview.video,
+          // Entrante: de qué habla. Eco desde el celular o Business Suite: lo
+          // mandó alguien del equipo sin pasar por el panel.
+          tema: esEco ? undefined : temaDe(texto),
+          staffNombre: esEco ? "Equipo" : undefined,
         });
+
+        if (esEco) continue;
+        const turno = { tenant: cx.tenant as TenantId, canal, pageId: cx.pageId, senderId };
+        if (texto.startsWith("[audio]")) {
+          audios.push(turno);
+        } else if (TENANTS[cx.tenant as TenantId]?.ai?.systemPrompt) {
+          turnos.push({ ...turno, mid: msg.mid ?? `${canal}-${senderId}-${ev.timestamp ?? Date.now()}` });
+        }
       }
+    }
+
+    // UNA NOTA DE VOZ LA ATIENDE UNA PERSONA, SIEMPRE (mismo criterio que en
+    // WhatsApp): se apaga la IA en ese chat y queda asignado a reservas.
+    for (const a of audios) {
+      const r = await pasarAPersonaMeta(a, "audio", "reservas");
+      if (!r.ok) console.error("[meta-webhook] no se pudo pasar el audio a una persona:", r.error);
+    }
+    // La IA, una vez por conversacion (el ultimo mensaje del lote manda).
+    const porChat = new Map<string, TurnoMeta>();
+    for (const t of turnos) porChat.set(`${t.canal}:${t.pageId}:${t.senderId}`, t);
+    for (const t of porChat.values()) {
+      if (audios.some((a) => a.senderId === t.senderId && a.pageId === t.pageId)) continue;
+      await programarRespuestaIAMeta(t);
     }
   } catch (e) {
     // No reventamos: respondemos 200 igual para que Meta no reintente en bucle.

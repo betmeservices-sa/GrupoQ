@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { leerSesion, sesionDeCookieHeader } from "@/lib/session";
 import { TENANTS } from "@/lib/tenants";
+import { cuentaDeUsuario } from "@/lib/usuarios";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,12 +15,17 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const sesion = await leerSesion(sesionDeCookieHeader(req.headers.get("cookie")));
   if (!sesion) return NextResponse.json({ ok: false }, { status: 401 });
+  const cuenta = sesion.usuario ? cuentaDeUsuario(sesion.usuario) : null;
   return NextResponse.json({
     ok: true,
     tenant: sesion.tenant,
     rol: sesion.rol,
     // true = cuenta de una persona: el rol no se cambia desde el navegador.
     fijo: sesion.fijo,
+    // La ficha de la persona en el equipo (s2, s3...) y su nombre: con eso el
+    // panel firma lo que manda y "Mis chats" sabe cuáles son los suyos.
+    staffId: cuenta?.tenant === sesion.tenant && !cuenta.todos ? (cuenta.staffId ?? null) : null,
+    nombre: cuenta?.nombre ?? null,
     // Cuenta de la agencia: puede cambiar de cliente, y acá va la lista.
     todos: sesion.todos,
     clientes: sesion.todos

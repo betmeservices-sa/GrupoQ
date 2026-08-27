@@ -251,7 +251,13 @@ export function MessageBubble({
       </div>
 
       <span className="mt-1 px-1 text-[10.5px] text-[var(--text-3)]">
-        {esStaff ? `${message.staffId ? nombreStaff(message.staffId) : "Asistente IA"} · ` : ""}
+        {/* Quién respondió: la ficha si la hay (Verónica, Olga), el nombre
+            si no hay ficha (cuenta de la agencia, "Equipo" desde la app de
+            Facebook), y la IA con su nombre. Sin nada: la IA de las
+            simulaciones. */}
+        {esStaff
+          ? `${message.staffId ? nombreStaff(message.staffId) : (message.staffNombre ?? "Asistente IA")} · `
+          : ""}
         {horaDe(message.ts)}
       </span>
     </div>

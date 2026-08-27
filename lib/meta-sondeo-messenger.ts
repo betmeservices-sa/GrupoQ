@@ -18,7 +18,11 @@
 // Se dispara desde el sondeo de la bandeja (cada 4 s) y se frena solo a una
 // vuelta cada 30 s por cliente: una llamada a Meta por página cada 30 s.
 
-import { addMetaLote } from "./meta-messages-store";
+import { addMetaLote, midsExistentes } from "./meta-messages-store";
+import { temaDe } from "./tema";
+import { programarRespuestaIAMeta } from "./meta-ai-reply";
+import { TENANTS } from "./tenants";
+import type { TenantId } from "./tenants/types";
 import { conexionesDe, type MetaConnection } from "./meta-store";
 import { esRespuestaAComentario } from "./respuesta-a-comentario";
 
@@ -142,9 +146,14 @@ async function conversacionesDePagina(cx: MetaConnection): Promise<ConversacionG
 async function sincronizarPagina(cx: MetaConnection, desdeMs: number): Promise<number> {
   const casa = new Set([cx.pageId, cx.igId].filter(Boolean) as string[]);
   const filas = filasDeConversaciones(await conversacionesDePagina(cx), casa, desdeMs);
+  // Qué es nuevo de verdad: lo que ya estaba (el webhook o el panel lo
+  // guardaron antes) no vuelve a disparar nada.
+  const yaEstaban = await midsExistentes(cx.tenant, filas.map((f) => f.mid));
+  const nuevas = filas.filter((f) => !yaEstaban.has(f.mid));
+
   // En un solo lote y en orden: el seq de la base es el orden de llegada.
   await addMetaLote(
-    filas.map((f) => ({
+    nuevas.map((f) => ({
       mid: f.mid,
       tenant: cx.tenant,
       canal: "facebook" as const,
@@ -154,9 +163,32 @@ async function sincronizarPagina(cx: MetaConnection, desdeMs: number): Promise<n
       texto: f.texto,
       ts: f.ts,
       direction: f.direction,
+      tema: f.direction === "in" ? temaDe(f.texto) : undefined,
+      // Salio de la pagina sin pasar por el panel: alguien del equipo desde
+      // la app de Facebook o Business Suite.
+      staffNombre: f.direction === "out" ? "Equipo" : undefined,
     })),
   );
-  return filas.length;
+
+  // La IA contesta lo nuevo que entro por aqui (los Messenger de gente sin
+  // rol en la app no llegan por webhook). Solo si el ultimo mensaje de esa
+  // conversacion es el del huesped: si ya contesto alguien, no.
+  if (TENANTS[cx.tenant as TenantId]?.ai?.systemPrompt) {
+    const ultimoPorPersona = new Map<string, (typeof filas)[number]>();
+    for (const f of filas) ultimoPorPersona.set(f.senderId, f); // filas viene en orden cronologico
+    for (const f of nuevas) {
+      if (f.direction !== "in" || f.texto.startsWith("[audio]")) continue;
+      if (ultimoPorPersona.get(f.senderId)?.mid !== f.mid) continue;
+      await programarRespuestaIAMeta({
+        tenant: cx.tenant as TenantId,
+        canal: "facebook",
+        pageId: cx.pageId,
+        senderId: f.senderId,
+        mid: f.mid,
+      });
+    }
+  }
+  return nuevas.length;
 }
 
 /**

@@ -106,7 +106,7 @@ describe("storeReducer", () => {
     expect(after).toBe(before);
   });
 
-  it("RESPUESTA_IA contesta como asistente, sin persona detrás", () => {
+  it("RESPUESTA_IA contesta como la IA, sin persona detrás", () => {
     const before = freshState();
     expect(conv(before, "v2").estado).toBe("nuevo");
     const after = storeReducer(before, {
@@ -116,7 +116,8 @@ describe("storeReducer", () => {
     });
     const added = msgs(after, "v2").at(-1)!;
     expect(added.autor).toBe("staff");
-    expect(added.staffId).toBeUndefined();
+    // La firma "ia": la burbuja la pinta con el nombre del agente del cliente.
+    expect(added.staffId).toBe("ia");
     expect(conv(after, "v2").estado).toBe("en_progreso");
     expect(conv(after, "v2").ultimoMensajeTs).toBe(added.ts);
   });

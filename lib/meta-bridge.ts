@@ -17,6 +17,8 @@ interface MetaMensajeDTO {
   historiaUrl?: string;
   adjuntoMiniatura?: string;
   adjuntoVideo?: string;
+  staffId?: string;
+  staffNombre?: string;
 }
 
 // Puente: sondea el inbox server-side y mete los mensajes reales de Messenger
@@ -62,6 +64,8 @@ export function useMetaBridge(dispatch: Dispatch<StoreAction>) {
           historiaUrl: m.historiaUrl,
           adjuntoMiniatura: m.adjuntoMiniatura,
           adjuntoVideo: m.adjuntoVideo,
+          staffId: m.staffId,
+          staffNombre: m.staffNombre,
           historico,
         });
         if (m.seq > cursor.current) cursor.current = m.seq;
@@ -95,8 +99,25 @@ export function useMetaBridge(dispatch: Dispatch<StoreAction>) {
           historiaUrl: m.historiaUrl,
           adjuntoMiniatura: m.adjuntoMiniatura,
           adjuntoVideo: m.adjuntoVideo,
+          staffId: m.staffId,
+          staffNombre: m.staffNombre,
           historico: true,
         });
+      }
+      // Asignación, estado y departamento guardados en la base: sin esto lo
+      // que Verónica se asignó vivía solo en su navegador.
+      try {
+        const rc = await fetch("/api/meta/conversaciones");
+        if (rc.ok && activo) {
+          const dc = (await rc.json()) as {
+            conversaciones: { id: string; asignado_a: string | null; estado: string | null; departamento: string | null }[];
+          };
+          for (const c of dc.conversaciones) {
+            dispatch({ type: "HIDRATAR_CONVERSACION_META", conversationId: c.id, asignado_a: c.asignado_a, estado: c.estado, departamento: c.departamento });
+          }
+        }
+      } catch {
+        // silencioso
       }
       cursor.current = data.cursor;
       return true;

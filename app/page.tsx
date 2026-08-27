@@ -5,7 +5,7 @@ import { MessageSquareDashed } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useStore } from "@/lib/store";
 import { useRole } from "@/lib/roles";
-import { ME } from "@/lib/data/seed";
+import { useYo } from "@/lib/yo";
 import { SIM_PREFIJO } from "@/lib/data/live-engine";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LiveToggle } from "@/components/shell/LiveToggle";
@@ -24,6 +24,18 @@ const FILTROS_INICIALES: Filtros = {
   departamento: "todos",
 };
 
+// Helper: persiste cambios de conversacion de Messenger/Instagram en la BD.
+async function persistirMeta(id: string, payload: Record<string, string | null>) {
+  try {
+    await fetch("/api/meta/conversaciones", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...payload }),
+    });
+  } catch {
+    // silencioso: el dato ya esta en el store local
+  }
+}
 // Helper: persiste cambios de conversacion WhatsApp en la BD.
 async function persistirWa(wa_from: string, payload: Record<string, string | null>) {
   try {
@@ -40,6 +52,9 @@ async function persistirWa(wa_from: string, payload: Record<string, string | nul
 export default function BandejaPage() {
   const { state, dispatch } = useStore();
   const { rol } = useRole();
+  // La ficha de quien esta logueado (Veronica = s2): con eso se firma lo que
+  // manda y se asigna. Un login de demo es la ficha generica del tenant.
+  const yo = useYo();
   // Solo gerencia/jefatura/dirección pueden borrar y bloquear una conversación.
   const puedeBloquear = rol === "gerente_marketing" || rol === "jefe" || rol === "admin";
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIALES);
@@ -74,7 +89,7 @@ export default function BandejaPage() {
       .filter((c) => filtros.canal === "todos" || c.canal === filtros.canal)
       .filter((c) => filtros.estado === "todos" || c.estado === filtros.estado)
       .filter((c) => {
-        if (filtros.asignacion === "mias") return c.asignadoA === ME;
+        if (filtros.asignacion === "mias") return c.asignadoA === yo;
         if (filtros.asignacion === "sin_asignar") return !c.asignadoA;
         return true;
       })
@@ -266,7 +281,7 @@ export default function BandejaPage() {
               cargandoAnteriores={hilos[activa.id]?.cargando ?? false}
               onCargarAnteriores={() => void cargarAnteriores(activa.id)}
               escribiendo={escribiendo.has(activa.id)}
-              esMia={activa.asignadoA === ME}
+              esMia={activa.asignadoA === yo}
               onBack={() => setActivaId(null)}
               onInfo={() => setCtxOpen(true)}
               onTyping={() => {
@@ -290,7 +305,7 @@ export default function BandejaPage() {
                 // Conversación de la simulación: se responde solo en el store,
                 // nunca sale un mensaje de verdad hacia un número inventado.
                 if (activa.id.startsWith(SIM_PREFIJO)) {
-                  dispatch({ type: "SEND_MESSAGE", conversationId: activa.id, texto, staffId: ME });
+                  dispatch({ type: "SEND_MESSAGE", conversationId: activa.id, texto, staffId: yo });
                   return;
                 }
                 // WhatsApp: enviamos primero por la Cloud API; si sale bien,
@@ -311,7 +326,7 @@ export default function BandejaPage() {
                     type: "SEND_MESSAGE",
                     conversationId: activa.id,
                     texto,
-                    staffId: ME,
+                    staffId: yo,
                     waId: d.id,
                   });
                   // El envio manual pausa la IA en este chat: refresca el toggle.
@@ -340,12 +355,12 @@ export default function BandejaPage() {
                     type: "SEND_MESSAGE",
                     conversationId: activa.id,
                     texto,
-                    staffId: ME,
+                    staffId: yo,
                     waId: d.id,
                   });
                   return;
                 }
-                dispatch({ type: "SEND_MESSAGE", conversationId: activa.id, texto, staffId: ME });
+                dispatch({ type: "SEND_MESSAGE", conversationId: activa.id, texto, staffId: yo });
               }}
               onSendTemplate={
                 activa.canal === "whatsapp" && contactoActivo.telefono
@@ -371,7 +386,7 @@ export default function BandejaPage() {
                         type: "SEND_MESSAGE",
                         conversationId: activa.id,
                         texto,
-                        staffId: ME,
+                        staffId: yo,
                         waId: d.id,
                       });
                       setAiRefresh((n) => n + 1);
@@ -416,7 +431,7 @@ export default function BandejaPage() {
                       texto: file.type.startsWith("image/")
                         ? "[imagen enviada]"
                         : `[documento: ${file.name}]`,
-                      staffId: ME,
+                      staffId: yo,
                       waId: d.id,
                     });
                   } else {
@@ -427,10 +442,11 @@ export default function BandejaPage() {
                 }
               }}
               onAsignarme={() => {
-                dispatch({ type: "ASSIGN", conversationId: activa.id, staffId: ME });
+                dispatch({ type: "ASSIGN", conversationId: activa.id, staffId: yo });
                 if (activa.canal === "whatsapp" && contactoActivo.telefono) {
-                  persistirWa(contactoActivo.telefono, { asignado_a: ME });
+                  persistirWa(contactoActivo.telefono, { asignado_a: yo });
                 }
+                if (activa.id.startsWith("metac-")) persistirMeta(activa.id, { asignado_a: yo });
               }}
               onResolver={() => {
                 const nuevoEstado =
@@ -443,6 +459,7 @@ export default function BandejaPage() {
                 if (activa.canal === "whatsapp" && contactoActivo.telefono) {
                   persistirWa(contactoActivo.telefono, { estado: nuevoEstado });
                 }
+                if (activa.id.startsWith("metac-")) persistirMeta(activa.id, { estado: nuevoEstado });
               }}
               onBloquear={
                 puedeBloquear && activa.canal === "whatsapp" && contactoActivo.telefono
@@ -490,6 +507,7 @@ export default function BandejaPage() {
                 if (activa.canal === "whatsapp" && contactoActivo.telefono) {
                   persistirWa(contactoActivo.telefono, { asignado_a: staffId || null });
                 }
+                if (activa.id.startsWith("metac-")) persistirMeta(activa.id, { asignado_a: staffId || null });
               }}
               onEstado={(estado: ConversationStatus) => {
                 dispatch({ type: "SET_STATUS", conversationId: activa.id, estado });

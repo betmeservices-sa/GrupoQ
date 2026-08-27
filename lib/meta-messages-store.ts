@@ -38,6 +38,12 @@ export interface MetaMensaje {
    */
   adjuntoMiniatura?: string;
   adjuntoVideo?: string;
+  /** Quién lo mandó: ficha del equipo (s2...), "ia", o nada si no se sabe. */
+  staffId?: string;
+  /** Para pintar cuando no hay ficha (cuenta de la agencia, app de Facebook). */
+  staffNombre?: string;
+  /** De qué habla (solo entrantes): day_pass, reserva, precio... */
+  tema?: string;
 }
 
 // Fallback en memoria, anclado en globalThis: en dev cada ruta compila su
@@ -73,7 +79,7 @@ const columnaHistoria = (g2.__metaHistoriaUrl ??= { hay: true });
 
 /** El error dice que falta esa columna, no otra cosa. */
 function faltaLaColumna(mensaje: string | undefined): boolean {
-  return Boolean(mensaje && /historia_url|adjunto_miniatura|adjunto_video/.test(mensaje));
+  return Boolean(mensaje && /historia_url|adjunto_miniatura|adjunto_video|staff_id|staff_nombre|tema/.test(mensaje));
 }
 
 /** Para las pruebas: volver a asumir que la columna está. */
@@ -111,6 +117,9 @@ async function guardar(m: Omit<MetaMensaje, "seq">): Promise<void> {
           historia_url: m.historiaUrl ?? null,
           adjunto_miniatura: m.adjuntoMiniatura ?? null,
           adjunto_video: m.adjuntoVideo ?? null,
+          staff_id: m.staffId ?? null,
+          staff_nombre: m.staffNombre ?? null,
+          tema: m.tema ?? null,
         }
       : base;
 
@@ -164,13 +173,38 @@ function deFila(r: Record<string, unknown>): MetaMensaje {
     historiaUrl: (r.historia_url as string | null) ?? undefined,
     adjuntoMiniatura: (r.adjunto_miniatura as string | null) ?? undefined,
     adjuntoVideo: (r.adjunto_video as string | null) ?? undefined,
+    staffId: (r.staff_id as string | null) ?? undefined,
+    staffNombre: (r.staff_nombre as string | null) ?? undefined,
+    tema: (r.tema as string | null) ?? undefined,
   };
+}
+
+/** De estos mids, cuáles ya están guardados. Para saber qué es nuevo de verdad. */
+export async function midsExistentes(tenant: string, mids: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (mids.length === 0) return out;
+  const sb = getSupabase(tenant);
+  if (!sb) {
+    for (const m of mem.rows) if (mids.includes(m.mid)) out.add(m.mid);
+    return out;
+  }
+  for (let i = 0; i < mids.length; i += 200) {
+    const { data, error } = await sb.from("meta_messages").select("mid").in("mid", mids.slice(i, i + 200));
+    if (error) {
+      console.error("[meta-messages] midsExistentes:", error.message);
+      return out;
+    }
+    for (const r of (data ?? []) as { mid: string }[]) out.add(r.mid);
+  }
+  return out;
 }
 
 /** Las columnas a pedir, con o sin la de historias según lo que haya en la base. */
 function columnasMeta(): string {
   const base = "id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction";
-  return columnaHistoria.hay ? `${base}, historia_url, adjunto_miniatura, adjunto_video` : base;
+  return columnaHistoria.hay
+    ? `${base}, historia_url, adjunto_miniatura, adjunto_video, staff_id, staff_nombre, tema`
+    : base;
 }
 
 export interface ResumenMeta {
@@ -275,7 +309,7 @@ export async function getMetaSince(after: number, tenant?: string, limite = 100)
         .from("meta_messages")
         .select(
           conHistoria
-            ? "id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction, historia_url, adjunto_miniatura, adjunto_video"
+            ? "id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction, historia_url, adjunto_miniatura, adjunto_video, staff_id, staff_nombre, tema"
             : "id, mid, tenant, canal, page_id, sender_id, sender_name, texto, ts, direction",
         )
         .gt("id", after);
@@ -312,6 +346,9 @@ export async function getMetaSince(after: number, tenant?: string, limite = 100)
         historiaUrl: (r.historia_url as string | null) ?? undefined,
         adjuntoMiniatura: (r.adjunto_miniatura as string | null) ?? undefined,
         adjuntoVideo: (r.adjunto_video as string | null) ?? undefined,
+        staffId: (r.staff_id as string | null) ?? undefined,
+        staffNombre: (r.staff_nombre as string | null) ?? undefined,
+        tema: (r.tema as string | null) ?? undefined,
       }));
     }
     console.error("[meta-messages] select falló, cae a memoria:", error.message);
@@ -353,6 +390,9 @@ export async function addMetaLote(mensajes: Omit<MetaMensaje, "seq">[]): Promise
             historia_url: m.historiaUrl ?? null,
             adjunto_miniatura: m.adjuntoMiniatura ?? null,
             adjunto_video: m.adjuntoVideo ?? null,
+            staff_id: m.staffId ?? null,
+            staff_nombre: m.staffNombre ?? null,
+            tema: m.tema ?? null,
           }
         : base;
     });

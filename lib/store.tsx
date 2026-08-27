@@ -51,6 +51,13 @@ export interface StoreState {
 export type StoreAction =
   | { type: "SEND_MESSAGE"; conversationId: string; texto: string; staffId: string; waId?: string }
   | { type: "ASSIGN"; conversationId: string; staffId: string | null }
+  | {
+      type: "HIDRATAR_CONVERSACION_META";
+      conversationId: string;
+      asignado_a: string | null;
+      estado: string | null;
+      departamento: string | null;
+    }
   | { type: "SET_STATUS"; conversationId: string; estado: ConversationStatus }
   | { type: "SET_DEPARTMENT"; conversationId: string; departamento: Conversation["departamento"] }
   | { type: "MARK_READ"; conversationId: string }
@@ -113,6 +120,9 @@ export type StoreAction =
       /** Portada y video de un reel o publicación que metieron en el chat. */
       adjuntoMiniatura?: string;
       adjuntoVideo?: string;
+      /** Quién lo mandó: ficha (s2...), "ia", o el nombre si no hay ficha. */
+      staffId?: string;
+      staffNombre?: string;
       /**
        * Se está releyendo lo que ya pasó, no llegando ahora.
        *
@@ -309,11 +319,12 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
     case "RESPUESTA_IA": {
       if (!state.conversations.some((c) => c.id === action.conversationId)) return state;
       const ts = new Date().toISOString();
-      // Sin staffId: la burbuja lo muestra como "Asistente IA".
+      // Es la IA: la burbuja la pinta con el nombre del agente.
       const msg: Message = {
         id: `nia${state.idSeq}`,
         conversationId: action.conversationId,
         autor: "staff",
+        staffId: "ia",
         texto: action.texto,
         ts,
       };
@@ -555,9 +566,25 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
         historiaUrl: action.historiaUrl,
         adjuntoMiniatura: action.adjuntoMiniatura,
         adjuntoVideo: action.adjuntoVideo,
+        staffId: esEntrante ? undefined : action.staffId,
+        staffNombre: esEntrante ? undefined : action.staffNombre,
       };
 
       return { ...state, contacts, conversations, messages: [...state.messages, msg] };
+    }
+    case "HIDRATAR_CONVERSACION_META": {
+      if (!state.conversations.some((c) => c.id === action.conversationId)) return state;
+      return {
+        ...state,
+        conversations: state.conversations.map((c) => {
+          if (c.id !== action.conversationId) return c;
+          const updates: Partial<Conversation> = {};
+          if (action.asignado_a !== undefined) updates.asignadoA = action.asignado_a ?? undefined;
+          if (action.estado != null) updates.estado = action.estado as ConversationStatus;
+          if (action.departamento != null) updates.departamento = action.departamento as Conversation["departamento"];
+          return { ...c, ...updates };
+        }),
+      };
     }
     case "NUEVA_CONVERSACION_WA": {
       // Abre (o crea) el chat de WhatsApp de un contacto desde la pestaña

@@ -1,4 +1,5 @@
 import { departments, staff } from "./data/seed";
+import { activeTenant } from "@/lib/tenants/active";
 import type { DepartmentId } from "./data/types";
 
 const MESES = [
@@ -69,7 +70,14 @@ const deptById = new Map(departments.map((d) => [d.id, d]));
 
 export function nombreStaff(id?: string): string {
   if (!id) return "Sin asignar";
+  if (id === "ia") return nombreIA();
   return staffById.get(id)?.nombre ?? "Desconocido";
+}
+
+/** Cómo se llama el agente de este cliente en la bandeja: "Sofía (IA)". */
+export function nombreIA(): string {
+  const n = activeTenant().ai?.nombre;
+  return n ? `${n} (IA)` : "Asistente IA";
 }
 
 export function inicialesStaff(id?: string): string {

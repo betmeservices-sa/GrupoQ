@@ -27,7 +27,7 @@ import { sumarUso, USO_CERO, type UsoTokens } from "./tokens-precios";
 import type { MimeImagenIA } from "./wa-media";
 import type { TipoTicket } from "./tickets";
 import { areaYaliPara } from "./tickets-tenant";
-import { pasarAPersona, type Traspaso } from "./pasar-a-persona";
+import { pasarAPersona, type Motivo, type Traspaso } from "./pasar-a-persona";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -76,6 +76,12 @@ interface AccionesIA {
   onReaccionar?: (emoji: string) => Promise<void> | void;
   /** El modelo dedujo a cuál sede le escribe el huésped. */
   onElegirHotel?: (sede: SucursalTenant) => Promise<void> | void;
+  /**
+   * Cómo pasar ESTE chat a una persona (socio, pago que no cuadra, reclamo).
+   * WhatsApp lo hace por teléfono; Messenger e Instagram por su propia clave.
+   * Si no viene, se usa el camino de WhatsApp.
+   */
+  onPasarAPersona?: (motivo: Motivo, area?: string) => Promise<Traspaso>;
 }
 
 // Tags de interés del tenant, para clasificar al contacto (autos en Grupo Q,
@@ -550,7 +556,9 @@ export async function ejecutarHerramienta(
       let traspaso: Traspaso | null = null;
       if (t.tipo === "membresia" || t.tipo === "pago" || t.tipo === "queja") {
         const motivo = t.tipo === "membresia" ? "socio" : t.tipo === "pago" ? "pago" : "reclamo";
-        traspaso = await pasarAPersona(contexto?.telefono ?? "", motivo, ticket.area);
+        traspaso = acciones?.onPasarAPersona
+          ? await acciones.onPasarAPersona(motivo, ticket.area)
+          : await pasarAPersona(contexto?.telefono ?? "", motivo, ticket.area);
       }
 
       return JSON.stringify({

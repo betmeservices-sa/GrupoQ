@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { BotOff, Inbox, MessageSquare, Undo2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useStore } from "@/lib/store";
-import { ME, staff } from "@/lib/data/seed";
+import { staff } from "@/lib/data/seed";
+import { useYo } from "@/lib/yo";
 import { activeTenant } from "@/lib/tenants/active";
 import type { Conversation } from "@/lib/data/types";
 
@@ -20,10 +21,11 @@ export default function MisChatsPage() {
   const { state, dispatch } = useStore();
   const router = useRouter();
   const tenant = activeTenant();
-  const yo = staff.find((s) => s.id === ME);
+  const miId = useYo();
+  const yo = staff.find((s) => s.id === miId);
 
   const mios = state.conversations
-    .filter((c) => c.asignadoA === ME)
+    .filter((c) => c.asignadoA === miId)
     .sort((a, b) => (a.ultimoMensajeTs < b.ultimoMensajeTs ? 1 : -1));
 
   const nombreSede = (id?: string) =>

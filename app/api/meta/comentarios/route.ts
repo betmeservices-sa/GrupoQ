@@ -10,6 +10,7 @@ import {
 } from "@/lib/meta-comentarios";
 import { addMetaOutbound } from "@/lib/meta-messages-store";
 import { esComentarioInstagram } from "@/lib/meta-ig-login";
+import { quienResponde } from "@/lib/staff-de-sesion";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
       // Queda en la bandeja desde ya, bajo la persona: el sondeo de Messenger
       // trae después su nombre y lo que conteste.
       if (recipientId) {
+        const quien = await quienResponde(req, tenant);
         await addMetaOutbound({
           mid,
           tenant,
@@ -82,6 +84,8 @@ export async function POST(req: Request) {
           senderId: recipientId,
           texto: (body.texto as string).trim(),
           ts: new Date().toISOString(),
+          staffId: quien.staffId,
+          staffNombre: quien.nombre,
         });
       }
       return NextResponse.json({ ok: true, privado: true, recipientId });

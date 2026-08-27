@@ -12,6 +12,9 @@ import { conexionesDe } from "@/lib/meta-store";
 import { sincronizarMessenger } from "@/lib/meta-sondeo-messenger";
 
 export const dynamic = "force-dynamic";
+// El sondeo de Messenger corre despues de la respuesta y puede disparar a la
+// IA (silencio + Claude): hasta 60 s.
+export const maxDuration = 60;
 
 // Lo que sondea el cliente: mensajes de Messenger/Instagram con seq mayor a su
 // cursor. Filtra por el tenant del dashboard (cookie ccg_tenant), así cada

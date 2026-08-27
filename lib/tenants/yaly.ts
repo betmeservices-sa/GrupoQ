@@ -250,6 +250,7 @@ export const yalyTenant: TenantConfig = {
   simulacion: yalySimulacion,
   ai: {
     systemPrompt: SYSTEM_PROMPT,
+    nombre: "Sofía",
     // Tope duro por conversación. El default es el mismo, pero queda explícito
     // acá para que se pueda subir o bajar por cliente sin tocar código.
     limiteMensajes: LIMITE_MENSAJES_IA_DEFAULT,

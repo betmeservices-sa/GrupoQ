@@ -98,6 +98,8 @@ export interface Message {
   conversationId: string;
   autor: "cliente" | "staff";
   staffId?: string;
+  /** Quién lo mandó cuando no tiene ficha (cuenta de la agencia, app de Facebook). */
+  staffNombre?: string;
   texto: string;
   ts: string; // ISO 8601
   media?: MessageMedia;

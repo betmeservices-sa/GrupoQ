@@ -61,9 +61,17 @@ export function ContextPanel({
           <ChannelBadge channel={contact.canal} showLabel />
         </div>
         <div className="mt-3">
+          {/* WhatsApp se apaga por telefono; Messenger e Instagram por la
+              clave de la conversacion (canal:pagina:persona). */}
           <ConversationAiToggle
-            from={contact.telefono}
-            visible={contact.canal === "whatsapp"}
+            from={
+              contact.canal === "whatsapp"
+                ? contact.telefono
+                : conversation.id.startsWith("metac-")
+                  ? conversation.id.slice("metac-".length).replace(/-/g, ":")
+                  : undefined
+            }
+            visible={contact.canal === "whatsapp" || conversation.id.startsWith("metac-")}
             refreshKey={aiRefresh ?? 0}
           />
         </div>
