@@ -11,6 +11,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LiveToggle } from "@/components/shell/LiveToggle";
 import { AiModeToggle } from "@/components/shell/AiModeToggle";
 import { InboxFilters, type Filtros } from "@/components/inbox/InboxFilters";
+import { PaginaToggle } from "@/components/inbox/PaginaToggle";
+import { usePaginasConectadas } from "@/lib/paginas-conectadas";
 import { ConversationList, type ListaItem } from "@/components/inbox/ConversationList";
 import { Thread } from "@/components/inbox/Thread";
 import { ContextPanel } from "@/components/inbox/ContextPanel";
@@ -58,6 +60,17 @@ export default function BandejaPage() {
   // Solo gerencia/jefatura/dirección pueden borrar y bloquear una conversación.
   const puedeBloquear = rol === "gerente_marketing" || rol === "jefe" || rol === "admin";
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIALES);
+  // "todas" o el id de una página: la bandeja de una sola marca (su
+  // Facebook y su Instagram juntos), y de ahí los filtros de siempre.
+  const [pagina, setPagina] = useState<string>("todas");
+  const paginasConectadas = usePaginasConectadas();
+  const paginas = useMemo(() => {
+    const vistas = new Map(paginasConectadas.map((p) => [p.id, p]));
+    for (const c of state.conversations) {
+      if (c.paginaId && !vistas.has(c.paginaId)) vistas.set(c.paginaId, { id: c.paginaId, nombre: c.paginaNombre ?? c.paginaId });
+    }
+    return [...vistas.values()];
+  }, [paginasConectadas, state.conversations]);
   const [activaId, setActivaId] = useState<string | null>(null);
   const [ctxOpen, setCtxOpen] = useState(false); // panel de contexto en movil
   const [aiRefresh, setAiRefresh] = useState(0); // refresca el toggle de IA por chat
@@ -86,6 +99,7 @@ export default function BandejaPage() {
 
   const items: ListaItem[] = useMemo(() => {
     return state.conversations
+      .filter((c) => pagina === "todas" || c.paginaId === pagina)
       .filter((c) => filtros.canal === "todos" || c.canal === filtros.canal)
       .filter((c) => filtros.estado === "todos" || c.estado === filtros.estado)
       .filter((c) => {
@@ -101,7 +115,7 @@ export default function BandejaPage() {
         ultimo: ultimoDe.get(conversation.id),
         escribiendo: escribiendo.has(conversation.id),
       }));
-  }, [state.conversations, filtros, contactoDe, ultimoDe, escribiendo]);
+  }, [state.conversations, filtros, pagina, contactoDe, ultimoDe, escribiendo]);
 
   const activa = activaId ? state.conversations.find((c) => c.id === activaId) ?? null : null;
   const contactoActivo = activa ? contactoDe.get(activa.contactId)! : null;
@@ -259,6 +273,7 @@ export default function BandejaPage() {
             activa ? "hidden" : "flex w-full",
           )}
         >
+          <PaginaToggle paginas={paginas} valor={pagina} onChange={setPagina} className="border-b border-line px-3.5 py-2.5" />
           <InboxFilters filtros={filtros} onChange={setFiltros} />
           <ConversationList
             items={items}

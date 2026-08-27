@@ -137,6 +137,8 @@ export interface Conversation {
   // quien atiende necesita saber a que marca le escribieron antes de contestar,
   // porque la respuesta no es la misma.
   paginaNombre?: string;
+  /** El id de esa página, para filtrar la bandeja por marca. */
+  paginaId?: string;
 }
 
 export interface InternalChannel {

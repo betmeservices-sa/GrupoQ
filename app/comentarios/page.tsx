@@ -27,6 +27,8 @@ import {
   Send,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PaginaToggle, nombreCortoDePagina } from "@/components/inbox/PaginaToggle";
+import { usePaginasConectadas } from "@/lib/paginas-conectadas";
 import type { Comentario } from "@/lib/meta-comentarios";
 
 type Filtro = "pendientes" | "todos" | "ocultos";
@@ -78,6 +80,9 @@ export default function ComentariosPage() {
   const [cargando, setCargando] = useState(true);
   const [filtro, setFiltro] = useState<Filtro>("pendientes");
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [pagina, setPagina] = useState<string>("todas");
+  const paginas = usePaginasConectadas();
+  const nombreDePagina = useMemo(() => new Map(paginas.map((p) => [p.id, p.nombre])), [paginas]);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -97,7 +102,11 @@ export default function ComentariosPage() {
     return () => window.clearInterval(t);
   }, [cargar]);
 
-  const hilos = useMemo(() => armarHilos(datos?.comentarios ?? []), [datos]);
+  const todosLosHilos = useMemo(() => armarHilos(datos?.comentarios ?? []), [datos]);
+  const hilos = useMemo(
+    () => (pagina === "todas" ? todosLosHilos : todosLosHilos.filter((h) => h.c.pageId === pagina)),
+    [todosLosHilos, pagina],
+  );
   const pendientes = useMemo(() => hilos.filter((h) => !h.c.respondido && !h.c.oculto), [hilos]);
   const visibles = useMemo(() => {
     if (filtro === "ocultos") return hilos.filter((h) => h.c.oculto);
@@ -139,6 +148,7 @@ export default function ComentariosPage() {
           </div>
         ) : (
           <>
+            <PaginaToggle paginas={paginas} valor={pagina} onChange={setPagina} />
             <div className="flex flex-wrap items-center gap-2">
               <Pestana activo={filtro === "pendientes"} onClick={() => setFiltro("pendientes")}>
                 Sin responder{pendientes.length ? ` · ${pendientes.length}` : ""}
@@ -182,6 +192,11 @@ export default function ComentariosPage() {
                           {g.resumen || "Publicación sin texto"}
                         </p>
                         <p className="mt-1 text-[11.5px] text-[var(--text-3)]">
+                          {pagina === "todas" && nombreDePagina.get(g.pageId) && (
+                            <span className="mr-2 rounded bg-surface px-1.5 py-0.5 font-semibold text-[var(--text-2)] ring-1 ring-line">
+                              {nombreCortoDePagina(nombreDePagina.get(g.pageId)!)}
+                            </span>
+                          )}
                           {g.hilos.length} {g.hilos.length === 1 ? "comentario" : "comentarios"}
                           {g.enlace && (
                             <>
@@ -504,12 +519,12 @@ function Fila({
  */
 function agrupar(hs: Hilo[]) {
   const orden: string[] = [];
-  const mapa = new Map<string, { postId: string; resumen?: string; imagen?: string; enlace?: string; hilos: Hilo[] }>();
+  const mapa = new Map<string, { postId: string; pageId: string; resumen?: string; imagen?: string; enlace?: string; hilos: Hilo[] }>();
   for (const h of hs) {
     const k = h.c.postId || "sin-publicacion";
     if (!mapa.has(k)) {
       orden.push(k);
-      mapa.set(k, { postId: k, resumen: h.c.postResumen, imagen: h.c.postImagen, enlace: h.c.postEnlace, hilos: [] });
+      mapa.set(k, { postId: k, pageId: h.c.pageId, resumen: h.c.postResumen, imagen: h.c.postImagen, enlace: h.c.postEnlace, hilos: [] });
     }
     mapa.get(k)!.hilos.push(h);
   }

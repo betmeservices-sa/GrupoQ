@@ -520,6 +520,7 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
                       ? "en_progreso"
                       : c.estado,
                 paginaNombre: c.paginaNombre ?? action.paginaNombre,
+                paginaId: c.paginaId ?? action.pageId,
               }
             : c,
         );
@@ -552,6 +553,7 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
             noLeidos: cuenta ? 1 : 0,
             ultimoMensajeTs: action.ts,
             paginaNombre: action.paginaNombre,
+            paginaId: action.pageId,
           },
           ...state.conversations,
         ];

@@ -28,6 +28,9 @@ import { esRespuestaAComentario } from "./respuesta-a-comentario";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const CADA_MS = 30_000;
+// Última vuelta por página (id): así una página nueva no hereda el reloj de
+// las demás.
+const ultimaVueltaPorPagina = new Map<string, number>();
 const CONVERSACIONES = 15;
 const MENSAJES_POR_CONVERSACION = 10;
 // Margen al filtrar por fecha: el reloj de Meta y el nuestro no van iguales.
@@ -201,18 +204,21 @@ export async function sincronizarMessenger(tenant: string): Promise<void> {
   const antes = ultimaVuelta.get(tenant) ?? 0;
   if (ahora - antes < CADA_MS) return;
   ultimaVuelta.set(tenant, ahora);
-
-  // Primera vuelta de la instancia: sin filtro de fecha, se toman las últimas
-  // conversaciones enteras y el dedup descarta lo ya guardado.
-  const desdeMs = antes ? antes - MARGEN_MS : 0;
   try {
     const conexiones = await conexionesDe(tenant);
     await Promise.all(
-      conexiones.map((cx) =>
-        sincronizarPagina(cx, desdeMs).catch((e) => {
+      conexiones.map((cx) => {
+        // "Desde cuándo" es POR PÁGINA: una página recién conectada arranca
+        // en cero y baja todas sus conversaciones. Antes se usaba la última
+        // vuelta del cliente, y las páginas nuevas nunca traían su historial
+        // (solo lo que cambiara en los siguientes 30 s).
+        const antesPagina = ultimaVueltaPorPagina.get(cx.pageId) ?? 0;
+        ultimaVueltaPorPagina.set(cx.pageId, ahora);
+        const desdeMs = antesPagina ? antesPagina - MARGEN_MS : 0;
+        return sincronizarPagina(cx, desdeMs).catch((e) => {
           console.error(`[meta-sondeo] ${cx.pageName}:`, e instanceof Error ? e.message : e);
-        }),
-      ),
+        });
+      }),
     );
   } catch (e) {
     console.error("[meta-sondeo] no se pudo sondear:", e instanceof Error ? e.message : e);
