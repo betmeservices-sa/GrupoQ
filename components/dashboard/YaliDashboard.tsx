@@ -30,6 +30,7 @@ import { urlDeEnlace } from "@/lib/enlaces";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
 import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
+import { MensajesRedes } from "@/components/dashboard/MensajesRedes";
 
 // Espejo de los tipos de lib/yali-pms.ts. Se declaran acá porque el panel habla
 // con /api/yali/panel y no importa nada del servidor.
@@ -274,6 +275,9 @@ function VistaGeneral({
       </div>
 
       <Sedes panel={panel} />
+
+      {/* Lo que entra por Messenger e Instagram y de qué hablan. */}
+      <MensajesRedes />
 
       <OrigenCanales conversations={conversaciones} />
 
