@@ -316,7 +316,7 @@ export async function cargarPanelYaliVivo(dias = 14): Promise<PanelYali> {
       hasta: p.hasta,
       huespedes: p.adultos + p.ninos,
       total: p.total,
-      canal: "WhatsApp",
+      canal: p.clave.startsWith("manual:") ? "Directo" : p.clave.startsWith("wa:") ? "WhatsApp" : "Redes",
       origen: "agente",
     });
   }

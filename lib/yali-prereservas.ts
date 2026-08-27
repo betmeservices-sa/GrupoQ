@@ -448,6 +448,78 @@ export function textoComprobanteRecibido(): string {
   return "Recibí su comprobante, ¡gracias! Una persona del equipo verifica el pago y le confirma la reserva por aquí en un momento.";
 }
 
+/** A qué ficha de Contactos va este apartado: la conversación, o el teléfono si se reservó a mano. */
+function llaveDeContacto(p: PreReserva): string | null {
+  if (p.clave.startsWith("manual:")) {
+    const tel = (p.telefono ?? "").replace(/\D/g, "");
+    return tel.length >= 8 ? tel : null;
+  }
+  return contactoDeClave(p.clave);
+}
+
+/**
+ * Reservar a mano desde el panel: mismas validaciones y tarifas que Sofía,
+ * pero sin apartado ni comprobante. Queda confirmada de una vez, a nombre de
+ * quien la tomó, y sigue el mismo camino al sistema (Cloudbeds o panel).
+ */
+export async function reservarManualYali(
+  tenant: string,
+  input: InputReservaYali,
+  sedeId: string | null,
+  quien: { staffId?: string | null; nombre?: string | null },
+): Promise<ResultadoConfirmacion> {
+  const nombre = (input.nombre ?? "").trim();
+  if (!nombre) return { ok: false, error: "Falta el nombre del huésped." };
+  const adultos = Math.max(1, Number(input.adultos) || 1);
+  const ninos = Math.max(0, Number(input.ninos) || 0);
+  const disp = await consultarDisponibilidadYali(
+    { llegada: input.llegada, salida: input.salida, adultos, ninos, sede: input.sede },
+    sedeId,
+  );
+  if (!disp.ok || !disp.opciones) return { ok: false, error: disp.error ?? "No se pudo revisar la disponibilidad." };
+  const opcion = emparejarHabitacion(
+    disp.opciones.map((o) => ({ ...o, nombre: o.habitacion })),
+    input.habitacion ?? "",
+  );
+  if (!opcion) return { ok: false, error: `${input.habitacion || "Esa habitación"} no está libre para esas fechas.` };
+  const sede = (sedeId ? sedePorId(sedeId) : null) ?? sedePorNombre(disp.sede ?? "");
+  if (!sede) return { ok: false, error: "Falta el hotel." };
+  const ahora = new Date().toISOString();
+  const p: PreReserva = {
+    id: codigoDe(sede.id),
+    tenant,
+    clave: `manual:${Date.now().toString(36)}`,
+    sedeId: sede.id,
+    sedeNombre: sede.nombre,
+    habitacionId: opcion.habitacion_id,
+    habitacionNombre: opcion.habitacion,
+    huesped: nombre,
+    correo: (input.correo ?? "").trim() || null,
+    telefono: (input.telefono ?? "").trim() || null,
+    desde: disp.llegada!,
+    hasta: disp.salida!,
+    adultos,
+    ninos,
+    noches: disp.noches ?? 1,
+    total: opcion.total_estadia,
+    moneda: MONEDA_YALI,
+    notas: [`Reserva tomada a mano por ${quien.nombre ?? quien.staffId ?? "el equipo"}.`, (input.notas ?? "").trim()].filter(Boolean).join(" "),
+    estado: "comprobante_recibido",
+    comprobanteUrl: null,
+    comprobanteMid: null,
+    comprobanteTs: null,
+    vence: null,
+    confirmadaPor: null,
+    confirmadaTs: null,
+    motivoRechazo: null,
+    reservaCloudbeds: null,
+    creada: ahora,
+    actualizada: ahora,
+  };
+  await guardar(p);
+  return confirmarPreReserva(tenant, p.id, quien);
+}
+
 // ─────────────────────────── confirmar / rechazar ───────────────────────────
 
 export interface ResultadoConfirmacion {
@@ -510,10 +582,11 @@ export async function confirmarPreReserva(
   await guardar(nuevo);
   // A Contactos: quién reservó, con qué correo y qué reservó. Si falla no
   // frena la confirmación (la reserva ya está tomada).
-  try {
+  const llave = llaveDeContacto(p);
+  if (llave) try {
     const [nombre, ...resto] = p.huesped.split(/\s+/);
     await upsertContacto({
-      from: contactoDeClave(p.clave),
+      from: llave,
       nombre,
       apellido: resto.join(" ") || undefined,
       correo: p.correo ?? undefined,

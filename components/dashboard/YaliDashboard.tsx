@@ -32,6 +32,7 @@ import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
 import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
 import { MensajesRedes } from "@/components/dashboard/MensajesRedes";
 import { ReservasPorConfirmar } from "@/components/yali/Apartados";
+import { NuevaReserva } from "@/components/yali/NuevaReserva";
 
 // Espejo de los tipos de lib/yali-pms.ts. Se declaran acá porque el panel habla
 // con /api/yali/panel y no importa nada del servidor.
@@ -134,6 +135,7 @@ export function YaliDashboard() {
   const [cargando, setCargando] = useState(true);
   // "general" = los tres hoteles juntos; si no, el id de la sede abierta.
   const [tab, setTab] = useState<string>("general");
+  const [reservando, setReservando] = useState(false);
 
   const cargar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCargando(true);
@@ -170,15 +172,28 @@ export function YaliDashboard() {
                 : "Los tres hoteles, ocupación y conversaciones"}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => cargar(true)}
-            disabled={cargando}
-            className="mb-1 inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
-          >
-            <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
-            Actualizar
-          </button>
+          <div className="mb-1 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setReservando(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-semibold text-white transition hover:opacity-90"
+            >
+              <BedDouble size={13} />
+              Nueva reserva
+            </button>
+            <button
+              type="button"
+              onClick={() => cargar(true)}
+              disabled={cargando}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
+            >
+              <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
+              Actualizar
+            </button>
+          </div>
+          {reservando && (
+            <NuevaReserva sedeInicial={tab === "general" ? undefined : tab} onCerrar={() => setReservando(false)} onCreada={() => void cargar(true)} />
+          )}
         </div>
 
         <nav className="-mb-px mt-3 flex gap-1 overflow-x-auto">

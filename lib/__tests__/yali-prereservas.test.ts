@@ -104,3 +104,28 @@ describe("comprobante y confirmación", () => {
     expect((await confirmarPreReserva("yaly", a.codigo!, {})).ok).toBe(false);
   });
 });
+
+describe("reservarManualYali", () => {
+  it("toma la reserva de una vez, a nombre de quien la tomó, y el contacto solo si hay teléfono", async () => {
+    const { reservarManualYali } = await import("../yali-prereservas");
+    const r = await reservarManualYali(
+      "yaly",
+      { nombre: "Carlos Ruiz", habitacion: "Planta Baja", adultos: 2, ninos: 0, telefono: "+503 7000 1234", notas: "llega tarde", ...fechas(60) },
+      "a",
+      { staffId: "s2", nombre: "Verónica" },
+    );
+    expect(r.ok).toBe(true);
+    expect(r.reserva?.estado).toBe("confirmada");
+    expect(r.reserva?.confirmadaPor).toBe("Verónica");
+    expect(r.reserva?.clave).toMatch(/^manual:/);
+    expect(r.reserva?.notas).toMatch(/tomada a mano por Verónica/);
+    expect(r.reserva?.total).toBeGreaterThan(0);
+    expect(await preReservaViva("yaly", r.reserva!.clave)).toBeNull();
+  });
+
+  it("sin nombre o con habitación que no está libre, no reserva", async () => {
+    const { reservarManualYali } = await import("../yali-prereservas");
+    expect((await reservarManualYali("yaly", { habitacion: "Planta Baja", adultos: 2, ...fechas(60) }, "a", {})).ok).toBe(false);
+    expect((await reservarManualYali("yaly", { nombre: "Ana", habitacion: "Suite Real", adultos: 2, ...fechas(60) }, "a", {})).ok).toBe(false);
+  });
+});
