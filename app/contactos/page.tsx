@@ -21,6 +21,7 @@ import { cn } from "@/lib/cn";
 import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import { telefonoBonito } from "@/lib/phone";
 import { esContactoDeMeta, etiquetaDeContacto } from "@/lib/contacto-canal";
+import { Archivos } from "@/components/contactos/Archivos";
 import { Avatar, inicialesDe } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HuespedPms } from "@/components/hotel/HuespedPms";
@@ -462,6 +463,11 @@ function Ficha({
               nombre={nombreDe(contacto)}
             />
           )}
+
+          {/* Comprobantes de pago y lo que mandó por WhatsApp. */}
+          <Seccion titulo="Archivos">
+            <Archivos from={contacto.telefono} />
+          </Seccion>
 
           {/* Etiquetas editables */}
           <Seccion titulo="Etiquetas">

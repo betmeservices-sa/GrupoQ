@@ -180,6 +180,14 @@ function deFila(r: Record<string, unknown>): MetaMensaje {
 }
 
 /** De estos mids, cuáles ya están guardados. Para saber qué es nuevo de verdad. */
+/** Reemplaza la miniatura de un mensaje (el enlace temporal de Meta por el nuestro). */
+export async function actualizarAdjuntoMeta(tenant: string, mid: string, adjuntoMiniatura: string): Promise<void> {
+  const sb = getSupabase(tenant);
+  if (!sb || !columnaHistoria.hay) return;
+  const { error } = await sb.from("meta_messages").update({ adjunto_miniatura: adjuntoMiniatura }).eq("mid", mid);
+  if (error) console.error("[meta-store] no se pudo actualizar el adjunto:", error.message);
+}
+
 export async function midsExistentes(tenant: string, mids: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (mids.length === 0) return out;

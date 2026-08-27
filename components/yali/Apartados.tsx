@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BedDouble, CheckCircle2, Clock, ExternalLink, Loader2, XCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ImagenAmpliable } from "@/components/ui/Lightbox";
 
 export interface Apartado {
   id: string;
@@ -166,14 +167,11 @@ export function ApartadoCard({
         )}
       </div>
       {a.comprobanteUrl && (
-        <a
-          href={a.comprobanteUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-brand underline"
-        >
-          Ver comprobante <ExternalLink size={11} />
-        </a>
+        <ImagenAmpliable src={a.comprobanteUrl} alt={`Comprobante de ${a.huesped}`} className="mt-2" title="Ver el comprobante en grande">
+          <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-brand underline">
+            Ver comprobante <ExternalLink size={11} />
+          </span>
+        </ImagenAmpliable>
       )}
       {vivo && (
         <div className="mt-2.5 flex gap-1.5">

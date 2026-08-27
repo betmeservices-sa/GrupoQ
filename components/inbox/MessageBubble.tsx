@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { FileText, Smile } from "lucide-react";
 import { NotaDeVoz } from "./NotaDeVoz";
 import { cn } from "@/lib/cn";
+import { ImagenAmpliable } from "@/components/ui/Lightbox";
 import { captionDeMedia, horaDe, nombreStaff } from "@/lib/format";
 import { compartidoDeTexto } from "@/lib/meta-texto-mensaje";
 import type { Message, MessageMedia } from "@/lib/data/types";
@@ -213,14 +214,14 @@ export function MessageBubble({
               {/* Una foto de Messenger o Instagram (un comprobante, casi
                   siempre). Abre en otra pestaña porque Meta la sirve para
                   descargar, no para incrustar en grande. */}
-              <a href={message.adjuntoMiniatura} target="_blank" rel="noreferrer">
+              <ImagenAmpliable src={message.adjuntoMiniatura} alt="Imagen recibida" title="Ver la imagen en grande">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={message.adjuntoMiniatura}
                   alt="Imagen recibida"
                   className="max-h-80 w-[13rem] rounded-lg object-cover"
                 />
-              </a>
+              </ImagenAmpliable>
               {message.texto.replace(/^\[imagen\]\s*/, "") && (
                 <p className="mt-1.5 whitespace-pre-wrap">{message.texto.replace(/^\[imagen\]\s*/, "")}</p>
               )}

@@ -19,7 +19,9 @@ import {
   type InputReservaYali,
 } from "./yali-agente";
 import { disponibilidadEnVivo, escrituraHabilitada, reservarEnVivo, sedeEnVivo } from "./yali-cloudbeds";
-import { upsertContacto } from "./contacts-store";
+import { addAdjunto, upsertContacto } from "./contacts-store";
+import { guardarComprobanteDesdeUrl } from "./comprobantes-store";
+import { actualizarAdjuntoMeta } from "./meta-messages-store";
 import { contactoDeClave } from "./contacto-canal";
 
 export type EstadoPreReserva = "pendiente_pago" | "comprobante_recibido" | "confirmada" | "rechazada";
@@ -392,15 +394,42 @@ export async function recibirComprobante(
   const p = await preReservaViva(tenant, clave);
   if (!p) return null;
   const ahora = new Date().toISOString();
+  // La foto se baja YA y se guarda con nosotros: el enlace de Meta caduca y
+  // además descarga en vez de mostrar. Si no se puede, queda el enlace.
+  let url = comprobante.url ?? p.comprobanteUrl;
+  let mime: string | undefined;
+  if (comprobante.url) {
+    const g = await guardarComprobanteDesdeUrl(tenant, { apartadoId: p.id, clave, url: comprobante.url }).catch(() => null);
+    if (g) {
+      url = g.ruta;
+      mime = g.mime;
+    }
+  }
   const nuevo: PreReserva = {
     ...p,
     estado: "comprobante_recibido",
-    comprobanteUrl: comprobante.url ?? p.comprobanteUrl,
+    comprobanteUrl: url,
     comprobanteMid: comprobante.mid ?? p.comprobanteMid,
     comprobanteTs: ahora,
     actualizada: ahora,
   };
   await guardar(nuevo);
+  if (url && url.startsWith("/api/comprobantes/")) {
+    // A la ficha del contacto, y el mensaje de la bandeja apunta al archivo
+    // guardado (no al enlace que vence).
+    await addAdjunto({
+      from: contactoDeClave(clave),
+      tipo: "image",
+      mime,
+      filename: `comprobante-${p.id}.${mime?.includes("png") ? "png" : "jpg"}`,
+      caption: `Comprobante de pago · ${p.id} · ${p.huesped} · ${SIMBOLO_YALI}${p.total}`,
+      ts: ahora,
+      url,
+    }).catch((e) => console.error("[prereservas] adjunto:", e));
+    if (comprobante.mid && !clave.startsWith("wa:") && !clave.startsWith("prueba:")) {
+      await actualizarAdjuntoMeta(tenant, comprobante.mid, url).catch(() => {});
+    }
+  }
   return nuevo;
 }
 

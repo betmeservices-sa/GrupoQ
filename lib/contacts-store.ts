@@ -164,9 +164,14 @@ export async function addAdjunto(a: {
   filename?: string;
   caption?: string;
   ts: string;
+  /** Archivo servido por nosotros (comprobantes), en vez del media_id de Meta. */
+  url?: string;
 }): Promise<void> {
   const sb = getSupabase();
-  if (!sb) return;
+  if (!sb) {
+    memAdjuntos.push({ id: memAdjuntos.length + 1, wa_from: a.from, tipo: a.tipo, media_id: a.mediaId ?? null, mime: a.mime ?? null, filename: a.filename ?? null, caption: a.caption ?? null, ts: a.ts, url: a.url ?? null });
+    return;
+  }
   const { error } = await sb.from("wa_adjuntos").insert({
     wa_from: a.from,
     tipo: a.tipo,
@@ -175,6 +180,38 @@ export async function addAdjunto(a: {
     filename: a.filename ?? null,
     caption: a.caption ?? null,
     ts: a.ts,
+    ...(a.url ? { url: a.url } : {}),
   });
   if (error) console.error("wa_adjuntos insert:", error.message);
+}
+
+export interface Adjunto {
+  id: number | string;
+  wa_from: string;
+  tipo: string;
+  media_id: string | null;
+  mime: string | null;
+  filename: string | null;
+  caption: string | null;
+  ts: string;
+  url: string | null;
+}
+
+const memAdjuntos: Adjunto[] = [];
+
+/** Los archivos de una ficha, lo más nuevo primero. */
+export async function listAdjuntos(from: string): Promise<Adjunto[]> {
+  const sb = getSupabase();
+  if (!sb) return memAdjuntos.filter((a) => a.wa_from === from).reverse();
+  const { data, error } = await sb
+    .from("wa_adjuntos")
+    .select("id, wa_from, tipo, media_id, mime, filename, caption, ts, url")
+    .eq("wa_from", from)
+    .order("ts", { ascending: false })
+    .limit(60);
+  if (error) {
+    console.error("wa_adjuntos list:", error.message);
+    return [];
+  }
+  return (data as Adjunto[]) ?? [];
 }
