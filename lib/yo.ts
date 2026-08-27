@@ -11,6 +11,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { ME } from "@/lib/data/seed";
 
 let fichaActual: string | null = null;
+let nombreActual: string | null = null;
 let pedida = false;
 const oyentes = new Set<() => void>();
 
@@ -24,11 +25,17 @@ async function cargar() {
   try {
     const r = await fetch("/api/auth/sesion");
     if (!r.ok) return;
-    const d = (await r.json()) as { staffId?: string | null };
+    const d = (await r.json()) as { staffId?: string | null; nombre?: string | null };
+    let cambio = false;
     if (d.staffId && d.staffId !== fichaActual) {
       fichaActual = d.staffId;
-      emitir();
+      cambio = true;
     }
+    if (d.nombre && d.nombre !== nombreActual) {
+      nombreActual = d.nombre;
+      cambio = true;
+    }
+    if (cambio) emitir();
   } catch {
     // Sin respuesta se queda con la ficha genérica.
   }
@@ -50,4 +57,20 @@ export function useYo(): string {
     void cargar();
   }, []);
   return ficha ?? ME;
+}
+
+/**
+ * Cómo se llama quien entró (de la sesión), o null si todavía no se sabe. El
+ * pie de la barra lo usa para no mostrar la ficha genérica del tenant.
+ */
+export function useYoNombre(): string | null {
+  const nombre = useSyncExternalStore(
+    subscribe,
+    () => nombreActual,
+    () => null,
+  );
+  useEffect(() => {
+    void cargar();
+  }, []);
+  return nombre;
 }

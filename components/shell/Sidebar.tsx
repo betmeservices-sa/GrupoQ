@@ -11,7 +11,8 @@ import { activeTenantId } from "@/lib/tenants/active";
 import { veModuloVoz } from "@/lib/tenants/voz";
 import { veTickets } from "@/lib/tickets-tenant";
 import { staff, ME } from "@/lib/data/seed";
-import { Avatar } from "@/components/ui/Avatar";
+import { Avatar, inicialesDe } from "@/components/ui/Avatar";
+import { useYo, useYoNombre } from "@/lib/yo";
 import { ClienteSwitcher } from "./ClienteSwitcher";
 import { Brand } from "./Brand";
 import { RoleSwitcher } from "./RoleSwitcher";
@@ -61,7 +62,15 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { def } = useRole();
-  const yo = staff.find((s) => s.id === ME)!;
+  // Quien entró: su ficha si la tiene (Verónica, Olga, Jaime), y su nombre de
+  // la sesión aunque no tenga ficha (cuenta de la agencia). Antes el pie decía
+  // siempre "Gerente de Marketing", la ficha genérica del tenant.
+  const yoId = useYo();
+  const nombreSesion = useYoNombre();
+  const ficha = staff.find((s) => s.id === yoId) ?? staff.find((s) => s.id === ME)!;
+  const yo = nombreSesion
+    ? { nombre: nombreSesion, iniciales: inicialesDe(nombreSesion) }
+    : { nombre: ficha.nombre, iniciales: ficha.iniciales };
 
   // "llamadas" y "agentes" los ve quien tiene voz contratada: la agencia
   // (miagentia) con la cuenta completa y sus costos, y cada cliente con su
@@ -118,7 +127,7 @@ export function Sidebar({
   const { estado: interno } = useInterno();
   const pendientes: Partial<Record<ModuleId, number>> = {
     "mis-chats": state.conversations
-      .filter((c) => c.asignadoA === yo.id && c.noLeidos > 0)
+      .filter((c) => c.asignadoA === ficha.id && c.noLeidos > 0)
       .reduce((n, c) => n + c.noLeidos, 0),
     interno: Object.values(sinLeerPorCanal(interno)).reduce((n, x) => n + x, 0),
   };

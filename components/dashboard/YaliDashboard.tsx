@@ -329,6 +329,10 @@ function Sedes({ panel }: { panel: Panel }) {
             </span>
           </p>
           <Franja fechas={panel.fechas} filas={sede.filas} />
+          <p className="mt-2 text-[10.5px] leading-snug text-[var(--text-3)]">
+            Próximas {panel.dias} noches por tipo de habitación: cada cuadro es una noche y el número,
+            cuántas de esas habitaciones están ocupadas. Más oscuro, más lleno.
+          </p>
         </div>
       ))}
     </div>
@@ -596,9 +600,20 @@ function Franja({ fechas, filas }: { fechas: string[]; filas: FilaOcupacion[] })
               <span
                 key={fechas[i]}
                 title={`${f.nombre} · ${fechaCorta(fechas[i])}: ${ocupadas} de ${f.unidades} ocupadas`}
-                className="h-5 flex-1 rounded-[3px] bg-brand ring-1 ring-inset ring-[var(--border-2)]"
-                style={{ opacity: pct === 0 ? 0.08 : 0.25 + pct * 0.75 }}
-              />
+                className="relative h-5 flex-1 rounded-[3px] ring-1 ring-inset ring-[var(--border-2)]"
+              >
+                {/* El color va aparte del número: si la opacidad fuera del span
+                    entero, el número se desvanecería con el cuadro. */}
+                <span
+                  className="absolute inset-0 rounded-[3px] bg-brand"
+                  style={{ opacity: pct === 0 ? 0.08 : 0.25 + pct * 0.75 }}
+                />
+                {ocupadas > 0 && (
+                  <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold leading-none text-white">
+                    {ocupadas}
+                  </span>
+                )}
+              </span>
             );
           })}
         </div>
