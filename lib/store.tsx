@@ -499,6 +499,15 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
 
       const conv = state.conversations.find((c) => c.id === conversationId);
       if (conv) {
+        // Si el contacto quedó con el nombre de relleno ("IG 381463") porque el
+        // primer mensaje que vimos no traía nombre, el primero que lo traiga lo
+        // arregla. Nunca al revés: un mensaje sin nombre no borra el que ya hay.
+        if (action.senderName) {
+          const relleno = /^(IG|FB) d{6}$/;
+          contacts = state.contacts.map((k) =>
+            k.id === contactId && relleno.test(k.nombre) ? { ...k, nombre: action.senderName! } : k,
+          );
+        }
         conversations = state.conversations.map((c) =>
           c.id === conversationId
             ? {
