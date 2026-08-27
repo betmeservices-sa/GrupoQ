@@ -132,7 +132,12 @@ export function ApartadoCard({
             {a.habitacionNombre} · {a.sedeNombre}
           </p>
         </div>
-        <span className="shrink-0 font-mono text-[11px] text-[var(--text-3)]">{a.id}</span>
+        <span className="shrink-0 font-mono text-[11px] text-[var(--text-3)]">
+          {a.clave.startsWith("prueba:") && (
+            <span className="mr-1.5 rounded bg-surface px-1 py-0.5 font-sans text-[10px] font-semibold uppercase text-[var(--text-3)] ring-1 ring-line">prueba</span>
+          )}
+          {a.id}
+        </span>
       </div>
       <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[var(--text-2)]">
         <span>

@@ -45,6 +45,7 @@ const NAV: NavItem[] = [
   { id: "comentarios", href: "/comentarios", label: "Comentarios", Icon: MsgSq },
   { id: "promociones", href: "/promociones", label: "Promociones", Icon: BadgePercent },
   { id: "perfil", href: "/perfil", label: "Perfil del agente", Icon: IdCard },
+  { id: "sofia", href: "/sofia", label: "Probar a Sofía", Icon: Bot },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },
   { id: "llamadas", href: "/llamadas", label: "Llamadas", Icon: PhoneCall },
   { id: "agentes", href: "/agentes", label: "Agentes", Icon: Bot },
@@ -116,7 +117,8 @@ export function Sidebar({
       (item.id !== "mis-chats" || veYali) &&
       (item.id !== "tickets" || tieneTickets) &&
       (item.id !== "promociones" || veYali) &&
-      (item.id !== "perfil" || veYali),
+      (item.id !== "perfil" || veYali) &&
+      (item.id !== "sofia" || veYali),
   );
 
   // Los avisos del menu: lo que espera respuesta en cada modulo.

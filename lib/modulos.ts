@@ -28,6 +28,8 @@ export type ModuleId =
   | "comentarios"
   | "promociones"
   | "perfil"
+  // Probar a Sofía: un chat de prueba contra el guion real (solo Yali).
+  | "sofia"
   | "dashboard"
   | "llamadas"
   | "agentes"
@@ -61,7 +63,7 @@ export interface RoleDef {
 // marketing no gestiona casos, asi que no lo ve.
 // "mis-chats" lo ve todo el mundo: es donde caen los chats que el agente pasa a
 // una persona, y quien atiende tiene que verlos sin depender de su rol.
-const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "dashboard", "llamadas", "agentes", "settings"];
+const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "agentes", "settings"];
 export const VE: Record<RoleId, ModuleId[]> = {
   recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "interno", "comentarios"],
   // Solo contestar: los mensajes privados y lo publico de las redes. Nada de
@@ -70,7 +72,7 @@ export const VE: Record<RoleId, ModuleId[]> = {
   marketing: ["bandeja", "mis-chats", "contactos", "cartera", "publicacion", "cobros", "redes", "comentarios", "promociones"],
   gerente_marketing: TODO,
   medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno"],
-  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "interno", "redes", "comentarios", "promociones", "perfil", "dashboard"],
+  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard"],
   admin: TODO,
 };
 
@@ -95,6 +97,7 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   comentarios: "/comentarios",
   promociones: "/promociones",
   perfil: "/perfil",
+  sofia: "/sofia",
   dashboard: "/dashboard",
   llamadas: "/llamadas",
   agentes: "/agentes",
@@ -121,6 +124,7 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname.startsWith("/comentarios")) return "comentarios";
   if (pathname.startsWith("/promociones")) return "promociones";
   if (pathname.startsWith("/perfil")) return "perfil";
+  if (pathname.startsWith("/sofia")) return "sofia";
   if (pathname.startsWith("/dashboard")) return "dashboard";
   if (pathname.startsWith("/llamadas")) return "llamadas";
   if (pathname.startsWith("/agentes")) return "agentes";
