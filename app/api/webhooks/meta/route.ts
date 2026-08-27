@@ -9,6 +9,10 @@ import { autorDeCambioFeed, guardarAutorFeed } from "@/lib/meta-feed-autores";
 import { previewDeAdjunto } from "@/lib/meta-media-compartida";
 import { temaDe } from "@/lib/tema";
 import { pasarAPersonaMeta, programarRespuestaIAMeta, type TurnoMeta } from "@/lib/meta-ai-reply";
+import { preReservaViva, recibirComprobante, textoComprobanteRecibido } from "@/lib/yali-prereservas";
+import { claveMeta } from "@/lib/meta-conversaciones";
+import { enviarYGuardarMeta, IA_STAFF_ID } from "@/lib/meta-enviar";
+import type { MetaConnection } from "@/lib/meta-store";
 import { TENANTS } from "@/lib/tenants";
 import type { TenantId } from "@/lib/tenants/types";
 
@@ -150,6 +154,8 @@ export async function POST(req: Request) {
   // persona (notas de voz). Se decide despues de guardar todo el lote.
   const turnos: TurnoMeta[] = [];
   const audios: Omit<TurnoMeta, "mid">[] = [];
+  // Fotos que llegan a un chat con habitación apartada: son el comprobante.
+  const comprobantes: { turno: Omit<TurnoMeta, "mid">; cx: MetaConnection; url?: string; mid: string }[] = [];
 
   try {
     for (const entry of body.entry ?? []) {
@@ -218,6 +224,8 @@ export async function POST(req: Request) {
         // Un reel o publicación compartida: su portada y video, para verlo
         // sin salir del panel. Si Meta no lo da, queda la tarjeta con el enlace.
         const preview = await previewDeAdjunto(cx, msg.attachments?.[0]);
+        const imagenUrl = msg.attachments?.find((a) => a.type === "image")?.payload?.url;
+        const mid = msg.mid ?? `${canal}-${senderId}-${ev.timestamp ?? Date.now()}`;
 
         const guardar = esEco ? addMetaOutbound : addMetaInbound;
         await guardar({
@@ -234,7 +242,7 @@ export async function POST(req: Request) {
           // La historia que contestaron, para poder mostrarla al lado del
           // rótulo. Meta solo la manda en ese caso.
           historiaUrl: msg.reply_to?.story?.url,
-          adjuntoMiniatura: preview.miniatura,
+          adjuntoMiniatura: preview.miniatura ?? imagenUrl,
           adjuntoVideo: preview.video,
           // Entrante: de qué habla. Eco desde el celular o Business Suite: lo
           // mandó alguien del equipo sin pasar por el panel.
@@ -246,8 +254,13 @@ export async function POST(req: Request) {
         const turno = { tenant: cx.tenant as TenantId, canal, pageId: cx.pageId, senderId };
         if (texto.startsWith("[audio]")) {
           audios.push(turno);
+        } else if (
+          texto.startsWith("[imagen]") &&
+          (await preReservaViva(cx.tenant, claveMeta(canal, cx.pageId, senderId)).catch(() => null))
+        ) {
+          comprobantes.push({ turno, cx, url: imagenUrl, mid });
         } else if (TENANTS[cx.tenant as TenantId]?.ai?.systemPrompt) {
-          turnos.push({ ...turno, mid: msg.mid ?? `${canal}-${senderId}-${ev.timestamp ?? Date.now()}` });
+          turnos.push({ ...turno, mid });
         }
       }
     }
@@ -259,10 +272,27 @@ export async function POST(req: Request) {
       if (!r.ok) console.error("[meta-webhook] no se pudo pasar el audio a una persona:", r.error);
     }
     // La IA, una vez por conversacion (el ultimo mensaje del lote manda).
+    for (const c of comprobantes) {
+      const clave = claveMeta(c.turno.canal, c.turno.pageId, c.turno.senderId);
+      const p = await recibirComprobante(c.cx.tenant, clave, { url: c.url, mid: c.mid }).catch((e) => {
+        console.error("[meta-webhook] comprobante:", e);
+        return null;
+      });
+      if (!p) continue;
+      const nombreIA = TENANTS[c.cx.tenant as TenantId]?.ai?.nombre ?? "IA";
+      await enviarYGuardarMeta(c.cx, c.turno.canal, c.turno.senderId, textoComprobanteRecibido(), {
+        staffId: IA_STAFF_ID,
+        nombre: nombreIA,
+      }).catch((e) => console.error("[meta-webhook] aviso de comprobante:", e));
+      const r = await pasarAPersonaMeta(c.turno, "pago", "reservas");
+      if (!r.ok) console.error("[meta-webhook] no se pudo pasar el comprobante a una persona:", r.error);
+      else console.warn(`[meta-webhook] ${clave}: comprobante del apartado ${p.id}, pasa a ${r.para}`);
+    }
     const porChat = new Map<string, TurnoMeta>();
     for (const t of turnos) porChat.set(`${t.canal}:${t.pageId}:${t.senderId}`, t);
     for (const t of porChat.values()) {
       if (audios.some((a) => a.senderId === t.senderId && a.pageId === t.pageId)) continue;
+      if (comprobantes.some((c) => c.turno.senderId === t.senderId && c.turno.pageId === t.pageId)) continue;
       await programarRespuestaIAMeta(t);
     }
   } catch (e) {

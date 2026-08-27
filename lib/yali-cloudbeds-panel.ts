@@ -25,6 +25,7 @@ import {
   type ReservaYali,
 } from "./yali-pms";
 import { listarReservasYali } from "./yali-reservas";
+import { listarPreReservas } from "./yali-prereservas";
 import { sumarDias } from "./cloudbeds";
 
 // ─────────────────────────── formas de Cloudbeds ───────────────────────────
@@ -295,6 +296,26 @@ export async function cargarPanelYaliVivo(dias = 14): Promise<PanelYali> {
       hasta: r.hasta,
       huespedes: r.adultos + r.ninos,
       total: r.total,
+      canal: "WhatsApp",
+      origen: "agente",
+    });
+  }
+  // Las que Verónica confirmó pero todavía no están en Cloudbeds (escritura
+  // apagada): se pintan igual, para que el panel no las pierda.
+  const confirmadas = await listarPreReservas("yaly").catch(() => []);
+  for (const p of confirmadas) {
+    if (p.estado !== "confirmada" || p.reservaCloudbeds) continue;
+    libro.push({
+      id: p.id,
+      sedeId: p.sedeId,
+      sedeNombre: p.sedeNombre,
+      habitacionId: p.habitacionId,
+      habitacionNombre: p.habitacionNombre,
+      huesped: p.huesped,
+      desde: p.desde,
+      hasta: p.hasta,
+      huespedes: p.adultos + p.ninos,
+      total: p.total,
       canal: "WhatsApp",
       origen: "agente",
     });

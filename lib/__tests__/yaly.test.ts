@@ -137,13 +137,15 @@ describe("el guion de Sofía no contradice las barandas", () => {
     for (const t of [
       "guardar_datos_contacto",
       "consultar_habitaciones",
-      "reservar_estadia",
+      "apartar_estadia",
       "crear_ticket",
       "reaccionar",
     ]) {
       expect(p).toContain(t);
     }
     expect(herramientasDeTenant("yaly").sort()).toEqual([
+      // Aparta una hora y da el total; la confirmación la hace una persona.
+      "apartar_estadia",
       "consultar_habitaciones",
       // Sale del kickoff del 24 de agosto: lo que Sofía no cierra sola tiene
       // que quedar anotado para una persona, o se pierde.
@@ -153,7 +155,6 @@ describe("el guion de Sofía no contradice las barandas", () => {
       "elegir_hotel",
       "guardar_datos_contacto",
       "reaccionar",
-      "reservar_estadia",
     ]);
     // Las del PMS son del otro hotel: aquí no existen.
     expect(p).not.toContain("consultar_disponibilidad_hotel");
@@ -169,11 +170,13 @@ describe("el guion de Sofía no contradice las barandas", () => {
     expect(p).toContain("PROMOCIONES ACTIVAS");
   });
 
-  it("no confirma un pago que no cuadra, ni inventa tarifas", () => {
-    // Cambió en el kickoff: Sofía SÍ compara el monto del comprobante contra
-    // la reserva. Lo que no puede es dejar pasar una diferencia.
-    expect(p).toMatch(/monto sea EXACTAMENTE el de la reserva/);
-    expect(p).toMatch(/no se hacen excepciones ni por un dólar/i);
+  it("no verifica el comprobante ni confirma reservas: aparta, y confirma Verónica", () => {
+    // Cambió el 27 de agosto: Sofía junta los datos, aparta una hora y pide el
+    // comprobante; el pago lo verifica Verónica y ella confirma en el panel.
+    expect(p).toMatch(/El comprobante NO lo verificas tú y NUNCA confirmas una reserva/);
+    expect(p).toMatch(/apartada UNA HORA/);
+    expect(p).toMatch(/no es reembolsable ni se cambia de fecha/);
+    expect(p).not.toMatch(/monto sea EXACTAMENTE/);
     expect(p).toMatch(/No inventes tarifas/);
   });
 

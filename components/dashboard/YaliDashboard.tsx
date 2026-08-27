@@ -31,6 +31,7 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
 import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
 import { MensajesRedes } from "@/components/dashboard/MensajesRedes";
+import { ReservasPorConfirmar } from "@/components/yali/Apartados";
 
 // Espejo de los tipos de lib/yali-pms.ts. Se declaran acá porque el panel habla
 // con /api/yali/panel y no importa nada del servidor.
@@ -274,6 +275,9 @@ function VistaGeneral({
         <MetricCard label="Tarifa media por noche vendida" valor={dinero(k.tarifaMedia)} Icon={CalendarCheck} />
         <MetricCard label="Reservas entradas por WhatsApp" valor={k.reservasDelAgente} Icon={MessageSquare} />
       </div>
+
+      {/* Lo que Sofía apartó y espera que una persona verifique el pago. */}
+      <ReservasPorConfirmar />
 
       <Sedes panel={panel} />
 

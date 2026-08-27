@@ -8,6 +8,8 @@ import { Avatar, inicialesDe } from "@/components/ui/Avatar";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { ConversationAiToggle } from "./ConversationAiToggle";
 import { VentanaIndicator } from "./VentanaIndicator";
+import { ReservaPendienteCard } from "@/components/yali/Apartados";
+import { activeTenantId } from "@/lib/tenants/active";
 import type {
   Contact,
   Conversation,
@@ -76,6 +78,23 @@ export function ContextPanel({
           />
         </div>
       </div>
+
+      {/* Lo que Sofía dejó apartado en este chat, con el botón de confirmar
+          para quien verifica el pago. Solo Yali trabaja así. */}
+      {activeTenantId() === "yaly" && (
+        <ReservaPendienteCard
+          clave={
+            contact.canal === "whatsapp"
+              ? contact.telefono
+                ? `wa:${contact.telefono}`
+                : undefined
+              : conversation.id.startsWith("metac-")
+                ? conversation.id.slice("metac-".length).replace(/-/g, ":")
+                : undefined
+          }
+          refreshKey={aiRefresh ?? 0}
+        />
+      )}
 
       <div className="space-y-2 rounded-xl border border-line bg-surface/60 p-3 text-[13px]">
         {contact.telefono && (

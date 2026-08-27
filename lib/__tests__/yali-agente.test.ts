@@ -182,7 +182,7 @@ describe("perfil que ve el dueño", () => {
       expect(c.texto.length).toBeLessThan(320);
       expect(c.texto).not.toContain("—");
       // Nada de nombres de herramientas ni de encabezados del guion.
-      expect(c.texto).not.toMatch(/consultar_habitaciones|reservar_estadia|SEGURIDAD|system/i);
+      expect(c.texto).not.toMatch(/consultar_habitaciones|apartar_estadia|SEGURIDAD|system/i);
     }
   });
 

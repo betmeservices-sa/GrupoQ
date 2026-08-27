@@ -13,10 +13,10 @@ import {
 } from "./hotel-agente";
 import {
   consultarDisponibilidadYali,
-  reservarHabitacionYali,
   type InputDisponibilidadYali,
   type InputReservaYali,
 } from "./yali-agente";
+import { apartarEstadiaYali } from "./yali-prereservas";
 import { activeTenant } from "./tenants/active";
 import { TENANTS } from "./tenants";
 import type { SucursalTenant, TenantId } from "./tenants/types";
@@ -250,9 +250,9 @@ const TOOLS_YALI: Anthropic.Tool[] = [
     },
   },
   {
-    name: "reservar_estadia",
+    name: "apartar_estadia",
     description:
-      "Toma la reserva de una habitación devuelta por consultar_habitaciones. Llámala SOLO cuando el huésped ya eligió habitación y fechas, te dio su nombre completo, y su comprobante de pago cuadra con el monto EXACTO de la reserva. Si el monto no cuadra, NO la llames: abre el caso con crear_ticket. Devuelve el número de reserva.",
+      "Deja APARTADA una hora la habitación que el huésped eligió (de las que devolvió consultar_habitaciones) y devuelve el número de apartado, el total exacto y los datos de pago para dárselos. Llámala cuando ya tengas fechas, cuántos huéspedes, la habitación, su nombre completo y su correo, ANTES de hablar de pago. NO confirma la reserva: eso lo hace una persona del equipo cuando llega el comprobante.",
     input_schema: {
       type: "object",
       properties: {
@@ -266,6 +266,7 @@ const TOOLS_YALI: Anthropic.Tool[] = [
         adultos: { type: "number", description: "Cuántos adultos se hospedan (mínimo 1)" },
         ninos: { type: "number", description: "Cuántos niños se hospedan (0 si no hay)" },
         sede: { type: "string", description: "Solo si la reserva es en una sede distinta a la del huésped" },
+        correo: { type: "string", description: "Correo del huésped, si ya lo dio" },
         notas: {
           type: "string",
           description:
@@ -460,6 +461,8 @@ export async function ejecutarHerramienta(
     tenantId?: TenantId;
     sucursal?: SucursalTenant | null;
     pedirSede?: boolean;
+    /** La conversación, para los apartados: "facebook:pagina:persona" o "wa:telefono". */
+    clave?: string;
   },
 ): Promise<string> {
   if (nombre === "guardar_datos_contacto") {
@@ -578,11 +581,14 @@ export async function ejecutarHerramienta(
       return JSON.stringify({ ok: false, error: "No se pudo abrir el caso." });
     }
   }
-  if (nombre === "reservar_estadia") {
+  if (nombre === "apartar_estadia") {
+    const tenant = contexto?.tenantId ?? "yaly";
     return JSON.stringify(
-      await reservarHabitacionYali(
+      await apartarEstadiaYali(
         { ...(input as InputReservaYali), telefono: contexto?.telefono },
         contexto?.sucursal?.id ?? null,
+        // Sin clave propia (WhatsApp) la conversación es el teléfono.
+        { tenant, clave: contexto?.clave ?? `wa:${contexto?.telefono ?? ""}` },
       ),
     );
   }
@@ -695,6 +701,8 @@ export async function generarRespuesta(
     sucursal?: SucursalTenant | null;
     /** true = no sabemos la sede y el modelo tiene que resolverla este turno. */
     pedirSede?: boolean;
+    /** La conversación, para los apartados: "facebook:pagina:persona" o "wa:telefono". */
+    clave?: string;
   },
 ): Promise<RespuestaIA> {
   const messages: Anthropic.MessageParam[] = historial.map((t) => ({

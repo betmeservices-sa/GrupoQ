@@ -209,6 +209,7 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
         tenantId: t.tenant,
         sucursal: decision.sucursal,
         pedirSede: decision.pedirSede === true,
+        clave,
       },
     );
 

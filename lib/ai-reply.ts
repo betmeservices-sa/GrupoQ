@@ -23,6 +23,8 @@ import {
   marcarPreguntaSucursal,
 } from "./sucursal-store";
 import { registrarConsumo } from "./tokens-store";
+import { recibirComprobante, textoComprobanteRecibido } from "./yali-prereservas";
+import { pasarAPersona } from "./pasar-a-persona";
 import { TENANTS, DEFAULT_TENANT } from "./tenants";
 import type { TenantId } from "./tenants/types";
 
@@ -197,6 +199,16 @@ export async function programarRespuestaIA(opts: {
     // disparó el turno). Mandarle todas las del historial multiplicaría el costo
     // de entrada en cada turno siguiente, y lo que se necesita responder es la
     // foto recién enviada.
+    // Una foto en un chat con habitación apartada es el comprobante: no lo
+    // revisa la IA, pasa a la persona que verifica el pago y confirma.
+    if (ultimo.media?.tipo === "image") {
+      const apartado = await recibirComprobante(tenantId, `wa:${opts.from}`, { mid: ultimo.waId });
+      if (apartado) {
+        await enviarYGuardar(opts.from, textoComprobanteRecibido(), tenantId);
+        await pasarAPersona(opts.from, "pago", "reservas");
+        return;
+      }
+    }
     const imagenes = await imagenesDelUltimo(ultimo, cfg.ai.imagenes === true);
     if (imagenes.length) historial[historial.length - 1].imagenes = imagenes;
 
@@ -225,6 +237,7 @@ export async function programarRespuestaIA(opts: {
         tenantId: opts.tenant,
         sucursal: decision.sucursal,
         pedirSede: decision.pedirSede === true,
+        clave: `wa:${opts.from}`,
       },
     );
 
