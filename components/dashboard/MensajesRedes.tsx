@@ -102,17 +102,21 @@ export function MensajesRedes() {
             <span className="inline-flex items-center gap-1"><Facebook size={12} className="text-[#1877f2]" /> Facebook · {datos?.porCanal.facebook ?? 0}</span>
             <span className="inline-flex items-center gap-1"><Instagram size={12} className="text-[#e1306c]" /> Instagram · {datos?.porCanal.instagram ?? 0}</span>
           </div>
-          <div className="flex h-36 items-end gap-1">
+          {/* Cada columna mide lo mismo que el contenedor (h-full): sin eso el
+              alto en porcentaje de la barra no tiene contra qué medirse y no
+              se pinta nada. */}
+          <div className="flex h-36 items-stretch gap-1">
             {(datos?.porDia ?? []).map((d) => {
               const total = d.facebook + d.instagram;
+              const pocos = (datos?.porDia.length ?? 0) <= 10;
               return (
-                <div key={d.dia} className="group relative flex min-w-0 flex-1 flex-col justify-end" title={`${diaCorto(d.dia)}: ${d.facebook} Facebook, ${d.instagram} Instagram`}>
-                  <div className="flex flex-col justify-end overflow-hidden rounded-t" style={{ height: `${(total / maxDia) * 100}%` }}>
-                    <div className="bg-[#e1306c]/80" style={{ flex: d.instagram }} />
-                    <div className="bg-[#1877f2]/80" style={{ flex: d.facebook }} />
+                <div key={d.dia} className="flex h-full min-w-0 flex-1 flex-col justify-end" title={`${diaCorto(d.dia)}: ${d.facebook} Facebook, ${d.instagram} Instagram`}>
+                  <div className="flex w-full flex-col justify-end overflow-hidden rounded-t" style={{ height: `${Math.max(total > 0 ? 3 : 0, (total / maxDia) * (pocos ? 85 : 100))}%` }}>
+                    <div className="w-full bg-[#e1306c]/80" style={{ flexGrow: d.instagram, flexBasis: 0 }} />
+                    <div className="w-full bg-[#1877f2]/80" style={{ flexGrow: d.facebook, flexBasis: 0 }} />
                   </div>
-                  {(datos?.porDia.length ?? 0) <= 10 && (
-                    <span className="mt-1 truncate text-center text-[10px] text-[var(--text-3)]">{diaCorto(d.dia)}</span>
+                  {pocos && (
+                    <span className="mt-1 h-4 shrink-0 truncate text-center text-[10px] text-[var(--text-3)]">{diaCorto(d.dia)}</span>
                   )}
                 </div>
               );

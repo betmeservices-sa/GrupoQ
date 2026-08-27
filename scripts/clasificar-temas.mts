@@ -14,6 +14,8 @@ const PAT = process.env.SUPABASE_PAT;
 const ESQUEMA = process.env.ESQUEMA || "public";
 const args = process.argv.slice(2);
 const SECO = args.includes("--seco");
+// --rehacer: también lo que quedó como "otro" (cuando cambian las reglas).
+const REHACER = args.includes("--rehacer");
 const DIAS = Number(args[args.indexOf("--dias") + 1]) || 90;
 
 if (!PAT) {
@@ -34,7 +36,7 @@ async function sql<T>(query: string): Promise<T[]> {
 
 async function main() {
   const filas = await sql<{ id: number; texto: string }>(
-    `select id, texto from ${ESQUEMA}.meta_messages where direction='in' and tema is null and ts >= now() - interval '${DIAS} days'`,
+    `select id, texto from ${ESQUEMA}.meta_messages where direction='in' and (tema is null${REHACER ? " or tema='otro'" : ""}) and ts >= now() - interval '${DIAS} days'`,
   );
   const porTema: Record<string, number[]> = {};
   for (const f of filas) (porTema[temaDe(f.texto)] ??= []).push(f.id);

@@ -19,8 +19,19 @@ describe("temaDe", () => {
     expect(temaDe("Mentiras, no existe el DePass para otros")).toBe("reclamo");
   });
 
+  it("saludos y gracias van aparte, para que 'otro' diga algo", () => {
+    expect(temaDe("Gracias")).toBe("saludo");
+    expect(temaDe("Hola")).toBe("saludo");
+    expect(temaDe("[respuesta a tu historia] Buenos días")).toBe("saludo");
+    expect(temaDe("Mucahs gracias")).toBe("otro"); // con errores no se adivina
+  });
+
+  it("las marcas de la bandeja no cuentan como texto", () => {
+    expect(temaDe("[respuesta a tu historia] Que lleva?")).toBe("otro");
+    expect(temaDe("[imagen]")).toBe("otro");
+  });
+
   it("sin señales, otro", () => {
-    expect(temaDe("Gracias")).toBe("otro");
     expect(temaDe("")).toBe("otro");
     expect(temaDe(null)).toBe("otro");
   });

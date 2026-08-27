@@ -15,6 +15,7 @@ export type Tema =
   | "ubicacion"
   | "reclamo"
   | "menu"
+  | "saludo"
   | "otro";
 
 export const TEMAS: { id: Tema; nombre: string }[] = [
@@ -26,8 +27,17 @@ export const TEMAS: { id: Tema; nombre: string }[] = [
   { id: "ubicacion", nombre: "Ubicación" },
   { id: "menu", nombre: "Menú y restaurante" },
   { id: "reclamo", nombre: "Reclamos" },
+  { id: "saludo", nombre: "Saludos y gracias" },
   { id: "otro", nombre: "Otro" },
 ];
+
+// Las marcas que pone la bandeja ("[respuesta a tu historia]", "[imagen]") no
+// dicen de qué habla la persona; se quitan antes de mirar el texto.
+const MARCAS = /\[[^\]]*\]/g;
+
+// Saludos, gracias y monosílabos: no son una pregunta. Van aparte para que
+// "Otro" no se llene de "Hola" y de verdad diga lo que no se supo clasificar.
+const SALUDO = /^(hola|hi|hello|buen[oa]s?( d[ií]as| tardes| noches)?|gracias|muchas gracias|ok|okey|vale|listo|perfecto|si|no|excelente|genial|👍|❤️|🙏|😊)[\s!.,]*$/;
 
 function normalizar(t: string): string {
   return t
@@ -52,9 +62,10 @@ const REGLAS: { tema: Tema; re: RegExp }[] = [
 
 /** El tema de un texto. "otro" cuando no calza con ninguna regla. */
 export function temaDe(texto: string | null | undefined): Tema {
-  const t = normalizar(texto ?? "");
-  if (!t.trim()) return "otro";
+  const t = normalizar((texto ?? "").replace(MARCAS, " ")).trim();
+  if (!t) return "otro";
   for (const r of REGLAS) if (r.re.test(t)) return r.tema;
+  if (SALUDO.test(t)) return "saludo";
   return "otro";
 }
 
