@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     // Cuenta de la agencia: puede cambiar de cliente, y acá va la lista.
     todos: sesion.todos,
     clientes: sesion.todos
-      ? Object.entries(TENANTS).map(([id, t]) => ({ id, nombre: t.nombreCorto || t.nombre }))
+      ? Object.entries(TENANTS).map(([id, t]) => ({ id, nombre: t.brand.nombreCorto || t.brand.nombre }))
       : undefined,
   });
 }
