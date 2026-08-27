@@ -152,14 +152,25 @@ export async function verificarSesion(valor: string | undefined | null): Promise
   return (await leerSesion(valor))?.tenant ?? null;
 }
 
-export function cookieDeSesion(valor: string, maxAge: number): string {
-  const seguro = process.env.NODE_ENV === "production" ? " Secure;" : "";
-  return `${SESSION_COOKIE}=${valor}; Path=/; HttpOnly;${seguro} SameSite=Lax; Max-Age=${maxAge}`;
+/**
+ * La sesión vale en todo miagentia.com: se entra por hub.miagentia.com y la
+ * misma sesión sirve en demo.miagentia.com y en cualquier subdominio que
+ * venga (la vuelta del OAuth de Meta, por ejemplo, cae en demo). Fuera de
+ * miagentia.com (localhost, previews de Vercel) la cookie es solo del host.
+ */
+export function dominioDeCookie(host: string | null | undefined): string {
+  const h = (host ?? "").split(":")[0].toLowerCase();
+  return h === "miagentia.com" || h.endsWith(".miagentia.com") ? " Domain=.miagentia.com;" : "";
 }
 
-export function cookieBorrada(): string {
+export function cookieDeSesion(valor: string, maxAge: number, host?: string | null): string {
   const seguro = process.env.NODE_ENV === "production" ? " Secure;" : "";
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly;${seguro} SameSite=Lax; Max-Age=0`;
+  return `${SESSION_COOKIE}=${valor}; Path=/; HttpOnly;${seguro}${dominioDeCookie(host)} SameSite=Lax; Max-Age=${maxAge}`;
+}
+
+export function cookieBorrada(host?: string | null): string {
+  const seguro = process.env.NODE_ENV === "production" ? " Secure;" : "";
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly;${seguro}${dominioDeCookie(host)} SameSite=Lax; Max-Age=0`;
 }
 
 export function sesionDeCookieHeader(cookieHeader: string | null): string | null {

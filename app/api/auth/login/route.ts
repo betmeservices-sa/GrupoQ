@@ -108,7 +108,7 @@ export async function POST(req: Request) {
     rol: acceso.rol,
     nombre: acceso.nombre,
   });
-  res.headers.append("Set-Cookie", cookieDeSesion(sesion.valor, sesion.maxAge));
+  res.headers.append("Set-Cookie", cookieDeSesion(sesion.valor, sesion.maxAge, req.headers.get("host")));
   // Abrir/renovar la ventana de 24h solo cuando se acaba de verificar el codigo.
   if (abrirVentana2fa) {
     const rem = await crear2faRecordado(usuario);
