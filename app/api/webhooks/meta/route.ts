@@ -225,6 +225,9 @@ export async function POST(req: Request) {
         // sin salir del panel. Si Meta no lo da, queda la tarjeta con el enlace.
         const preview = await previewDeAdjunto(cx, msg.attachments?.[0]);
         const imagenUrl = msg.attachments?.find((a) => a.type === "image")?.payload?.url;
+        // La nota de voz viene con su URL: se guarda para poder escucharla en
+        // la bandeja (va en la misma columna que el video de un reel).
+        const audioUrl = msg.attachments?.find((a) => a.type === "audio")?.payload?.url;
         const mid = msg.mid ?? `${canal}-${senderId}-${ev.timestamp ?? Date.now()}`;
 
         const guardar = esEco ? addMetaOutbound : addMetaInbound;
@@ -243,7 +246,7 @@ export async function POST(req: Request) {
           // rótulo. Meta solo la manda en ese caso.
           historiaUrl: msg.reply_to?.story?.url,
           adjuntoMiniatura: preview.miniatura ?? imagenUrl,
-          adjuntoVideo: preview.video,
+          adjuntoVideo: preview.video ?? audioUrl,
           // Entrante: de qué habla. Eco desde el celular o Business Suite: lo
           // mandó alguien del equipo sin pasar por el panel.
           tema: esEco ? undefined : temaDe(texto),

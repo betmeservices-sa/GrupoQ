@@ -205,6 +205,9 @@ export function MessageBubble({
               </div>
               {compartido.resto && <p className="mt-1.5 whitespace-pre-wrap">{compartido.resto}</p>}
             </>
+          ) : message.adjuntoVideo && message.texto.startsWith("[audio]") ? (
+            /* Nota de voz de Messenger o Instagram: mismo reproductor que WhatsApp. */
+            <NotaDeVoz src={message.adjuntoVideo} />
           ) : message.adjuntoMiniatura && message.texto.startsWith("[imagen]") ? (
             <>
               {/* Una foto de Messenger o Instagram (un comprobante, casi
