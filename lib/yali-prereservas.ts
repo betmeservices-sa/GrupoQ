@@ -15,6 +15,7 @@ import { SIMBOLO_YALI, MONEDA_YALI, sedePorId } from "./tenants/yali-inventario"
 import {
   consultarDisponibilidadYali,
   emparejarHabitacion,
+  fechaLarga,
   type InputReservaYali,
 } from "./yali-agente";
 import { disponibilidadEnVivo, escrituraHabilitada, reservarEnVivo, sedeEnVivo } from "./yali-cloudbeds";
@@ -258,6 +259,8 @@ export interface ResultadoApartado {
   habitacion?: string;
   llegada?: string;
   salida?: string;
+  /** Las fechas con día de la semana, para decirlas tal cual. */
+  fechas?: string;
   noches?: number;
   huespedes?: number;
   total?: number;
@@ -350,6 +353,7 @@ export async function apartarEstadiaYali(
     habitacion: p.habitacionNombre,
     llegada: p.desde,
     salida: p.hasta,
+    fechas: `del ${fechaLarga(p.desde)} al ${fechaLarga(p.hasta)}`,
     noches: p.noches,
     huespedes: adultos + ninos,
     total: p.total,

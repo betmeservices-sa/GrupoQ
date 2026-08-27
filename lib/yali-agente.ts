@@ -65,6 +65,14 @@ function rangoValido(
 // Mientras el hotel no confirme su lista de precios, la tarifa se entrega con
 // esta advertencia pegada: el agente puede cotizar, pero no puede presentarla
 // como cerrada.
+/** "jueves 15 de octubre de 2026": el modelo calcula mal los días de la semana; se los damos. */
+export function fechaLarga(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y, m - 1, d)),
+  );
+}
+
 function notaTarifas(sede: SedeYali): string | undefined {
   // Con Cloudbeds conectado la tarifa es la real: no hay nada que advertir.
   if (sede.tarifasConfirmadas || sedeEnVivo(sede.id)) return undefined;
@@ -79,6 +87,8 @@ export async function consultarDisponibilidadYali(
   sede?: string;
   llegada?: string;
   salida?: string;
+  /** Las fechas con día de la semana, para decirlas tal cual. */
+  fechas?: string;
   noches?: number;
   opciones?: OpcionYali[];
   nota?: string;
@@ -109,6 +119,7 @@ export async function consultarDisponibilidadYali(
     sede: sede.nombre,
     llegada: rango.desde,
     salida: rango.hasta,
+    fechas: `del ${fechaLarga(rango.desde)} al ${fechaLarga(rango.hasta)}`,
     noches: rango.n,
     opciones,
     nota:

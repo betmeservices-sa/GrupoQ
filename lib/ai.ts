@@ -16,7 +16,8 @@ import {
   type InputDisponibilidadYali,
   type InputReservaYali,
 } from "./yali-agente";
-import { apartarEstadiaYali } from "./yali-prereservas";
+import { apartarEstadiaYali, datosDePago } from "./yali-prereservas";
+import { AVISO_CORREGIR_PAGO, datosDePagoInventados, quitarDatosDePago } from "./datos-pago-guard";
 import { activeTenant } from "./tenants/active";
 import { TENANTS } from "./tenants";
 import type { SucursalTenant, TenantId } from "./tenants/types";
@@ -728,7 +729,11 @@ export async function generarRespuesta(
   let llamadas = 0;
   let texto = "";
 
-  for (let i = 0; i < 4; i++) {
+  // Baranda de Yali: datos de pago solo de la herramienta. Se corrige una vez
+  // pidiéndole al modelo que lo haga bien; si insiste, se recortan.
+  const vigilarPago = contexto?.tenantId === "yaly";
+  let corregidoPago = false;
+  for (let i = 0; i < 6; i++) {
     const res = await client.messages.create({
       model: MODEL,
       max_tokens: 500,
@@ -748,7 +753,20 @@ export async function generarRespuesta(
     const toolUses = res.content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
-    if (res.stop_reason !== "tool_use" || toolUses.length === 0) break;
+    if (res.stop_reason !== "tool_use" || toolUses.length === 0) {
+      if (vigilarPago && t && datosDePagoInventados(t, datosDePago())) {
+        if (!corregidoPago) {
+          console.warn("[ia] Sofía escribió datos de pago que no vienen de la herramienta; se le pide corregir.");
+          corregidoPago = true;
+          messages.push({ role: "assistant", content: res.content });
+          messages.push({ role: "user", content: AVISO_CORREGIR_PAGO });
+          continue;
+        }
+        console.error("[ia] Sofía insistió con datos de pago inventados; se recortan.");
+        texto = quitarDatosDePago(t);
+      }
+      break;
+    }
 
     messages.push({ role: "assistant", content: res.content });
     const resultados: Anthropic.ToolResultBlockParam[] = [];
