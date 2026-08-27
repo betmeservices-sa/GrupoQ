@@ -19,7 +19,6 @@ import { noches, sumarDias, hoyEnZona } from "./cloudbeds";
 import {
   MONEDA_YALI,
   SEDES_YALI,
-  hayTarifasSinConfirmar,
   unidadesDeSede,
   type HabitacionYali,
   type SedeYali,
@@ -72,7 +71,9 @@ const PESO_DIA = [0.5, 0.3, 0.28, 0.32, 0.42, 0.78, 0.88]; // dom..sáb
 
 // ─────────────────────────── libro de reservas ───────────────────────────
 
-export type CanalReserva = "WhatsApp" | "Directo" | "Booking" | "Expedia" | "Airbnb";
+// "Web" y "Redes" solo salen del PMS real (motor de reservas del sitio y
+// fuentes tipo "Redes sociales"); el libro de demostración usa los cinco primeros.
+export type CanalReserva = "WhatsApp" | "Directo" | "Booking" | "Expedia" | "Airbnb" | "Web" | "Redes";
 
 export interface ReservaYali {
   id: string;
@@ -86,8 +87,9 @@ export interface ReservaYali {
   huespedes: number;
   total: number;
   canal: CanalReserva;
-  // "demo" = la generó este motor; "agente" = la cerró Sofía por WhatsApp.
-  origen: "demo" | "agente";
+  // "demo" = la generó este motor; "agente" = la cerró Sofía por WhatsApp;
+  // "pms" = viene del Cloudbeds del hotel.
+  origen: "demo" | "agente" | "pms";
 }
 
 // Nombres de demostración. Son inventados a propósito: el hotel no nos dio su
@@ -113,7 +115,7 @@ function nombreDemo(llave: string): string {
   return `${NOMBRES_DEMO[n]} ${APELLIDOS_DEMO[a]}`;
 }
 
-const CANALES: CanalReserva[] = ["WhatsApp", "Directo", "Booking", "Expedia", "Airbnb"];
+const CANALES: CanalReserva[] = ["WhatsApp", "Directo", "Booking", "Expedia", "Airbnb", "Web", "Redes"];
 // Reparto de origen de las reservas. WhatsApp pesa porque es justo lo que el
 // agente atiende, y es el número que el dueño quiere ver crecer.
 const PESO_CANAL = [0.34, 0.22, 0.24, 0.12, 0.08];
@@ -294,6 +296,8 @@ export interface PanelSede {
   // mira al entrar a la pestaña de un hotel.
   porCanal: RepartoCanal[];
   llegadas: ReservaYali[];
+  // true = estas cifras salen del Cloudbeds del hotel; false = demostración.
+  enVivo: boolean;
 }
 
 export interface PanelYali {
@@ -302,6 +306,8 @@ export interface PanelYali {
   fechas: string[];
   moneda: string;
   tarifasConfirmadas: boolean;
+  // Nombres de las sedes que siguen en demostración (sin Cloudbeds conectado).
+  sedesDemo: string[];
   sedes: PanelSede[];
   kpis: {
     unidades: number;
@@ -328,6 +334,8 @@ export interface EntradaPanel {
   hoy: string;
   dias: number;
   ahora: string; // ISO, se inyecta para que la función siga siendo pura
+  // Ids de las sedes cuyo libro viene del PMS real.
+  enVivo?: SedeYali["id"][];
 }
 
 /** Reparto por canal de un conjunto de reservas, sin los canales en cero. */
@@ -365,6 +373,7 @@ export function construirPanelYali(e: EntradaPanel): PanelYali {
   // contaran ahí, recepción vería siempre cero salidas.
   const salidasHoy = e.libro.filter((r) => r.hasta === e.hoy);
 
+  const vivas = new Set<string>(e.enVivo ?? []);
   const sedes: PanelSede[] = e.sedes.map((sede) => {
     const dela = enVentana.filter((r) => r.sedeId === sede.id);
     const filas: FilaOcupacion[] = sede.habitaciones.map((hab) => ({
@@ -397,6 +406,7 @@ export function construirPanelYali(e: EntradaPanel): PanelYali {
       filas,
       porCanal: repartoPorCanal(dela),
       llegadas: proximasLlegadas(dela, e.hoy, 8),
+      enVivo: vivas.has(sede.id),
     };
   });
 
@@ -415,7 +425,9 @@ export function construirPanelYali(e: EntradaPanel): PanelYali {
     dias: e.dias,
     fechas,
     moneda: MONEDA_YALI,
-    tarifasConfirmadas: !hayTarifasSinConfirmar(),
+    // Con el PMS conectado las tarifas son las del hotel, no hay nada que confirmar.
+    tarifasConfirmadas: e.sedes.every((s) => s.tarifasConfirmadas || vivas.has(s.id)),
+    sedesDemo: sedes.filter((s) => !s.enVivo).map((s) => s.nombre),
     sedes,
     kpis: {
       unidades,

@@ -68,7 +68,7 @@ function esperar(ms: number) {
 
 // Un 429 NO es "no hay nada disponible": se reintenta con espera creciente y,
 // si aun así falla, se devuelve error para que arriba se caiga al respaldo.
-async function pedir<T>(
+export async function pedir<T>(
   c: CredencialesSede,
   metodo: string,
   params: Record<string, string | number>,

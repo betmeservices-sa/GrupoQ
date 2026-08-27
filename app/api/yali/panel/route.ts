@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { cargarPanelYali } from "@/lib/yali-pms";
+import { cargarPanelYaliVivo } from "@/lib/yali-cloudbeds-panel";
 import { borrarReservasYali } from "@/lib/yali-reservas";
 import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Tres hoteles, un detalle por reserva: la primera carga toma unos segundos.
+export const maxDuration = 60;
 
 // Ocupación, ingresos y llegadas de las tres sedes de Yali Hospitality.
 // Solo responde al tenant del cliente: el middleware ya validó la firma de la
@@ -17,7 +19,7 @@ export async function GET(req: Request) {
   }
   const dias = Math.min(21, Math.max(7, Number(new URL(req.url).searchParams.get("dias")) || 14));
   try {
-    return NextResponse.json({ ok: true, panel: cargarPanelYali(dias) });
+    return NextResponse.json({ ok: true, panel: await cargarPanelYaliVivo(dias) });
   } catch (e) {
     console.error("yali/panel:", e);
     return NextResponse.json({ ok: false, error: "No se pudo armar el panel en este momento." });

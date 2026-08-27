@@ -58,7 +58,7 @@ interface Reserva {
   huespedes: number;
   total: number;
   canal: string;
-  origen: "demo" | "agente";
+  origen: "demo" | "agente" | "pms";
 }
 interface PanelSede {
   id: string;
@@ -84,6 +84,7 @@ interface Panel {
   fechas: string[];
   moneda: string;
   tarifasConfirmadas: boolean;
+  sedesDemo: string[];
   sedes: PanelSede[];
   kpis: {
     unidades: number;
@@ -209,9 +210,9 @@ export function YaliDashboard() {
         {panel && !panel.tarifasConfirmadas && (
           <p className="flex items-start gap-2 rounded-xl border border-[var(--brand-accent)]/45 bg-[var(--brand-accent)]/10 px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[var(--text-2)]">
             <AlertCircle size={15} className="mt-0.5 shrink-0 text-[var(--brand-accent)]" />
-            Las tarifas y la ocupación son de demostración mientras se conecta el sistema de
-            reservas del hotel. El agente cotiza con ellas y avisa que el equipo confirma el
-            precio final.
+            {panel.sedesDemo.length >= panel.sedes.length
+              ? "Las tarifas y la ocupación son de demostración mientras se conecta el sistema de reservas del hotel. El agente cotiza con ellas y avisa que el equipo confirma el precio final."
+              : `${panel.sedesDemo.join(" y ")} sigue con cifras de demostración hasta conectar su Cloudbeds; el resto ya es real.`}
           </p>
         )}
 
