@@ -155,11 +155,11 @@ export default function BandejaPage() {
             `/api/meta/inbox?de=${encodeURIComponent(senderId)}&pagina=${encodeURIComponent(pageId)}&canal=${canal}${antes}&limite=50`,
           );
           const d = (await r.json()) as {
-            mensajes: Array<{ mid: string; canal: "facebook" | "instagram"; pageId: string; senderId: string; senderName?: string; texto: string; ts: string; direction?: "in" | "out"; historiaUrl?: string }>;
+            mensajes: Array<{ mid: string; canal: "facebook" | "instagram"; pageId: string; senderId: string; senderName?: string; texto: string; ts: string; direction?: "in" | "out"; historiaUrl?: string; adjuntoMiniatura?: string; adjuntoVideo?: string }>;
             hayMas: boolean;
           };
           for (const m of d.mensajes) {
-            dispatch({ type: "META_INCOMING", mid: m.mid, canal: m.canal, pageId: m.pageId, senderId: m.senderId, senderName: m.senderName, texto: m.texto, ts: m.ts, direction: m.direction, historiaUrl: m.historiaUrl, historico: true });
+            dispatch({ type: "META_INCOMING", mid: m.mid, canal: m.canal, pageId: m.pageId, senderId: m.senderId, senderName: m.senderName, texto: m.texto, ts: m.ts, direction: m.direction, historiaUrl: m.historiaUrl, adjuntoMiniatura: m.adjuntoMiniatura, adjuntoVideo: m.adjuntoVideo, historico: true });
           }
           hayMas = d.hayMas;
         }

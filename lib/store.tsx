@@ -110,6 +110,9 @@ export type StoreAction =
       direction?: "in" | "out";
       /** La historia que contestaron, si contestaron una. */
       historiaUrl?: string;
+      /** Portada y video de un reel o publicación que metieron en el chat. */
+      adjuntoMiniatura?: string;
+      adjuntoVideo?: string;
       /**
        * Se está releyendo lo que ya pasó, no llegando ahora.
        *
@@ -550,6 +553,8 @@ export function storeReducer(state: StoreState, action: StoreAction): StoreState
         texto: action.texto,
         ts: action.ts,
         historiaUrl: action.historiaUrl,
+        adjuntoMiniatura: action.adjuntoMiniatura,
+        adjuntoVideo: action.adjuntoVideo,
       };
 
       return { ...state, contacts, conversations, messages: [...state.messages, msg] };

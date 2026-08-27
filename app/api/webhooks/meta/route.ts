@@ -6,6 +6,7 @@ import { guardarEventoMeta } from "@/lib/meta-webhook-log";
 import { conexionPorActivo } from "@/lib/meta-store";
 import { nombreDelRemitente } from "@/lib/meta-perfil";
 import { autorDeCambioFeed, guardarAutorFeed } from "@/lib/meta-feed-autores";
+import { previewDeAdjunto } from "@/lib/meta-media-compartida";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,7 +48,10 @@ interface MetaMessagingEvent {
     mid?: string;
     text?: string;
     is_echo?: boolean;
-    attachments?: Array<{ type?: string }>;
+    attachments?: Array<{
+      type?: string;
+      payload?: { url?: string; title?: string; reel_video_id?: string; id?: string };
+    }>;
     /**
      * A qué está contestando.
      *
@@ -199,6 +203,10 @@ export async function POST(req: Request) {
           (await nombreDelRemitente(senderId, canal, cx.pageToken, Date.now(), cx.pageId, cx.igToken)) ??
           undefined;
 
+        // Un reel o publicación compartida: su portada y video, para verlo
+        // sin salir del panel. Si Meta no lo da, queda la tarjeta con el enlace.
+        const preview = await previewDeAdjunto(cx, msg.attachments?.[0]);
+
         const guardar = esEco ? addMetaOutbound : addMetaInbound;
         await guardar({
           mid: msg.mid ?? `${canal}-${senderId}-${ev.timestamp ?? Date.now()}`,
@@ -214,6 +222,8 @@ export async function POST(req: Request) {
           // La historia que contestaron, para poder mostrarla al lado del
           // rótulo. Meta solo la manda en ese caso.
           historiaUrl: msg.reply_to?.story?.url,
+          adjuntoMiniatura: preview.miniatura,
+          adjuntoVideo: preview.video,
         });
       }
     }

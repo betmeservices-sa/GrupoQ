@@ -108,6 +108,12 @@ export interface Message {
    * rótulo sin la miniatura, que es preferible a mostrar una imagen rota.
    */
   historiaUrl?: string;
+  /**
+   * Portada y video de un reel o publicación que metieron en el chat. Como
+   * la historia, los sirve Meta y vencen en unas horas.
+   */
+  adjuntoMiniatura?: string;
+  adjuntoVideo?: string;
 }
 
 export interface Conversation {

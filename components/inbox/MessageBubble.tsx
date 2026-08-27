@@ -168,6 +168,27 @@ export function MessageBubble({
                 <span className={cn("text-[11px]", esStaff ? "text-white/80" : "text-[var(--text-3)]")}>
                   {compartido.rotulo}
                 </span>
+                {/* El reel mismo, con su portada: se ve y se reproduce acá. Si
+                    el enlace de Meta ya venció, queda solo el título y "Abrir". */}
+                {message.adjuntoVideo ? (
+                  <video
+                    controls
+                    preload="none"
+                    playsInline
+                    src={message.adjuntoVideo}
+                    poster={message.adjuntoMiniatura}
+                    className="mt-1 max-h-72 w-[10rem] rounded-lg bg-black object-cover"
+                  />
+                ) : message.adjuntoMiniatura ? (
+                  <a href={compartido.url ?? message.adjuntoMiniatura} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={message.adjuntoMiniatura}
+                      alt={compartido.titulo || compartido.rotulo}
+                      className="mt-1 max-h-72 w-[10rem] rounded-lg object-cover"
+                    />
+                  </a>
+                ) : null}
                 {compartido.titulo && <span className="text-[13px] font-medium">{compartido.titulo}</span>}
                 {compartido.url && (
                   <a

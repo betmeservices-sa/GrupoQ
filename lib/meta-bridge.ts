@@ -15,6 +15,8 @@ interface MetaMensajeDTO {
   ts: string;
   direction?: "in" | "out";
   historiaUrl?: string;
+  adjuntoMiniatura?: string;
+  adjuntoVideo?: string;
 }
 
 // Puente: sondea el inbox server-side y mete los mensajes reales de Messenger
@@ -58,6 +60,8 @@ export function useMetaBridge(dispatch: Dispatch<StoreAction>) {
           ts: m.ts,
           direction: m.direction,
           historiaUrl: m.historiaUrl,
+          adjuntoMiniatura: m.adjuntoMiniatura,
+          adjuntoVideo: m.adjuntoVideo,
           historico,
         });
         if (m.seq > cursor.current) cursor.current = m.seq;
@@ -89,6 +93,8 @@ export function useMetaBridge(dispatch: Dispatch<StoreAction>) {
           ts: m.ts,
           direction: m.direction,
           historiaUrl: m.historiaUrl,
+          adjuntoMiniatura: m.adjuntoMiniatura,
+          adjuntoVideo: m.adjuntoVideo,
           historico: true,
         });
       }
