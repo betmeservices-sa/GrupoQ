@@ -10,6 +10,7 @@ import {
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { conexionesDe } from "@/lib/meta-store";
 import { sincronizarMessenger } from "@/lib/meta-sondeo-messenger";
+import { sincronizarInstagram } from "@/lib/meta-sondeo-instagram";
 
 export const dynamic = "force-dynamic";
 // El sondeo de Messenger corre despues de la respuesta y puede disparar a la
@@ -62,7 +63,7 @@ export async function GET(req: Request) {
   // Va después de la respuesta para no frenar este tick: lo que encuentre sale
   // en el que sigue, cuatro segundos más tarde. Se frena solo a una vuelta
   // cada 30 s.
-  alTerminar(() => sincronizarMessenger(tenant));
+  alTerminar(() => Promise.all([sincronizarMessenger(tenant), sincronizarInstagram(tenant)]).then(() => {}));
 
   const mensajes = await getMetaSince(Number.isFinite(after) ? after : 0, tenant, limite);
 
