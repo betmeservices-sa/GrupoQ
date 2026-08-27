@@ -27,7 +27,9 @@ export function cuerpoDeAccion(
   const recipient = { id: recipientId };
   switch (a.accion) {
     case "reaccionar": {
-      const reaction = cuentaDirecta ? a.emoji : "love";
+      // Sin el selector de variante (U+FE0F): "❤️" tal cual lo manda el
+      // teclado Meta lo rechaza con "Invalid reaction"; "❤" pelado lo acepta.
+      const reaction = cuentaDirecta ? a.emoji.replace(/️/g, "") : "love";
       return {
         cuerpo: { recipient, sender_action: "react", payload: { message_id: a.mid, reaction } },
         aplicada: cuentaDirecta ? a.emoji : "❤️",
