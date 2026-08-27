@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { setActiveTenant } from "@/lib/tenants/active";
 import { isTenantId } from "@/lib/tenants";
+import { Desplegable } from "@/components/ui/Desplegable";
 
 interface Cliente {
   id: string;
@@ -57,23 +58,22 @@ export function ClienteSwitcher() {
     }
   }
 
+  // Desplegable propio y no un <select>: el menú del select lo pinta Windows
+  // fuera de la página (feo en modo oscuro y no se ve al compartir pantalla).
+  // Abre hacia arriba porque vive al pie de la barra.
   return (
-    <label className="flex items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-2">
-      <Building2 size={15} className="shrink-0 text-[var(--text-3)]" />
-      <span className="sr-only">Cliente</span>
-      <select
-        value={estado.tenant}
-        disabled={cambiando}
-        onChange={(e) => void cambiar(e.target.value)}
-        className="min-w-0 flex-1 bg-transparent text-[12.5px] font-semibold text-[var(--text)] outline-none disabled:opacity-60"
-        title="Cambiar de cliente"
-      >
-        {estado.clientes.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.nombre}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className={"rounded-xl border border-line bg-surface/60 p-3" + (cambiando ? " pointer-events-none opacity-60" : "")}>
+      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+        <Building2 size={13} />
+        Cliente
+      </p>
+      <Desplegable
+        valor={estado.tenant}
+        onChange={(v) => void cambiar(v)}
+        etiquetaAria="Cambiar de cliente"
+        arriba
+        opciones={estado.clientes.map((c) => ({ valor: c.id, etiqueta: c.nombre }))}
+      />
+    </div>
   );
 }
