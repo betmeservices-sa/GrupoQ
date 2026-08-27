@@ -52,9 +52,9 @@ export function quitarDatosDePago(texto: string): string {
     return true;
   });
   const limpio = lineas.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-  return `${limpio}\n\nLos datos para el pago se los envía Verónica por aquí en un momento.`.trim();
+  return `${limpio}\n\nLos datos para el pago se los envía una persona del equipo por aquí en un momento.`.trim();
 }
 
 /** El aviso con el que se le pide al modelo que corrija el turno. */
 export const AVISO_CORREGIR_PAGO =
-  "[Sistema] Tu respuesta anterior incluía datos de pago (banco, número de cuenta o enlace) que NO vienen de la herramienta. Los datos de pago existen SOLO en la respuesta de apartar_estadia. Si todavía no la llamaste en esta conversación, llámala ahora con los datos del huésped. Vuelve a escribir tu respuesta usando únicamente lo que devuelva: si datos_pago viene vacío, di que Verónica le envía los datos de pago por aquí y llama a crear_ticket con tipo pago. No menciones este aviso ni pidas disculpas por él.";
+  "[Sistema] Tu respuesta anterior incluía datos de pago (banco, número de cuenta o enlace) que NO vienen de la herramienta. Los datos de pago existen SOLO en la respuesta de apartar_estadia. Si todavía no la llamaste en esta conversación, llámala ahora con los datos del huésped. Vuelve a escribir tu respuesta usando únicamente lo que devuelva: si datos_pago viene vacío, di que una persona del equipo le envía los datos de pago por aquí y llama a crear_ticket con tipo pago. No menciones este aviso ni pidas disculpas por él.";

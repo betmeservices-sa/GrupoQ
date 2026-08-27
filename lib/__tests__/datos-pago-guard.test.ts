@@ -40,10 +40,11 @@ describe("datosDePagoInventados", () => {
 });
 
 describe("quitarDatosDePago", () => {
-  it("deja el mensaje sin la cuenta ni el enlace y avisa que Verónica manda los datos", () => {
+  it("deja el mensaje sin la cuenta ni el enlace y avisa que el equipo manda los datos", () => {
     const limpio = quitarDatosDePago(INVENTADO);
     expect(limpio).not.toMatch(/2100|Agrícola|paymentlink|A nombre de/);
     expect(limpio).toMatch(/El total es \$180/);
-    expect(limpio).toMatch(/Verónica/);
+    expect(limpio).toMatch(/una persona del equipo/);
+    expect(limpio).not.toMatch(/Verónica/);
   });
 });

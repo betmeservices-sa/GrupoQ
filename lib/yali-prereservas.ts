@@ -67,7 +67,7 @@ export const ESTADOS_VIVOS: EstadoPreReserva[] = ["pendiente_pago", "comprobante
 /**
  * Los datos de pago que Sofía le pasa al huésped, tal como el hotel los cargó.
  * Sin esto Sofía no puede cobrar: el apartado queda hecho y ella avisa que
- * Verónica manda los datos.
+ * una persona del equipo manda los datos.
  */
 export function datosDePago(): string | null {
   const t = (process.env.YALI_DATOS_PAGO ?? "").trim();
@@ -365,8 +365,8 @@ export async function apartarEstadiaYali(
     apartada_minutos: APARTADO_MINUTOS,
     datos_pago: pago,
     instrucciones: pago
-      ? `Dile el total (${SIMBOLO_YALI}${p.total}), pásale los datos de pago tal cual, dile que la habitación le queda apartada ${APARTADO_MINUTOS} minutos y pídele la captura del comprobante por este mismo chat. Cuando la mande, Verónica verifica el pago y le confirma.`
-      : `El hotel todavía no cargó sus datos de pago. Dile el total (${SIMBOLO_YALI}${p.total}), que la habitación le queda apartada ${APARTADO_MINUTOS} minutos y que Verónica le manda por aquí los datos para pagar. Llama a crear_ticket con tipo "pago" para que Verónica lo haga.`,
+      ? `Dile el total (${SIMBOLO_YALI}${p.total}), pásale los datos de pago tal cual, dile que la habitación le queda apartada ${APARTADO_MINUTOS} minutos y pídele la captura del comprobante por este mismo chat. Cuando la mande, una persona del equipo verifica el pago y le confirma.`
+      : `El hotel todavía no cargó sus datos de pago. Dile el total (${SIMBOLO_YALI}${p.total}), que la habitación le queda apartada ${APARTADO_MINUTOS} minutos y que una persona del equipo le manda por aquí los datos para pagar. Llama a crear_ticket con tipo "pago" para que el equipo lo haga.`,
   };
 }
 
@@ -443,8 +443,9 @@ export async function recibirComprobante(
 }
 
 /** Lo que se le dice al huésped apenas manda el comprobante. */
-export function textoComprobanteRecibido(quienVerifica = "Verónica"): string {
-  return `Recibí su comprobante, ¡gracias! ${quienVerifica} verifica el pago y le confirma la reserva por aquí en un momento.`;
+// Sin nombres propios: al huésped se le habla de "una persona del equipo".
+export function textoComprobanteRecibido(): string {
+  return "Recibí su comprobante, ¡gracias! Una persona del equipo verifica el pago y le confirma la reserva por aquí en un momento.";
 }
 
 // ─────────────────────────── confirmar / rechazar ───────────────────────────
