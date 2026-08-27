@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { FileText, Smile } from "lucide-react";
 import { NotaDeVoz } from "./NotaDeVoz";
 import { cn } from "@/lib/cn";
+import { porNuestroProxy } from "@/lib/meta-media-proxy";
 import { ImagenAmpliable } from "@/components/ui/Lightbox";
 import { captionDeMedia, horaDe, nombreStaff } from "@/lib/format";
 import { compartidoDeTexto } from "@/lib/meta-texto-mensaje";
@@ -208,7 +209,7 @@ export function MessageBubble({
             </>
           ) : message.adjuntoVideo && message.texto.startsWith("[audio]") ? (
             /* Nota de voz de Messenger o Instagram: mismo reproductor que WhatsApp. */
-            <NotaDeVoz src={message.adjuntoVideo} />
+            <NotaDeVoz src={porNuestroProxy(message.adjuntoVideo)} />
           ) : message.adjuntoMiniatura && message.texto.startsWith("[imagen]") ? (
             <>
               {/* Una foto de Messenger o Instagram (un comprobante, casi
