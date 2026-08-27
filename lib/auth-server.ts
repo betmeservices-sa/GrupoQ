@@ -50,6 +50,8 @@ export interface Acceso {
   nombre?: string;
   /** true = el rol viene de una cuenta de persona y NO se puede cambiar. */
   fijo: boolean;
+  /** Cuenta de la agencia: puede cambiar de cliente. */
+  todos?: boolean;
 }
 
 export async function validarCredenciales(usuario: string, password: string): Promise<Acceso | null> {
@@ -68,7 +70,14 @@ export async function validarCredenciales(usuario: string, password: string): Pr
     const propia = await claveCorrecta(u, password);
     const ok = propia === null ? Boolean(buscarCuenta(u, password)) : propia;
     if (ok) {
-      return { tenant: cuenta.tenant, rol: cuenta.rol, nombre: cuenta.nombre, fijo: true, usuario: cuenta.usuario };
+      return {
+        tenant: cuenta.tenant,
+        rol: cuenta.rol,
+        nombre: cuenta.nombre,
+        fijo: true,
+        usuario: cuenta.usuario,
+        todos: cuenta.todos === true,
+      };
     }
     return null;
   }

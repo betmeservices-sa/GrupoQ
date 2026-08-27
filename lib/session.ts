@@ -74,6 +74,8 @@ export interface Sesion {
   fijo: boolean;
   /** Quien entro. Vacio en los logins de demo, que no son de nadie. */
   usuario?: string;
+  /** Cuenta de la agencia: puede cambiar de cliente sin volver a entrar. */
+  todos: boolean;
 }
 
 /**
@@ -92,12 +94,16 @@ export async function crearSesion(
   rol: RoleId = "gerente_marketing",
   fijo = false,
   usuario = "",
+  todos = false,
 ): Promise<{ valor: string; maxAge: number } | null> {
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SEG;
   // El usuario va en base64url: puede traer @ y puntos, y el punto es el
   // separador de la cookie. Sin esto, un correo parte la cookie en pedazos.
   const u = usuario ? Buffer.from(usuario, "utf8").toString("base64url") : "-";
-  const payload = `${tenant}.${rol}.${fijo ? "1" : "0"}.${u}.${exp}`;
+  // El tercer campo: 0 = demo, 1 = cuenta de persona, 2 = cuenta de la agencia
+  // (fija y con acceso a todos los clientes). Va dentro de la firma.
+  const marca = todos ? "2" : fijo ? "1" : "0";
+  const payload = `${tenant}.${rol}.${marca}.${u}.${exp}`;
   const sig = await firmar(payload);
   if (!sig) return null;
   return { valor: `${payload}.${sig}`, maxAge: MAX_AGE_SEG };
@@ -117,7 +123,7 @@ export async function leerSesion(valor: string | undefined | null): Promise<Sesi
     if (!vigente(expStr)) return null;
     const esperada = await firmar(`${tenant}.${expStr}`);
     if (!esperada || !igualesEnTiempoConstante(sig, esperada)) return null;
-    return { tenant, rol: "gerente_marketing", fijo: false };
+    return { tenant, rol: "gerente_marketing", fijo: false, todos: false };
   }
 
   if (partes.length !== 6) return null;
@@ -139,7 +145,13 @@ export async function leerSesion(valor: string | undefined | null): Promise<Sesi
     }
   }
 
-  return { tenant, rol: rol as RoleId, fijo: fijoStr === "1", usuario };
+  return {
+    tenant,
+    rol: rol as RoleId,
+    fijo: fijoStr === "1" || fijoStr === "2",
+    todos: fijoStr === "2",
+    usuario,
+  };
 }
 
 function vigente(expStr: string): boolean {

@@ -93,7 +93,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const sesion = await crearSesion(acceso.tenant, acceso.rol, acceso.fijo, acceso.usuario ?? "");
+  const sesion = await crearSesion(
+    acceso.tenant,
+    acceso.rol,
+    acceso.fijo,
+    acceso.usuario ?? "",
+    acceso.todos === true,
+  );
   if (!sesion) {
     // Fail-closed: falta SESSION_SECRET en el servidor. No emitimos una sesion
     // insegura; el operador debe configurar la variable.
@@ -107,6 +113,7 @@ export async function POST(req: Request) {
     tenant: acceso.tenant,
     rol: acceso.rol,
     nombre: acceso.nombre,
+    todos: acceso.todos === true,
   });
   res.headers.append("Set-Cookie", cookieDeSesion(sesion.valor, sesion.maxAge, req.headers.get("host")));
   // Abrir/renovar la ventana de 24h solo cuando se acaba de verificar el codigo.

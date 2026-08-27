@@ -10,6 +10,10 @@
 //
 //   USUARIOS="correo|contraseña|tenant|rol|Nombre Visible|staffId,otro|..."
 //
+// El tenant puede ser "*": la cuenta es de la agencia y entra a TODOS los
+// clientes (aterriza en el panel de MiAgentIA y cambia de cliente desde el
+// menú). Es para el equipo de MiAgentIA, no para gente de un cliente.
+//
 // El último campo une la cuenta con su ficha del equipo (s2, s3...), que es lo
 // que usa el chat interno para saber quién escribe.
 //
@@ -33,6 +37,8 @@ export interface CuentaUsuario {
    * puede participar del chat interno.
    */
   staffId?: string;
+  /** Cuenta de la agencia: puede entrar a cualquier cliente. */
+  todos?: boolean;
 }
 
 const ROLES_VALIDOS = new Set<RoleId>([
@@ -67,14 +73,17 @@ function desdeEnv(): CuentaUsuario[] | null {
       .split("|")
       .map((x) => x.trim());
     if (!usuario || !password || !tenant || !rol) continue;
-    if (!isTenantId(tenant) || !esRol(rol)) continue;
+    const todos = tenant === "*";
+    const tenantReal = todos ? "miagentia" : tenant;
+    if (!isTenantId(tenantReal) || !esRol(rol)) continue;
     cuentas.push({
       usuario: usuario.toLowerCase(),
       password,
-      tenant,
+      tenant: tenantReal,
       rol,
       nombre: nombre || usuario,
       staffId: staffId || undefined,
+      todos,
     });
   }
   return cuentas.length > 0 ? cuentas : null;
