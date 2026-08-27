@@ -27,7 +27,7 @@ describe("textoDeMensajeGraph", () => {
     expect(textoDeMensajeGraph({ message: "hola" })).toBe("hola");
   });
   it("marca adjuntos por tipo", () => {
-    expect(textoDeMensajeGraph({ attachments: { data: [{ mime_type: "image/jpeg" }] } })).toBe("[image]");
+    expect(textoDeMensajeGraph({ attachments: { data: [{ mime_type: "image/jpeg" }] } })).toBe("[imagen]");
     expect(textoDeMensajeGraph({ attachments: { data: [{ mime_type: "audio/mpeg" }] } })).toBe("[audio]");
     expect(textoDeMensajeGraph({ sticker: "https://x" })).toBe("[sticker]");
   });

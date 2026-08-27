@@ -5,6 +5,7 @@ import { FileText, Smile } from "lucide-react";
 import { NotaDeVoz } from "./NotaDeVoz";
 import { cn } from "@/lib/cn";
 import { captionDeMedia, horaDe, nombreStaff } from "@/lib/format";
+import { compartidoDeTexto } from "@/lib/meta-texto-mensaje";
 import type { Message, MessageMedia } from "@/lib/data/types";
 
 const EMOJIS = ["👍", "❤️", "🙏", "😊", "😮"];
@@ -60,6 +61,10 @@ export function MessageBubble({
   const textoLimpio = esRespuestaAHistoria
     ? message.texto.slice("[respuesta a tu historia]".length).trim()
     : message.texto;
+  // Un reel o una publicación que metieron en el chat: es el contexto de lo
+  // que preguntan después, así que va como tarjeta con su enlace, no como
+  // "[ig_reel]" suelto.
+  const compartido = compartidoDeTexto(textoLimpio);
   // Meta manda el enlace de la historia sin decir qué es. Muchas son videos, y
   // un video puesto como imagen da ícono roto. Se intenta como imagen; si no
   // carga, como video; si tampoco, queda el rótulo solo.
@@ -109,36 +114,40 @@ export function MessageBubble({
           {esRespuestaAHistoria && (
             <div
               className={cn(
-                "mb-1.5 flex items-center gap-2 border-l-2 pl-2",
+                "mb-1.5 flex flex-col items-start gap-1.5 border-l-2 pl-2",
                 esStaff ? "border-white/40" : "border-brand/50",
               )}
             >
+              <span className={cn("text-[11px]", esStaff ? "text-white/80" : "text-[var(--text-3)]")}>
+                Respondió a tu historia
+              </span>
+              {/* Grande y a proporción de historia (9:16): hay que poder ver
+                  qué historia era sin abrirla. Clic para verla completa. */}
               {message.historiaUrl && historiaComo === "imagen" && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={message.historiaUrl}
-                  alt="La historia que contestó"
-                  onError={() => setHistoriaComo("video")}
-                  className="h-10 w-7 shrink-0 rounded object-cover"
-                />
+                <a href={message.historiaUrl} target="_blank" rel="noreferrer" className="shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={message.historiaUrl}
+                    alt="La historia que contestó"
+                    onError={() => setHistoriaComo("video")}
+                    className="h-56 w-[7.875rem] rounded-lg object-cover"
+                  />
+                </a>
               )}
               {message.historiaUrl && historiaComo === "video" && (
                 <a href={message.historiaUrl} target="_blank" rel="noreferrer" className="shrink-0">
                   {/* Solo la portada: 9 MB de historia no se bajan enteros por
-                      un cuadrito de 40 px. Se abre aparte para verla. */}
+                      una miniatura. Se abre aparte para verla. */}
                   <video
                     src={message.historiaUrl}
                     muted
                     playsInline
                     preload="metadata"
                     onError={() => setHistoriaComo("nada")}
-                    className="h-10 w-7 rounded bg-black object-cover"
+                    className="h-56 w-[7.875rem] rounded-lg bg-black object-cover"
                   />
                 </a>
               )}
-              <span className={cn("text-[11px]", esStaff ? "text-white/80" : "text-[var(--text-3)]")}>
-                Respondió a tu historia
-              </span>
             </div>
           )}
           {message.media ? (
@@ -147,6 +156,31 @@ export function MessageBubble({
               {/* El caption va DEBAJO del archivo, como en WhatsApp. Antes esto
                   era un o/o y el texto que venía con la foto se perdía. */}
               {caption && <p className="mt-1.5 whitespace-pre-wrap">{caption}</p>}
+            </>
+          ) : compartido ? (
+            <>
+              <div
+                className={cn(
+                  "flex flex-col gap-0.5 rounded-lg border px-2.5 py-1.5",
+                  esStaff ? "border-white/30" : "border-line bg-surface",
+                )}
+              >
+                <span className={cn("text-[11px]", esStaff ? "text-white/80" : "text-[var(--text-3)]")}>
+                  {compartido.rotulo}
+                </span>
+                {compartido.titulo && <span className="text-[13px] font-medium">{compartido.titulo}</span>}
+                {compartido.url && (
+                  <a
+                    href={compartido.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn("text-[12px] font-semibold underline", esStaff ? "text-white" : "text-brand")}
+                  >
+                    Abrir
+                  </a>
+                )}
+              </div>
+              {compartido.resto && <p className="mt-1.5 whitespace-pre-wrap">{compartido.resto}</p>}
             </>
           ) : (
             textoLimpio

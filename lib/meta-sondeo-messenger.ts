@@ -67,10 +67,10 @@ export function textoDeMensajeGraph(m: MensajeGraph): string | null {
   const adj = m.attachments?.data?.[0];
   if (adj) {
     const mime = adj.mime_type ?? "";
-    if (mime.startsWith("image/")) return "[image]";
+    if (mime.startsWith("image/")) return "[imagen]";
     if (mime.startsWith("video/")) return "[video]";
     if (mime.startsWith("audio/")) return "[audio]";
-    return "[file]";
+    return "[archivo]";
   }
   if (m.shares?.data?.length) return "[compartió un enlace]";
   return null;
