@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { leerSesion, sesionDeCookieHeader } from "@/lib/session";
+import { TENANTS } from "@/lib/tenants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,5 +20,10 @@ export async function GET(req: Request) {
     rol: sesion.rol,
     // true = cuenta de una persona: el rol no se cambia desde el navegador.
     fijo: sesion.fijo,
+    // Cuenta de la agencia: puede cambiar de cliente, y acá va la lista.
+    todos: sesion.todos,
+    clientes: sesion.todos
+      ? Object.entries(TENANTS).map(([id, t]) => ({ id, nombre: t.nombreCorto || t.nombre }))
+      : undefined,
   });
 }

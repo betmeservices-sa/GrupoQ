@@ -46,6 +46,8 @@ describe("cuentas de persona", () => {
       // Va en la sesion: sin saber QUIEN entro no se le puede dejar cambiar
       // su propia contraseña.
       usuario: "veronica.viches@yalihospitality.com",
+      // Cuenta de un solo cliente: no es de la agencia.
+      todos: false,
     });
   });
 
