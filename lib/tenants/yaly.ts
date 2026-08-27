@@ -7,8 +7,10 @@
 // Cloudbeds. Meterlos en el mismo config habría mezclado dos negocios.
 //
 // Cuatro cosas lo hacen diferente del resto de clientes del demo:
-//   1. PREGUNTA DE SEDE OBLIGATORIA como primer mensaje, siempre. No sale del
-//      modelo: la manda lib/sucursal-gate.ts sin llamar a Claude (0 tokens).
+//   1. PREGUNTA DE SEDE OBLIGATORIA como primer mensaje en WhatsApp. No sale
+//      del modelo: la manda lib/sucursal-gate.ts sin llamar a Claude (0 tokens).
+//      En Messenger e Instagram NO se pregunta: la página por la que escriben
+//      (Yalí, Sunzal, Costa del Surf, Playa Linda) ya dice la sede.
 //      Los nombres viven en lib/tenants/yaly-sucursales.ts.
 //   2. TOPE DURO de 10 mensajes por conversación. Al llegar, el chat pasa a una
 //      persona; la IA no sigue. Dentro de esos diez Sofía junta los datos,

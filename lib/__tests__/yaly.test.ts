@@ -308,3 +308,16 @@ describe("no se tocó el hotel real (El Descanso Antigua)", () => {
     expect(TENANTS.yaly.ai.systemPrompt).not.toContain("El Descanso");
   });
 });
+
+describe("la sede en Messenger e Instagram sale de la página", () => {
+  it("cada página de Yali cae en su sede, sin preguntar", async () => {
+    const { sucursalDePagina } = await import("../sucursal-gate");
+    const { yalySucursales } = await import("../tenants/yaly-sucursales");
+    expect(sucursalDePagina(yalySucursales, "YALI Hotel & Resort")?.id).toBe("a");
+    expect(sucursalDePagina(yalySucursales, "Sunzal Beach Club")?.id).toBe("a");
+    expect(sucursalDePagina(yalySucursales, "Costa del Surf")?.id).toBe("b");
+    expect(sucursalDePagina(yalySucursales, "Playa Linda")?.id).toBe("c");
+    expect(sucursalDePagina(yalySucursales, "Miagentia")).toBeNull();
+    expect(sucursalDePagina(undefined, "Playa Linda")).toBeNull();
+  });
+});

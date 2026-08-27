@@ -25,7 +25,7 @@ import { enviarYGuardarMeta, IA_STAFF_ID } from "./meta-enviar";
 import { mensajesAnteriores, type MetaCanal, type MetaMensaje } from "./meta-messages-store";
 import { conexionesDe, type MetaConnection } from "./meta-store";
 import { RESPONSABLE, type Motivo, type Traspaso } from "./pasar-a-persona";
-import { decidirTurno, limiteDe } from "./sucursal-gate";
+import { decidirTurno, limiteDe, sucursalDePagina } from "./sucursal-gate";
 import { sinMarkdown } from "./negritas";
 import { upsertContacto } from "./contacts-store";
 import { registrarConsumo } from "./tokens-store";
@@ -154,6 +154,8 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
       sucursalId: estado.sucursalId,
       intentos: estado.intentosSucursal,
       textoCliente: ultimo.texto,
+      // En Messenger e Instagram la sede la dice la página: no se pregunta.
+      origenSede: sucursalDePagina(cfg.sucursales, cx.pageName),
     });
 
     if (decision.tipo === "silencio") return;

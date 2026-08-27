@@ -310,6 +310,19 @@ const SALUDOS = new Set([
   "hello", "good", "morning", "afternoon", "evening", "gracias", "por", "favor",
 ]);
 
+/**
+ * La sede a partir de la página de Facebook o Instagram por la que escribió
+ * la persona. En redes no hay que preguntar: "Playa Linda" es Playa Linda.
+ * Se resuelve con los mismos alias que la respuesta del huésped.
+ */
+export function sucursalDePagina(
+  sucursales: TenantSucursales | undefined,
+  nombrePagina: string | null | undefined,
+): SucursalTenant | null {
+  if (!sucursales || !nombrePagina) return null;
+  return interpretarSucursal(nombrePagina, sucursales);
+}
+
 export function esSaludoPelado(texto: string): boolean {
   const palabras = normalizar(texto ?? "").split(" ").filter(Boolean);
   if (palabras.length === 0) return true;
