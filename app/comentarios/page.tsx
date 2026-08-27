@@ -66,7 +66,7 @@ export default function ComentariosPage() {
   // "Sin responder" es una aproximación honesta: Meta no dice quién respondió,
   // solo cuántas respuestas hay. Un comentario sin ninguna respuesta es, sin
   // duda, uno que nadie atendió.
-  const pendientes = useMemo(() => todos.filter((c) => c.respuestas === 0 && !c.oculto), [todos]);
+  const pendientes = useMemo(() => todos.filter((c) => !c.respondido && !c.oculto), [todos]);
   const visibles = useMemo(() => {
     if (filtro === "ocultos") return todos.filter((c) => c.oculto);
     if (filtro === "todos") return todos.filter((c) => !c.oculto);
@@ -238,7 +238,14 @@ function Fila({
     const r = await fetch("/api/meta/comentarios", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: c.id, pageId: c.pageId, ...cuerpo }),
+      // Responder a una respuesta va contra el comentario de arriba: ni
+      // Facebook ni Instagram dejan colgar una respuesta de otra respuesta.
+      // Ocultar y el privado sí van contra la respuesta misma.
+      body: JSON.stringify({
+        id: cuerpo.texto && !cuerpo.privado ? (c.padreId ?? c.id) : c.id,
+        pageId: c.pageId,
+        ...cuerpo,
+      }),
     });
     const j = await r.json();
     setEnviando(false);
@@ -259,6 +266,9 @@ function Fila({
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-[13.5px] font-semibold text-[var(--text-1)]">{c.autor}</span>
+            {c.respuestaA && (
+              <span className="text-[11.5px] text-[var(--text-3)]">respondió a {c.respuestaA}</span>
+            )}
             <span className="text-[11.5px] text-[var(--text-3)]">{haceCuanto(c.ts)}</span>
             {c.enlace && (
               // Sin App Review, Facebook no dice quién comentó. Abrirlo allá sí
@@ -333,7 +343,7 @@ function Fila({
               {c.oculto ? "Volver a mostrar" : "Ocultar"}
             </button>
             <span className="text-[11.5px] text-[var(--text-3)]">
-              {c.respuestas === 0 ? "sin respuestas" : `${c.respuestas} respuesta${c.respuestas > 1 ? "s" : ""}`}
+              {c.respondido ? "respondido" : c.respuestas === 0 ? "sin respuestas" : `${c.respuestas} respuesta${c.respuestas > 1 ? "s" : ""}, ninguna nuestra`}
               {c.meGusta > 0 && ` · ${c.meGusta} me gusta`}
             </span>
           </div>

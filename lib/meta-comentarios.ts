@@ -33,6 +33,19 @@ export interface Comentario {
   respuestas: number;
   /** true si es respuesta a otro comentario, no un comentario de primer nivel. */
   esRespuesta: boolean;
+  /**
+   * La cuenta YA le contestó. Es lo que decide "sin responder": que otra
+   * persona le haya respondido no cuenta, y antes contaba. Un reclamo con una
+   * respuesta de otro cliente quedaba como atendido.
+   */
+  respondido: boolean;
+  /** Si es respuesta: a quién le respondió (para leer el hilo). */
+  respuestaA?: string;
+  /**
+   * Si es respuesta: el comentario de arriba. Responder va contra ese: ni
+   * Facebook ni Instagram dejan colgar una respuesta de otra respuesta.
+   */
+  padreId?: string;
   oculto: boolean;
   meGusta: number;
   /** Página o cuenta a la que pertenece, para responder con el token correcto. */
@@ -128,6 +141,16 @@ interface PostFb {
       parent?: { id?: string };
       permalink_url?: string;
       can_reply_privately?: boolean;
+      comments?: {
+        data?: {
+          id: string;
+          message?: string;
+          created_time?: string;
+          from?: { id?: string; name?: string };
+          is_hidden?: boolean;
+          like_count?: number;
+        }[];
+      };
     }[];
   };
 }
@@ -152,7 +175,7 @@ export async function comentariosFacebook(
   // `from{id,name}` desarmado en vez de `from` a secas, y `permalink_url` para
   // poder abrir la publicacion desde el panel.
   const campos =
-    `id,message,full_picture,permalink_url,created_time,comments.limit(${LIMITE_COMENTARIOS}).order(reverse_chronological){id,message,created_time,from{id,name},like_count,is_hidden,comment_count,parent,permalink_url,can_reply_privately}`;
+    `id,message,full_picture,permalink_url,created_time,comments.limit(${LIMITE_COMENTARIOS}).order(reverse_chronological){id,message,created_time,from{id,name},like_count,is_hidden,comment_count,parent,permalink_url,can_reply_privately,comments.limit(25){id,message,created_time,from{id,name},is_hidden,like_count}}`;
   const url = `${GRAPH}/${c.pageId}/posts?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
   const posts = await pedirTodo<PostFb>(url);
 
@@ -180,7 +203,33 @@ export async function comentariosFacebook(
         pageId: c.pageId,
         enlace: co.permalink_url,
         privadoPosible: co.can_reply_privately === true,
+        respondido: (co.comments?.data ?? []).some((r) => r.from?.id === c.pageId),
       });
+      // Las respuestas de otras personas también son comentarios que hay que
+      // ver: un reclamo suele venir como respuesta a otro. Las nuestras no se
+      // listan, ya están contadas en "respondido".
+      for (const r of co.comments?.data ?? []) {
+        if (r.from?.id === c.pageId) continue;
+        out.push({
+          id: r.id,
+          red: "facebook",
+          postId: post.id,
+          postResumen: resumir(post.message),
+          postImagen: post.full_picture,
+          postEnlace: post.permalink_url,
+          autor: r.from?.name ?? "Sin identificar",
+          texto: r.message ?? "",
+          ts: r.created_time ?? co.created_time ?? new Date().toISOString(),
+          respuestas: 0,
+          esRespuesta: true,
+          respuestaA: co.from?.name ?? "Sin identificar",
+          padreId: co.id,
+          oculto: r.is_hidden === true,
+          meGusta: r.like_count ?? 0,
+          pageId: c.pageId,
+          respondido: false,
+        });
+      }
     }
   }
 
@@ -216,7 +265,16 @@ interface MediaIg {
       username?: string;
       like_count?: number;
       hidden?: boolean;
-      replies?: { data?: unknown[] };
+      replies?: {
+        data?: {
+          id: string;
+          text?: string;
+          timestamp?: string;
+          username?: string;
+          hidden?: boolean;
+          like_count?: number;
+        }[];
+      };
     }[];
   };
 }
@@ -226,8 +284,14 @@ export async function comentariosInstagram(
   limitePosts = LIMITE_POSTS,
 ): Promise<Comentario[]> {
   if (!c.igId) return [];
+  // Una respuesta es "nuestra" si la firma el usuario de la cuenta. Sin ese
+  // usuario guardado (cuentas sin login propio) no se puede saber, y se queda
+  // como sin responder, que es el lado seguro.
+  const cuenta = (c.igUsername ?? "").toLowerCase();
+  const esNuestra = (username: string | undefined) =>
+    Boolean(cuenta) && (username ?? "").toLowerCase() === cuenta;
   const campos =
-    `id,caption,media_url,thumbnail_url,permalink,comments.limit(${LIMITE_COMENTARIOS}){id,text,timestamp,username,like_count,hidden,replies}`;
+    `id,caption,media_url,thumbnail_url,permalink,comments.limit(${LIMITE_COMENTARIOS}){id,text,timestamp,username,like_count,hidden,replies{id,text,timestamp,username,hidden,like_count}}`;
   const url = `${GRAPH}/${c.igId}/media?fields=${encodeURIComponent(campos)}&limit=${limitePosts}&access_token=${c.pageToken}`;
   const medias = await pedirTodo<MediaIg>(url);
 
@@ -250,7 +314,30 @@ export async function comentariosInstagram(
         oculto: co.hidden === true,
         meGusta: co.like_count ?? 0,
         pageId: c.pageId,
+        respondido: (co.replies?.data ?? []).some((r) => esNuestra(r.username)),
       });
+      for (const r of co.replies?.data ?? []) {
+        if (esNuestra(r.username)) continue;
+        out.push({
+          id: r.id,
+          red: "instagram",
+          postId: m.id,
+          postResumen: resumir(m.caption),
+          postImagen: m.thumbnail_url ?? m.media_url,
+          postEnlace: m.permalink,
+          autor: r.username ? `@${r.username}` : "Sin identificar",
+          texto: r.text ?? "",
+          ts: r.timestamp ?? co.timestamp ?? new Date().toISOString(),
+          respuestas: 0,
+          esRespuesta: true,
+          respuestaA: co.username ? `@${co.username}` : "Sin identificar",
+          padreId: co.id,
+          oculto: r.hidden === true,
+          meGusta: r.like_count ?? 0,
+          pageId: c.pageId,
+          respondido: false,
+        });
+      }
     }
   }
   return out;
