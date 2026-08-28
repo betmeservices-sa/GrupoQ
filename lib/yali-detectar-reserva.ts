@@ -98,7 +98,7 @@ export async function extraerReservaDeChat(msgs: MetaMensaje[], sedeNombre: stri
 /** El nombre si es un nombre; null si es un relleno del modelo. */
 export function nombreReal(v: string | undefined): string | null {
   const t = (v ?? "").trim();
-  if (t.length < 3 || /[<>]/.test(t) || /unknown|desconocid|no (se )?(dio|indic)|n/a|sin nombre|hu[eé]sped|cliente/i.test(t)) return null;
+  if (t.length < 3 || /[<>]/.test(t) || /unknown|desconocid|no (se )?(dio|indic)|n\/a|sin nombre|hu[eé]sped|cliente/i.test(t)) return null;
   return t;
 }
 
