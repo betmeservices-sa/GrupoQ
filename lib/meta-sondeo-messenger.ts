@@ -79,7 +79,12 @@ export function textoDeMensajeGraph(m: MensajeGraph): string | null {
     if (mime.startsWith("audio/")) return "[audio]";
     return "[archivo]";
   }
-  if (m.shares?.data?.length) return "[compartió un enlace]";
+  const share = m.shares?.data?.[0];
+  if (share) {
+    // Una historia o publicación nuestra que contestó y ya venció.
+    if (/facebook.com|fb.com|instagram.com/.test(share.link ?? "")) return `[respondió a una historia que ya no está disponible] ${share.name ?? ""}`.trim();
+    return "[compartió un enlace]";
+  }
   return null;
 }
 

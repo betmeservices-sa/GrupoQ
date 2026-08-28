@@ -11,6 +11,7 @@ import { temaDe } from "@/lib/tema";
 import { pasarAPersonaMeta, programarRespuestaIAMeta, type TurnoMeta } from "@/lib/meta-ai-reply";
 import { preReservaViva, recibirComprobante, textoComprobanteRecibido } from "@/lib/yali-prereservas";
 import { detectarReservaEnChat } from "@/lib/yali-detectar-reserva";
+import { detalleDeAdjunto } from "@/lib/meta-adjunto-detalle";
 import { claveMeta } from "@/lib/meta-conversaciones";
 import { enviarYGuardarMeta, IA_STAFF_ID } from "@/lib/meta-enviar";
 import type { MetaConnection } from "@/lib/meta-store";
@@ -208,8 +209,11 @@ export async function POST(req: Request) {
         }
 
         // Qué se guarda: texto, marca de adjunto, o marca de historia.
-        const texto = textoDelMensaje(msg);
+        let texto = textoDelMensaje(msg);
         if (!texto) continue;
+        // Sin tipo ni texto (una respuesta a una historia vencida, casi siempre):
+        // se le pregunta a Meta qué era antes de guardar "[adjunto]".
+        if (texto === "[adjunto]" && msg.mid) texto = (await detalleDeAdjunto(cx, msg.mid)) ?? texto;
         // Contestar un comentario en privado deja una nota de Meta en el hilo,
         // que no la escribió nadie. Eso es de Comentarios, no de la bandeja.
         if (esRespuestaAComentario(texto)) continue;
