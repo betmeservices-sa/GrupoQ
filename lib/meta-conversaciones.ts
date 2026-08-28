@@ -24,6 +24,8 @@ export interface ConversacionMeta {
   sucursalId: string | null;
   sucursalNombre: string | null;
   intentosSucursal: number;
+  /** El último mensaje entrante que la IA ya leyó al responder (mid). */
+  ultimoMidAtendido: string | null;
 }
 
 export function claveMeta(canal: MetaCanal, pageId: string, senderId: string): string {
@@ -52,6 +54,7 @@ interface Fila {
   sucursal_id: string | null;
   sucursal_nombre: string | null;
   intentos_sucursal: number | null;
+  ultimo_mid_atendido?: string | null;
 }
 
 function deFila(r: Fila): ConversacionMeta {
@@ -67,6 +70,7 @@ function deFila(r: Fila): ConversacionMeta {
     sucursalId: r.sucursal_id,
     sucursalNombre: r.sucursal_nombre,
     intentosSucursal: r.intentos_sucursal ?? 0,
+    ultimoMidAtendido: r.ultimo_mid_atendido ?? null,
   };
 }
 
@@ -84,6 +88,7 @@ function vacia(tenant: string, clave: string): ConversacionMeta {
     sucursalId: null,
     sucursalNombre: null,
     intentosSucursal: 0,
+    ultimoMidAtendido: null,
   };
 }
 
@@ -117,6 +122,7 @@ export interface CambioConversacionMeta {
   sucursalId?: string | null;
   sucursalNombre?: string | null;
   intentosSucursal?: number;
+  ultimoMidAtendido?: string;
 }
 
 /** Upsert parcial: solo toca los campos que vienen. */
@@ -139,6 +145,7 @@ export async function upsertConversacionMeta(
       sucursalId: "sucursalId" in cambio ? (cambio.sucursalId ?? null) : prev.sucursalId,
       sucursalNombre: "sucursalNombre" in cambio ? (cambio.sucursalNombre ?? null) : prev.sucursalNombre,
       intentosSucursal: cambio.intentosSucursal ?? prev.intentosSucursal,
+      ultimoMidAtendido: cambio.ultimoMidAtendido ?? prev.ultimoMidAtendido,
     });
     return;
   }
@@ -157,6 +164,7 @@ export async function upsertConversacionMeta(
   if ("sucursalId" in cambio) patch.sucursal_id = cambio.sucursalId ?? null;
   if ("sucursalNombre" in cambio) patch.sucursal_nombre = cambio.sucursalNombre ?? null;
   if (cambio.intentosSucursal !== undefined) patch.intentos_sucursal = cambio.intentosSucursal;
+  if (cambio.ultimoMidAtendido !== undefined) patch.ultimo_mid_atendido = cambio.ultimoMidAtendido;
 
   const { error } = await sb.from("meta_conversaciones").upsert(patch, { onConflict: "clave" });
   if (error) throw new Error(`meta_conversaciones upsert: ${error.message}`);

@@ -27,6 +27,7 @@ import { conexionesDe, type MetaConnection } from "./meta-store";
 import { RESPONSABLE, type Motivo, type Traspaso } from "./pasar-a-persona";
 import { decidirTurno, limiteDe, sucursalDePagina } from "./sucursal-gate";
 import { sinMarkdown } from "./negritas";
+import { ultimoEntrante } from "./ultimo-entrante";
 import { upsertContacto } from "./contacts-store";
 import { registrarConsumo } from "./tokens-store";
 import { TENANTS } from "./tenants";
@@ -126,19 +127,22 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
     const cx = await conexionDe(t.tenant, t.pageId);
     if (!cx) return;
 
-    // Tramo 1: silencio. Si llega otro mensaje, este turno se retira.
+    // Tramo 1: silencio. Si la persona manda otro mensaje, este turno se
+    // retira y el de ese mensaje contesta todo junto. Lo que NO importa es
+    // quién habló último: si Sofía acaba de responder y la persona escribió
+    // encima (o mientras Sofía redactaba), se le contesta igual.
     await sleep(DELAY_MIN_MS);
     let conv = await hilo(t.tenant, t.canal, t.pageId, t.senderId);
-    let ultimo = conv.at(-1);
-    if (!ultimo || ultimo.mid !== t.mid || ultimo.direction !== "in") return;
+    let ultimo = ultimoEntrante(conv);
+    if (!ultimo || ultimo.mid !== t.mid) return;
 
     // Recién ahora el "escribiendo...", y el resto de la espera.
     await accionEnMensaje(cx, t.canal, t.senderId, { accion: "escribiendo" }).catch(() => {});
     await sleep(restoAleatorio());
 
     conv = await hilo(t.tenant, t.canal, t.pageId, t.senderId);
-    ultimo = conv.at(-1);
-    if (!ultimo || ultimo.mid !== t.mid || ultimo.direction !== "in") return;
+    ultimo = ultimoEntrante(conv);
+    if (!ultimo || ultimo.mid !== t.mid) return;
 
     const sesion = sesionReciente(conv);
     if (sesion.length === 0) return;
@@ -146,6 +150,8 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
     // ── Barandas ──
     const salientes = sesion.filter((m) => m.direction === "out");
     const estado = await getConversacionMeta(t.tenant, clave);
+    // Ya se contestó leyendo este mismo mensaje: nada que agregar.
+    if (estado.ultimoMidAtendido === t.mid) return;
     const decision = decidirTurno({
       sucursales: cfg.sucursales,
       limite: cfg.ai.limiteMensajes,
@@ -164,7 +170,7 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
 
     if (decision.tipo === "preguntar_sucursal") {
       await enviarYGuardarMeta(cx, t.canal, t.senderId, decision.texto, ia);
-      await upsertConversacionMeta(t.tenant, clave, { intentosSucursal: estado.intentosSucursal + 1 });
+      await upsertConversacionMeta(t.tenant, clave, { intentosSucursal: estado.intentosSucursal + 1, ultimoMidAtendido: t.mid });
       return;
     }
 
@@ -173,6 +179,7 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
     // que lo ve en "Mis chats". El interruptor global sigue como está.
     if (decision.tipo === "handoff_sucursal" || decision.tipo === "cerrar_por_limite") {
       await enviarYGuardarMeta(cx, t.canal, t.senderId, decision.texto, ia);
+      await upsertConversacionMeta(t.tenant, clave, { ultimoMidAtendido: t.mid });
       await pasarAPersonaMeta(t, "otro", "reservas");
       console.warn(
         `[meta-ia] ${clave} pasa a una persona (${decision.tipo}). Tope: ${limiteDe(cfg.ai.limiteMensajes)} mensajes.`,
@@ -230,6 +237,9 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
     );
 
     const mid = await enviarYGuardarMeta(cx, t.canal, t.senderId, sinMarkdown(respuesta.texto), ia);
+    // Queda anotado hasta dónde leyó: lo que la persona escriba después de
+    // esto (aunque Sofía haya sido la última en hablar) se contesta.
+    await upsertConversacionMeta(t.tenant, clave, { ultimoMidAtendido: t.mid }).catch(() => {});
 
     // El consumo se registra AUNQUE falle el envío: los tokens ya se gastaron.
     await registrarConsumo({

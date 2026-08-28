@@ -109,7 +109,7 @@ vi.mock("@/lib/ai", () => ({
 vi.stubEnv("AI_DELAY_MIN_MS", "1");
 vi.stubEnv("AI_DELAY_MAX_MS", "1");
 
-const { programarRespuestaIA } = await import("@/lib/ai-reply");
+const { programarRespuestaIA, _reiniciarAtendidosWa } = await import("@/lib/ai-reply");
 const { borrarEstadoSucursal } = await import("@/lib/sucursal-store");
 const { CIERRE_POR_LIMITE } = await import("@/lib/sucursal-gate");
 const { yalySucursales } = await import("@/lib/tenants/yaly-sucursales");
@@ -129,6 +129,7 @@ beforeEach(async () => {
   chatApagado.mockClear();
   imagenDescargada.mockClear();
   await borrarEstadoSucursal("50370000001");
+  _reiniciarAtendidosWa();
 });
 
 describe("el primer mensaje siempre es la pregunta de sucursal", () => {

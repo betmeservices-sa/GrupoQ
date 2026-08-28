@@ -25,6 +25,15 @@ import {
 import { registrarConsumo } from "./tokens-store";
 import { recibirComprobante, textoComprobanteRecibido } from "./yali-prereservas";
 import { paraWhatsApp } from "./negritas";
+import { ultimoEntrante } from "./ultimo-entrante";
+
+// Último mensaje de la persona que la IA ya leyó al responder, por teléfono.
+const ultimoAtendidoWa = new Map<string, string>();
+
+/** Solo para pruebas: olvida qué se contestó (los ids de mensaje se repiten entre casos). */
+export function _reiniciarAtendidosWa(): void {
+  ultimoAtendidoWa.clear();
+}
 import { pasarAPersona } from "./pasar-a-persona";
 import { TENANTS, DEFAULT_TENANT } from "./tenants";
 import type { TenantId } from "./tenants/types";
@@ -130,8 +139,11 @@ export async function programarRespuestaIA(opts: {
       .filter((m) => m.from === opts.from)
       .sort((a, b) => a.seq - b.seq);
     // Se vuelve a mirar: pudo llegar otro mensaje durante el segundo tramo.
-    const ultimo = conv.at(-1);
-    if (!ultimo || ultimo.waId !== opts.triggerWamid || ultimo.direccion !== "in") return;
+    // Sin turnos: se mira lo último que dijo la persona y si ya se le
+    // contestó a eso, no quién habló último.
+    const ultimo = ultimoEntrante(conv);
+    if (!ultimo || ultimo.waId !== opts.triggerWamid) return;
+    if (ultimoAtendidoWa.get(opts.from) === ultimo.waId) return;
 
     const sesion = sesionReciente(conv);
     if (sesion.length === 0) return;
@@ -244,6 +256,7 @@ export async function programarRespuestaIA(opts: {
 
     const textoWa = paraWhatsApp(respuesta.texto);
     const env = await enviarTextoWa(opts.from, textoWa);
+    ultimoAtendidoWa.set(opts.from, opts.triggerWamid);
     if (env.ok && env.id) {
       await addOutbound({
         waId: env.id,
