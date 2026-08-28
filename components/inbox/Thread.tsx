@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef  } from "react";
 import { Ban, Check, ChevronLeft, Info, Loader2, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { depto } from "@/lib/format";
 import { Avatar, inicialesDe } from "@/components/ui/Avatar";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { MessageBubble } from "./MessageBubble";
+import { claveDeDia, diaDelHilo } from "@/lib/format";
 import { Composer, type EnvioPlantilla } from "./Composer";
 import type { Contact, Conversation, Message } from "@/lib/data/types";
 
@@ -185,13 +186,24 @@ export function Thread({
           </div>
         )}
         {messages.map((m, i) => (
-          <MessageBubble
-            key={m.id}
-            message={m}
-            isNew={i === messages.length - 1}
-            onReact={onReact}
-            emojis={emojis}
-          />
+          <Fragment key={m.id}>
+            {/* Solo se veía la hora: entre un "11:49 a.m." y un "9:18 a.m." no
+                se sabía si pasó un día o una semana. Cuando cambia el día, va
+                la fecha en medio, como en WhatsApp. */}
+            {(i === 0 || claveDeDia(m.ts) !== claveDeDia(messages[i - 1].ts)) && (
+              <div className="my-2 flex justify-center">
+                <span className="rounded-full bg-surface px-3 py-1 text-[11px] font-semibold text-[var(--text-3)] ring-1 ring-line">
+                  {diaDelHilo(m.ts)}
+                </span>
+              </div>
+            )}
+            <MessageBubble
+              message={m}
+              isNew={i === messages.length - 1}
+              onReact={onReact}
+              emojis={emojis}
+            />
+          </Fragment>
         ))}
         {escribiendo && (
           <div className="ccg-pop flex flex-col items-end">

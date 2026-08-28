@@ -24,6 +24,24 @@ function a12h(h: number, m: number): string {
 }
 
 // "2026-06-26T06:10:00+00:00" -> "12:10 a.m." (hora local de El Salvador).
+/** "Hoy", "Ayer" o "jueves 27 de agosto", en la zona del panel. Para separar los días en el hilo. */
+export function diaDelHilo(ts: string, ahora = new Date()): string {
+  const dia = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  const fecha = new Date(ts);
+  const hoy = dia(ahora);
+  const ayer = dia(new Date(ahora.getTime() - 86_400_000));
+  const el = dia(fecha);
+  if (el === hoy) return "Hoy";
+  if (el === ayer) return "Ayer";
+  const mismoAno = el.slice(0, 4) === hoy.slice(0, 4);
+  return new Intl.DateTimeFormat("es-SV", { timeZone: TZ, weekday: "long", day: "numeric", month: "long", ...(mismoAno ? {} : { year: "numeric" }) }).format(fecha);
+}
+
+/** La clave de día (AAAA-MM-DD en la zona del panel), para saber cuándo cambia. */
+export function claveDeDia(ts: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ts));
+}
+
 export function horaDe(ts: string): string {
   if (conZona(ts)) {
     const hhmm = new Intl.DateTimeFormat("en-GB", {
