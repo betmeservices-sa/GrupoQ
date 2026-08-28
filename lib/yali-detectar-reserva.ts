@@ -358,9 +358,11 @@ export async function prellenarDesdeChat(tenant: string, clave: string): Promise
     ninos: x.ninos ? Math.max(0, Number(x.ninos)) : undefined,
     habitacion: hab?.nombre ?? x.habitacion,
     nombre: nombreReal(x.huesped) ?? undefined,
-    correo: x.correo?.trim() || undefined,
-    telefono: x.telefono?.trim() || undefined,
-    notas: x.resumen,
+    // Los rellenos del modelo ("<UNKNOWN>") no son datos: un correo lleva @,
+    // un teléfono tiene al menos 8 dígitos.
+    correo: x.correo && /@/.test(x.correo) && !/[<>]/.test(x.correo) ? x.correo.trim() : undefined,
+    telefono: x.telefono && (x.telefono.match(/d/g) ?? []).length >= 8 ? x.telefono.trim() : undefined,
+    notas: x.resumen && !/[<>]/.test(x.resumen) ? x.resumen : undefined,
   };
 }
 
