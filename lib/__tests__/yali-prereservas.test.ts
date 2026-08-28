@@ -129,3 +129,16 @@ describe("reservarManualYali", () => {
     expect((await reservarManualYali("yaly", { nombre: "Ana", habitacion: "Suite Real", adultos: 2, ...fechas(60) }, "a", {})).ok).toBe(false);
   });
 });
+
+describe("nombreReal (detección de reservas)", () => {
+  it("rechaza los rellenos del modelo y acepta nombres", async () => {
+    const { nombreReal, mismoNombre } = await import("../yali-detectar-reserva");
+    expect(nombreReal("<UNKNOWN>")).toBeNull();
+    expect(nombreReal("Desconocido")).toBeNull();
+    expect(nombreReal("Huésped")).toBeNull();
+    expect(nombreReal("")).toBeNull();
+    expect(nombreReal("Marta María Martínez Vásquez")).toBe("Marta María Martínez Vásquez");
+    expect(mismoNombre("MARTA MARIA MARTINEZ VASQUEZ", "Marta María Martínez Vásquez")).toBe(true);
+    expect(mismoNombre("Ana Pérez", "Marta Martínez")).toBe(false);
+  });
+});
