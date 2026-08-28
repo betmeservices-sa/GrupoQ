@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ipDe, registrarAcceso } from "@/lib/accesos";
 import QRCode from "qrcode";
 import { validarCredenciales } from "@/lib/auth-server";
 import {
@@ -107,6 +108,19 @@ export async function POST(req: Request) {
       { ok: false, error: "Login no disponible: el servidor no está configurado." },
       { status: 503 },
     );
+  }
+  // Quién entró, de qué cliente y desde dónde (lo mira el tablero de la agencia).
+  if (acceso.usuario) {
+    await registrarAcceso({
+      tenant: acceso.tenant,
+      usuario: acceso.usuario,
+      nombre: acceso.nombre ?? null,
+      rol: acceso.rol,
+      todos: acceso.todos === true,
+      host: req.headers.get("host"),
+      ip: ipDe(req),
+      agente: req.headers.get("user-agent"),
+    });
   }
   const res = NextResponse.json({
     ok: true,

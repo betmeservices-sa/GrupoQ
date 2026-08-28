@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { tocarActividad } from "@/lib/accesos";
 import { leerSesion, sesionDeCookieHeader } from "@/lib/session";
 import { TENANTS } from "@/lib/tenants";
 import { cuentaDeUsuario } from "@/lib/usuarios";
@@ -16,6 +17,9 @@ export async function GET(req: Request) {
   const sesion = await leerSesion(sesionDeCookieHeader(req.headers.get("cookie")));
   if (!sesion) return NextResponse.json({ ok: false }, { status: 401 });
   const cuenta = sesion.usuario ? cuentaDeUsuario(sesion.usuario) : null;
+  if (sesion.usuario) {
+    void tocarActividad({ usuario: sesion.usuario, tenant: sesion.tenant, nombre: cuenta?.nombre, rol: sesion.rol, host: req.headers.get("host") });
+  }
   return NextResponse.json({
     ok: true,
     tenant: sesion.tenant,

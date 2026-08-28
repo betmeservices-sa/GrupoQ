@@ -26,6 +26,7 @@ import { DeptBreakdown } from "@/components/dashboard/DeptBreakdown";
 import { CallsPanel } from "@/components/dashboard/CallsPanel";
 import { HotelOcupacion } from "@/components/dashboard/HotelOcupacion";
 import { YaliDashboard } from "@/components/dashboard/YaliDashboard";
+import { AgenciaDashboard } from "@/components/dashboard/AgenciaDashboard";
 import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
 import { ConsumoIA } from "@/components/dashboard/ConsumoIA";
 import { RedesResumen } from "@/components/dashboard/RedesResumen";
@@ -81,6 +82,8 @@ export default function DashboardPage() {
   // separadas sede por sede. Se devuelve entero para no llenar esta pantalla de
   // condicionales. Va DESPUÉS de los hooks, que corren siempre.
   if (esYali) return <YaliDashboard />;
+  // La agencia no mira su propia bandeja: mira a sus clientes.
+  if (activeTenantId() === "miagentia") return <AgenciaDashboard />;
 
   return (
     <div className="flex h-full flex-col">

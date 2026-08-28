@@ -8,6 +8,7 @@ import {
   type MetaCanal,
 } from "@/lib/meta-messages-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
+import { tocarSesion } from "@/lib/accesos-sesion";
 import { conexionesDe } from "@/lib/meta-store";
 import { sincronizarMessenger } from "@/lib/meta-sondeo-messenger";
 import { sincronizarInstagram } from "@/lib/meta-sondeo-instagram";
@@ -63,7 +64,7 @@ export async function GET(req: Request) {
   // Va después de la respuesta para no frenar este tick: lo que encuentre sale
   // en el que sigue, cuatro segundos más tarde. Se frena solo a una vuelta
   // cada 30 s.
-  alTerminar(() => Promise.all([sincronizarMessenger(tenant), sincronizarInstagram(tenant)]).then(() => {}));
+  alTerminar(() => Promise.all([sincronizarMessenger(tenant), sincronizarInstagram(tenant), tocarSesion(req)]).then(() => {}));
 
   const mensajes = await getMetaSince(Number.isFinite(after) ? after : 0, tenant, limite);
 
