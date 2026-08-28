@@ -8,7 +8,7 @@
 // costo ya calculado (snapshot), para que un cambio en la tabla de precios no
 // reescriba lo que ya se facturó.
 
-import { getSupabase } from "./supabase";
+import { esquemaDeTenant, getSupabase } from "./supabase";
 import { columnaFaltante } from "./tabla-faltante";
 import {
   costoDeImagen,
@@ -67,7 +67,7 @@ const MAX_MEM = 1000;
 
 export async function registrarConsumo(r: RegistroConsumo): Promise<void> {
   const fila = materializar(r);
-  const sb = getSupabase();
+  const sb = getSupabase(r.tenant);
   if (!sb) {
     mem.push(fila);
     if (mem.length > MAX_MEM) mem.splice(0, mem.length - MAX_MEM);
@@ -282,11 +282,26 @@ const COLS_BASE =
   "ts, tenant, wa_from, wa_id, modelo, input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, tokens_texto, tokens_imagen, imagenes, llamadas, costo_entrada, costo_salida, costo_cache_escritura, costo_cache_lectura, costo_texto, costo_imagen, costo_total";
 const COLS = `${COLS_BASE}, tipo`;
 
-// Lectura cruda de la tabla, compartida por el resumen y el detalle.
+// Lectura cruda, compartida por el resumen y el detalle.
+//
+// Un cliente con esquema propio (Yali) tiene filas en su esquema Y en public:
+// registrarConsumo escribió en public hasta el 27 de agosto de 2026. Se leen
+// las dos y se juntan; así el consumo del cliente sale completo.
 async function leerFilas(tenant: string | undefined, tope: number): Promise<FilaConsumo[]> {
   const sb = getSupabase(tenant);
   if (!sb) return mem.filter((f) => !tenant || f.tenant === tenant).slice(0, tope);
+  const propias = await leerFilasEn(sb, tenant, tope);
+  if (!tenant || esquemaDeTenant(tenant) === "public") return propias;
+  const pub = getSupabase();
+  if (!pub) return propias;
+  const enPublic = await leerFilasEn(pub, tenant, tope);
+  const vistas = new Set(propias.map((f) => `${f.ts}|${f.waId ?? ""}|${f.waFrom}`));
+  const todas = [...propias, ...enPublic.filter((f) => !vistas.has(`${f.ts}|${f.waId ?? ""}|${f.waFrom}`))];
+  todas.sort((x, y) => y.ts.localeCompare(x.ts));
+  return todas.slice(0, tope);
+}
 
+async function leerFilasEn(sb: NonNullable<ReturnType<typeof getSupabase>>, tenant: string | undefined, tope: number): Promise<FilaConsumo[]> {
   let q = sb
     .from("ai_uso_tokens")
     .select(COLS)
