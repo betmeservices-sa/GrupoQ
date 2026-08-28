@@ -283,4 +283,31 @@ export async function chatsConFotoReciente(tenant: string, dias: number): Promis
   return [...claves];
 }
 
+/**
+ * Las conversaciones con señal de reserva en los últimos N días: una foto del
+ * huésped, o mensajes entrantes clasificados como reserva o precio.
+ */
+export async function chatsConSenalDeReserva(tenant: string, dias: number): Promise<string[]> {
+  const { getSupabase } = await import("./supabase");
+  const sb = getSupabase(tenant);
+  if (!sb) return [];
+  const desde = new Date(Date.now() - dias * 86_400_000).toISOString();
+  const { data, error } = await sb
+    .from("meta_messages")
+    .select("canal, page_id, sender_id, texto, tema")
+    .eq("tenant", tenant)
+    .eq("direction", "in")
+    .gte("ts", desde)
+    .limit(5000);
+  if (error) {
+    console.error("[detectar-reserva] chats con señal:", error.message);
+    return [];
+  }
+  const claves = new Set<string>();
+  for (const r of (data ?? []) as { canal: string; page_id: string; sender_id: string; texto: string; tema: string | null }[]) {
+    if (r.texto.startsWith("[imagen]") || r.tema === "reserva" || r.tema === "precio") claves.add(`${r.canal}:${r.page_id}:${r.sender_id}`);
+  }
+  return [...claves];
+}
+
 export { SEDES_YALI };
