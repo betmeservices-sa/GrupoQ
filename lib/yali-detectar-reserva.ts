@@ -95,6 +95,13 @@ export async function extraerReservaDeChat(msgs: MetaMensaje[], sedeNombre: stri
   return r;
 }
 
+/** El nombre si es un nombre; null si es un relleno del modelo. */
+export function nombreReal(v: string | undefined): string | null {
+  const t = (v ?? "").trim();
+  if (t.length < 3 || /[<>]/.test(t) || /unknown|desconocid|no (se )?(dio|indic)|n/a|sin nombre|hu[eé]sped|cliente/i.test(t)) return null;
+  return t;
+}
+
 function normalizar(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -155,9 +162,12 @@ export async function detectarReservaEnChat(tenant: string, clave: string): Prom
 
   const hoy = hoyYali();
   const x = await extraerReservaDeChat(hilo, sede.nombre, hoy);
-  if (!x.hay_reserva || !x.llegada || !x.salida || !x.huesped) {
+  // Sin nombre real no hay tarjeta: el modelo a veces rellena con "<UNKNOWN>".
+  const huesped = nombreReal(x.huesped);
+  if (!x.hay_reserva || !x.llegada || !x.salida || !huesped) {
     return { ok: true, reserva: null, extraido: x, motivo: "En el chat no hay una reserva concreta (fechas y nombre)." };
   }
+  x.huesped = huesped;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(x.llegada) || !/^\d{4}-\d{2}-\d{2}$/.test(x.salida) || x.salida <= x.llegada) {
     return { ok: true, reserva: null, extraido: x, motivo: "Las fechas del chat no se entienden." };
   }
