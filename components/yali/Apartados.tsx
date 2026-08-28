@@ -248,7 +248,7 @@ export function ReservaPendienteCard({ clave, refreshKey = 0 }: { clave?: string
   return (
     <div>
       <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-        <BedDouble size={12} /> Reserva apartada por Sofía
+        <BedDouble size={12} /> Reserva de este chat
       </p>
       <ApartadoCard a={a} compacto onCambio={cargar} />
     </div>
