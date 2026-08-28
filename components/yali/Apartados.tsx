@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BedDouble, CheckCircle2, Clock, ExternalLink, Loader2, XCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ImagenAmpliable } from "@/components/ui/Lightbox";
+import { NuevaReserva } from "@/components/yali/NuevaReserva";
 
 export interface Apartado {
   id: string;
@@ -207,6 +208,7 @@ export function ReservaPendienteCard({ clave, refreshKey = 0 }: { clave?: string
   const { lista, cargar } = useApartados(clave, refreshKey, Boolean(clave));
   const [leyendo, setLeyendo] = useState(false);
   const [avisoLectura, setAvisoLectura] = useState<string | null>(null);
+  const [creando, setCreando] = useState(false);
   if (!clave || !lista) return null;
   const esMeta = /^(instagram|facebook):/.test(clave);
   async function leerChat() {
@@ -227,7 +229,25 @@ export function ReservaPendienteCard({ clave, refreshKey = 0 }: { clave?: string
   if (lista.length === 0) {
     if (!esMeta) return null;
     return (
-      <div>
+      <div className="space-y-1.5">
+        <button
+          type="button"
+          onClick={() => setCreando(true)}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand px-2.5 py-1.5 text-[12px] font-semibold text-white transition hover:opacity-90"
+          title="Abre el formulario ya llenado con lo que dice el chat, para revisar y confirmar"
+        >
+          <BedDouble size={12} /> Crear reserva
+        </button>
+        {creando && (
+          <NuevaReserva
+            clave={clave}
+            onCerrar={() => setCreando(false)}
+            onCreada={() => {
+              void cargar();
+              window.dispatchEvent(new Event("yali:reservas"));
+            }}
+          />
+        )}
         <button
           type="button"
           onClick={() => void leerChat()}

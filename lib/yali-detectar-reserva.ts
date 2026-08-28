@@ -320,4 +320,48 @@ export async function chatsConSenalDeReserva(tenant: string, dias: number): Prom
   return [...claves];
 }
 
+export interface Prellenado {
+  sede: string | null;
+  llegada?: string;
+  salida?: string;
+  adultos?: number;
+  ninos?: number;
+  habitacion?: string;
+  nombre?: string;
+  correo?: string;
+  telefono?: string;
+  notas?: string;
+}
+
+/**
+ * Lo que dice el chat, listo para el formulario de Nueva reserva. No guarda
+ * nada: la persona revisa cada campo y confirma.
+ */
+export async function prellenarDesdeChat(tenant: string, clave: string): Promise<Prellenado> {
+  const partes = partesDeClave(clave);
+  if (!partes) return { sede: null };
+  const cfg = TENANTS[tenant as TenantId];
+  const cx = (await conexionesDe(tenant)).find((c) => c.pageId === partes.pageId);
+  const sucursal = sucursalDePagina(cfg?.sucursales, cx?.pageName);
+  const sede = sucursal ? sedePorId(sucursal.id) : null;
+  const { mensajes } = await mensajesAnteriores(partes, null, MENSAJES, tenant);
+  const hilo = mensajes.slice().sort((a, b) => a.seq - b.seq);
+  if (hilo.length === 0) return { sede: sede?.id ?? null };
+  const x = await extraerReservaDeChat(hilo, sede?.nombre ?? "Yali Hospitality", hoyYali());
+  const hab = sede ? emparejarHabitacion(sede.habitaciones, x.habitacion ?? "") : null;
+  const fecha = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+  return {
+    sede: sede?.id ?? null,
+    llegada: fecha(x.llegada),
+    salida: fecha(x.salida),
+    adultos: x.adultos ? Math.max(1, Number(x.adultos)) : undefined,
+    ninos: x.ninos ? Math.max(0, Number(x.ninos)) : undefined,
+    habitacion: hab?.nombre ?? x.habitacion,
+    nombre: nombreReal(x.huesped) ?? undefined,
+    correo: x.correo?.trim() || undefined,
+    telefono: x.telefono?.trim() || undefined,
+    notas: x.resumen,
+  };
+}
+
 export { SEDES_YALI };

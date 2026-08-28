@@ -475,6 +475,8 @@ export async function reservarManualYali(
   input: InputReservaYali,
   sedeId: string | null,
   quien: { staffId?: string | null; nombre?: string | null },
+  /** La conversación de la que sale (para que la tarjeta aparezca en ese chat). */
+  claveChat?: string | null,
 ): Promise<ResultadoConfirmacion> {
   const nombre = (input.nombre ?? "").trim();
   if (!nombre) return { ok: false, error: "Falta el nombre del huésped." };
@@ -496,7 +498,7 @@ export async function reservarManualYali(
   const p: PreReserva = {
     id: codigoDe(sede.id),
     tenant,
-    clave: `manual:${Date.now().toString(36)}`,
+    clave: claveChat && /^(instagram|facebook):\d+:\d+$|^wa:\d+$/.test(claveChat) ? claveChat : `manual:${Date.now().toString(36)}`,
     sedeId: sede.id,
     sedeNombre: sede.nombre,
     habitacionId: opcion.habitacion_id,

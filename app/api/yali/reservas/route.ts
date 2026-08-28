@@ -46,10 +46,11 @@ export async function POST(req: Request) {
     correo?: string;
     telefono?: string;
     notas?: string;
+    clave?: string;
   };
   const quien = await quienResponde(req, tenant);
   try {
-    const r = await reservarManualYali(tenant, body, body.sede ?? null, quien);
+    const r = await reservarManualYali(tenant, body, body.sede ?? null, quien, body.clave ?? null);
     return NextResponse.json(r);
   } catch (e) {
     console.error("yali/reservas POST:", e);

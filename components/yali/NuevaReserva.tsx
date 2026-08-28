@@ -34,7 +34,24 @@ function hoyMas(dias: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function NuevaReserva({ sedeInicial, onCerrar, onCreada }: { sedeInicial?: string; onCerrar: () => void; onCreada: () => void }) {
+function coincideHabitacion(a: string, b: string): boolean {
+  const n = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s*\(.*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+  const x = n(a), y = n(b);
+  return x === y || x.includes(y) || y.includes(x);
+}
+
+export function NuevaReserva({
+  sedeInicial,
+  onCerrar,
+  onCreada,
+  clave,
+}: {
+  sedeInicial?: string;
+  onCerrar: () => void;
+  onCreada: () => void;
+  /** El chat del que sale: se lee para prellenar y la reserva queda pegada a él. */
+  clave?: string;
+}) {
   const [sede, setSede] = useState(sedeInicial && SEDES.some((s) => s.id === sedeInicial) ? sedeInicial : "a");
   const [llegada, setLlegada] = useState(hoyMas(1));
   const [salida, setSalida] = useState(hoyMas(2));
@@ -51,6 +68,48 @@ export function NuevaReserva({ sedeInicial, onCerrar, onCreada }: { sedeInicial?
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hecha, setHecha] = useState<{ codigo: string; enCloudbeds: boolean; total: number } | null>(null);
+  const [leyendoChat, setLeyendoChat] = useState(Boolean(clave));
+  const [desdeChat, setDesdeChat] = useState<string | null>(null);
+
+  // Con un chat de por medio: se lee y se rellena todo lo que se pueda, y se
+  // buscan las habitaciones de una vez. La persona solo revisa y confirma.
+  useEffect(() => {
+    if (!clave) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/yali/reservas/prellenar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clave }) });
+        const d = (await r.json()) as { ok: boolean; datos?: { sede: string | null; llegada?: string; salida?: string; adultos?: number; ninos?: number; habitacion?: string; nombre?: string; correo?: string; telefono?: string; notas?: string }; error?: string };
+        if (!vivo) return;
+        if (!d.ok || !d.datos) {
+          setDesdeChat(d.error ?? "No se pudo leer el chat; llena los datos a mano.");
+          return;
+        }
+        const p = d.datos;
+        const s = p.sede && SEDES.some((x) => x.id === p.sede) ? p.sede : sede;
+        setSede(s);
+        if (p.llegada) setLlegada(p.llegada);
+        if (p.salida) setSalida(p.salida);
+        if (p.adultos) setAdultos(p.adultos);
+        if (p.ninos !== undefined) setNinos(p.ninos);
+        if (p.nombre) setNombre(p.nombre);
+        if (p.correo) setCorreo(p.correo);
+        if (p.telefono) setTelefono(p.telefono);
+        if (p.notas) setNotas(p.notas);
+        const faltan = [!p.llegada && "fechas", !p.nombre && "nombre", !p.correo && "correo"].filter(Boolean);
+        setDesdeChat(faltan.length ? `Datos tomados del chat. Falta: ${faltan.join(", ")}. Revisa antes de confirmar.` : "Datos tomados del chat. Revisa antes de confirmar.");
+        if (p.llegada && p.salida) await buscarCon({ sede: s, llegada: p.llegada, salida: p.salida, adultos: p.adultos ?? adultos, ninos: p.ninos ?? ninos }, p.habitacion);
+      } catch {
+        if (vivo) setDesdeChat("No se pudo leer el chat; llena los datos a mano.");
+      } finally {
+        if (vivo) setLeyendoChat(false);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave]);
 
   useEffect(() => {
     const alTeclear = (e: KeyboardEvent) => {
@@ -60,13 +119,17 @@ export function NuevaReserva({ sedeInicial, onCerrar, onCreada }: { sedeInicial?
     return () => window.removeEventListener("keydown", alTeclear);
   }, [onCerrar]);
 
-  async function buscar() {
+  function buscar() {
+    return buscarCon({ sede, llegada, salida, adultos, ninos });
+  }
+
+  async function buscarCon(v: { sede: string; llegada: string; salida: string; adultos: number; ninos: number }, preferida?: string) {
     setBuscando(true);
     setError(null);
     setOpciones(null);
     setHabitacion("");
     try {
-      const q = new URLSearchParams({ sede, llegada, salida, adultos: String(adultos), ninos: String(ninos) });
+      const q = new URLSearchParams({ sede: v.sede, llegada: v.llegada, salida: v.salida, adultos: String(v.adultos), ninos: String(v.ninos) });
       const r = await fetch(`/api/yali/reservas?${q}`, { cache: "no-store" });
       const d = (await r.json()) as { ok: boolean; opciones?: Opcion[]; nota?: string; error?: string; aviso_tarifas?: string };
       if (!d.ok) {
@@ -74,7 +137,9 @@ export function NuevaReserva({ sedeInicial, onCerrar, onCreada }: { sedeInicial?
       } else {
         setOpciones(d.opciones ?? []);
         setAviso(d.aviso_tarifas ?? null);
-        if (d.opciones?.length === 1) setHabitacion(d.opciones[0].habitacion);
+        const elegida = preferida ? d.opciones?.find((o) => coincideHabitacion(o.habitacion, preferida)) : null;
+        if (elegida) setHabitacion(elegida.habitacion);
+        else if (d.opciones?.length === 1) setHabitacion(d.opciones[0].habitacion);
       }
     } catch {
       setError("No se pudo consultar la disponibilidad.");
@@ -91,7 +156,7 @@ export function NuevaReserva({ sedeInicial, onCerrar, onCreada }: { sedeInicial?
       const r = await fetch("/api/yali/reservas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sede, llegada, salida, adultos, ninos, habitacion, nombre, correo, telefono, notas }),
+        body: JSON.stringify({ sede, llegada, salida, adultos, ninos, habitacion, nombre, correo, telefono, notas, clave }),
       });
       const d = (await r.json()) as { ok: boolean; error?: string; reserva?: { id: string; reservaCloudbeds: string | null; total: number }; enCloudbeds?: boolean };
       if (!d.ok || !d.reserva) {
@@ -136,6 +201,14 @@ export function NuevaReserva({ sedeInicial, onCerrar, onCreada }: { sedeInicial?
           </div>
         ) : (
           <div className="space-y-4 px-5 py-4">
+            {leyendoChat && (
+              <p className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-[12.5px] text-[var(--text-2)]">
+                <Loader2 size={13} className="animate-spin text-brand" /> Leyendo el chat para llenar los datos
+              </p>
+            )}
+            {!leyendoChat && desdeChat && (
+              <p className="rounded-xl border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-3 py-2 text-[12.5px] text-[var(--text-2)]">{desdeChat}</p>
+            )}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               <label className="col-span-2 text-[11.5px] font-semibold text-[var(--text-3)]">
                 Hotel
