@@ -10,6 +10,7 @@ import { previewDeAdjunto } from "@/lib/meta-media-compartida";
 import { temaDe } from "@/lib/tema";
 import { pasarAPersonaMeta, programarRespuestaIAMeta, type TurnoMeta } from "@/lib/meta-ai-reply";
 import { preReservaViva, recibirComprobante, textoComprobanteRecibido } from "@/lib/yali-prereservas";
+import { detectarReservaEnChat } from "@/lib/yali-detectar-reserva";
 import { claveMeta } from "@/lib/meta-conversaciones";
 import { enviarYGuardarMeta, IA_STAFF_ID } from "@/lib/meta-enviar";
 import type { MetaConnection } from "@/lib/meta-store";
@@ -156,6 +157,9 @@ export async function POST(req: Request) {
   const audios: Omit<TurnoMeta, "mid">[] = [];
   // Fotos que llegan a un chat con habitación apartada: son el comprobante.
   const comprobantes: { turno: Omit<TurnoMeta, "mid">; cx: MetaConnection; url?: string; mid: string }[] = [];
+  // Fotos en chats SIN apartado (los atiende el equipo): se lee el chat por si
+  // la foto es el comprobante de una reserva que se cerró a mano.
+  const porLeer: string[] = [];
 
   try {
     for (const entry of body.entry ?? []) {
@@ -262,6 +266,9 @@ export async function POST(req: Request) {
           (await preReservaViva(cx.tenant, claveMeta(canal, cx.pageId, senderId)).catch(() => null))
         ) {
           comprobantes.push({ turno, cx, url: imagenUrl, mid });
+        } else if (texto.startsWith("[imagen]") && cx.tenant === "yaly") {
+          porLeer.push(claveMeta(canal, cx.pageId, senderId));
+          if (TENANTS[cx.tenant as TenantId]?.ai?.systemPrompt) turnos.push({ ...turno, mid });
         } else if (TENANTS[cx.tenant as TenantId]?.ai?.systemPrompt) {
           turnos.push({ ...turno, mid });
         }
@@ -290,6 +297,13 @@ export async function POST(req: Request) {
       const r = await pasarAPersonaMeta(c.turno, "pago", "reservas");
       if (!r.ok) console.error("[meta-webhook] no se pudo pasar el comprobante a una persona:", r.error);
       else console.warn(`[meta-webhook] ${clave}: comprobante del apartado ${p.id}, pasa a ${r.para}`);
+    }
+    for (const clave of new Set(porLeer)) {
+      const r = await detectarReservaEnChat("yaly", clave).catch((e) => {
+        console.error("[meta-webhook] detectar reserva:", e instanceof Error ? e.message : e);
+        return null;
+      });
+      if (r?.reserva) console.warn(`[meta-webhook] ${clave}: reserva detectada ${r.reserva.id} (${r.reserva.estado})`);
     }
     const porChat = new Map<string, TurnoMeta>();
     for (const t of turnos) porChat.set(`${t.canal}:${t.pageId}:${t.senderId}`, t);

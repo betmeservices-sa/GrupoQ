@@ -34,6 +34,7 @@ export interface Apartado {
   motivoRechazo: string | null;
   reservaCloudbeds: string | null;
   creada: string;
+  notas?: string | null;
 }
 
 const ESTADO: Record<Apartado["estado"], { nombre: string; clase: string }> = {
@@ -166,6 +167,7 @@ export function ApartadoCard({
           <span className="text-[11px] text-[var(--text-3)]">{a.motivoRechazo}</span>
         )}
       </div>
+      {a.notas && <p className="mt-1.5 text-[11px] leading-snug text-[var(--text-3)]">{a.notas}</p>}
       {a.comprobanteUrl && (
         <ImagenAmpliable src={a.comprobanteUrl} alt={`Comprobante de ${a.huesped}`} className="mt-2" title="Ver el comprobante en grande">
           <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-brand underline">
@@ -203,7 +205,43 @@ export function ApartadoCard({
 /** En la ficha del chat: lo apartado en ESTA conversación. */
 export function ReservaPendienteCard({ clave, refreshKey = 0 }: { clave?: string; refreshKey?: number }) {
   const { lista, cargar } = useApartados(clave, refreshKey, Boolean(clave));
-  if (!clave || !lista || lista.length === 0) return null;
+  const [leyendo, setLeyendo] = useState(false);
+  const [avisoLectura, setAvisoLectura] = useState<string | null>(null);
+  if (!clave || !lista) return null;
+  const esMeta = /^(instagram|facebook):/.test(clave);
+  async function leerChat() {
+    setLeyendo(true);
+    setAvisoLectura(null);
+    try {
+      const r = await fetch("/api/yali/prereservas/detectar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clave }) });
+      const d = (await r.json()) as { ok: boolean; reserva?: { id: string } | null; motivo?: string; error?: string };
+      if (!d.ok) setAvisoLectura(d.error ?? "No se pudo leer el chat.");
+      else if (!d.reserva) setAvisoLectura(d.motivo ?? "No se encontró una reserva en el chat.");
+      await cargar();
+    } catch {
+      setAvisoLectura("No se pudo leer el chat.");
+    } finally {
+      setLeyendo(false);
+    }
+  }
+  if (lista.length === 0) {
+    if (!esMeta) return null;
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => void leerChat()}
+          disabled={leyendo}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-card disabled:opacity-60"
+          title="Lee el chat, saca los datos de la reserva y la busca en Cloudbeds"
+        >
+          {leyendo ? <Loader2 size={12} className="animate-spin" /> : <BedDouble size={12} />}
+          Buscar reserva en este chat
+        </button>
+        {avisoLectura && <p className="mt-1.5 text-[11px] text-[var(--text-3)]">{avisoLectura}</p>}
+      </div>
+    );
+  }
   // La viva primero; si no hay viva, la última cerrada (para ver qué pasó).
   const viva = lista.find((a) => a.estado === "pendiente_pago" || a.estado === "comprobante_recibido");
   const a = viva ?? lista[0];

@@ -179,6 +179,10 @@ function aFila(p: PreReserva): Fila {
   };
 }
 
+export async function guardarPreReserva(p: PreReserva): Promise<void> {
+  return guardar(p);
+}
+
 async function guardar(p: PreReserva): Promise<void> {
   const sb = getSupabase(p.tenant);
   if (!sb) {
@@ -242,6 +246,10 @@ export async function listarPreReservas(tenant: string, clave?: string): Promise
 // ─────────────────────────── apartar ───────────────────────────
 
 const PREFIJO_SEDE: Record<string, string> = { a: "YA", b: "CS", c: "PL" };
+
+export function nuevoCodigo(sedeId: string): string {
+  return codigoDe(sedeId);
+}
 
 function codigoDe(sedeId: string): string {
   const letras = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
