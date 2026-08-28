@@ -239,7 +239,9 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
     const mid = await enviarYGuardarMeta(cx, t.canal, t.senderId, sinMarkdown(respuesta.texto), ia);
     // Queda anotado hasta dónde leyó: lo que la persona escriba después de
     // esto (aunque Sofía haya sido la última en hablar) se contesta.
-    await upsertConversacionMeta(t.tenant, clave, { ultimoMidAtendido: t.mid }).catch(() => {});
+    // Solo si de verdad salió: si Meta rechazó el envío, el mensaje sigue
+    // sin contestar y el próximo turno lo vuelve a intentar.
+    if (mid) await upsertConversacionMeta(t.tenant, clave, { ultimoMidAtendido: t.mid }).catch(() => {});
 
     // El consumo se registra AUNQUE falle el envío: los tokens ya se gastaron.
     await registrarConsumo({

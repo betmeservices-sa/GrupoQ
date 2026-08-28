@@ -256,7 +256,7 @@ export async function programarRespuestaIA(opts: {
 
     const textoWa = paraWhatsApp(respuesta.texto);
     const env = await enviarTextoWa(opts.from, textoWa);
-    ultimoAtendidoWa.set(opts.from, opts.triggerWamid);
+    if (env.ok) ultimoAtendidoWa.set(opts.from, opts.triggerWamid);
     if (env.ok && env.id) {
       await addOutbound({
         waId: env.id,
