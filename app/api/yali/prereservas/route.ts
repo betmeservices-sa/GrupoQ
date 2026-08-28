@@ -12,6 +12,7 @@ import { quienResponde } from "@/lib/staff-de-sesion";
 import {
   confirmarPreReserva,
   listarPreReservas,
+  listarPreReservasDeContacto,
   rechazarPreReserva,
   textoReservaConfirmada,
   type PreReserva,
@@ -29,8 +30,11 @@ export const maxDuration = 60;
 export async function GET(req: Request) {
   const tenant = tenantFromRequest(req);
   if (tenant !== "yaly") return NextResponse.json({ ok: false, error: "No disponible" }, { status: 403 });
-  const clave = new URL(req.url).searchParams.get("clave")?.trim() || undefined;
+  const url = new URL(req.url);
+  const clave = url.searchParams.get("clave")?.trim() || undefined;
+  const contacto = url.searchParams.get("contacto")?.trim() || undefined;
   try {
+    if (contacto) return NextResponse.json({ ok: true, reservas: await listarPreReservasDeContacto(tenant, contacto) });
     return NextResponse.json({ ok: true, reservas: await listarPreReservas(tenant, clave) });
   } catch (e) {
     console.error("yali/prereservas GET:", e);

@@ -243,6 +243,25 @@ export async function listarPreReservas(tenant: string, clave?: string): Promise
   return ((data ?? []) as Fila[]).map(deFila);
 }
 
+/**
+ * Las reservas de una ficha de Contactos: por la conversación (clave de
+ * Meta o wa:teléfono) y, si la llave es un teléfono, también las tomadas a
+ * mano con ese número.
+ */
+export async function listarPreReservasDeContacto(tenant: string, from: string): Promise<PreReserva[]> {
+  const digitos = from.replace(/\D/g, "");
+  const esTelefono = !from.includes(":") && digitos.length >= 8;
+  const sb = getSupabase(tenant);
+  const coincide = (p: PreReserva) =>
+    p.clave === from || (esTelefono && (p.clave === `wa:${digitos}` || (p.telefono ?? "").replace(/\D/g, "").endsWith(digitos.slice(-8))));
+  if (!sb) return [...mem.values()].filter((p) => p.tenant === tenant && coincide(p)).sort((a, b) => (a.creada < b.creada ? 1 : -1));
+  let q = sb.from(TABLA).select("*").eq("tenant", tenant).order("creada", { ascending: false }).limit(60);
+  q = esTelefono ? q.or(`clave.eq.wa:${digitos},telefono.ilike.%${digitos.slice(-8)}`) : q.eq("clave", from);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Fila[]).map(deFila);
+}
+
 // ─────────────────────────── apartar ───────────────────────────
 
 const PREFIJO_SEDE: Record<string, string> = { a: "YA", b: "CS", c: "PL" };

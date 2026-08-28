@@ -85,6 +85,23 @@ export async function upsertContacto(c: {
   return (data as Contacto | null) ?? null;
 }
 
+/** Borra la ficha y sus archivos. Los comprobantes guardados siguen en su tabla. */
+export async function eliminarContacto(from: string): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) {
+    const habia = memContactos.delete(from);
+    for (let i = memAdjuntos.length - 1; i >= 0; i--) if (memAdjuntos[i].wa_from === from) memAdjuntos.splice(i, 1);
+    return habia;
+  }
+  await sb.from("wa_adjuntos").delete().eq("wa_from", from);
+  const { error } = await sb.from("wa_contacts").delete().eq("wa_from", from);
+  if (error) {
+    console.error("wa_contacts delete:", error.message);
+    return false;
+  }
+  return true;
+}
+
 export async function getContacto(from: string): Promise<Contacto | null> {
   const sb = getSupabase();
   if (!sb) return memContactos.get(from) ?? null;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listContactos, upsertContacto, type Contacto } from "@/lib/contacts-store";
+import { eliminarContacto, listContactos, upsertContacto, type Contacto } from "@/lib/contacts-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";
@@ -26,6 +26,14 @@ export async function GET(req: Request) {
 
 // Crea o actualiza un contacto manualmente desde la pestaña Contactos. Aquí los
 // tags SÍ reemplazan (es edición explícita del staff).
+export async function DELETE(req: Request) {
+  tenantFromRequest(req);
+  const from = (new URL(req.url).searchParams.get("telefono") ?? "").trim();
+  if (!from) return NextResponse.json({ ok: false, error: "Falta el contacto." }, { status: 400 });
+  const ok = await eliminarContacto(from);
+  return NextResponse.json({ ok });
+}
+
 export async function POST(req: Request) {
   const tenant = tenantFromRequest(req);
   let body: {

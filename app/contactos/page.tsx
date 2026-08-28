@@ -9,6 +9,7 @@ import {
   Mail,
   MessageSquarePlus,
   Pencil,
+  Trash2,
   Phone,
   Plus,
   Search,
@@ -22,6 +23,7 @@ import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import { telefonoBonito } from "@/lib/phone";
 import { esContactoDeMeta, etiquetaDeContacto } from "@/lib/contacto-canal";
 import { Archivos } from "@/components/contactos/Archivos";
+import { ReservasDeContacto } from "@/components/contactos/ReservasDeContacto";
 import { Avatar, inicialesDe } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HuespedPms } from "@/components/hotel/HuespedPms";
@@ -361,6 +363,15 @@ export default function ContactosPage() {
             onConversar={() => iniciarConversacion(activo)}
             onEditar={() => setModal({ modo: "editar", contacto: activo })}
             onGuardarParcial={(patch) => guardarParcial(activo.telefono, patch)}
+            onEliminar={async () => {
+              if (!window.confirm(`¿Eliminar a ${nombreDe(activo)} de Contactos? Se borra la ficha y sus archivos; los chats no se tocan.`)) return;
+              const r = await fetch(`/api/contactos?telefono=${encodeURIComponent(activo.telefono)}`, { method: "DELETE" });
+              const d = await r.json().catch(() => ({ ok: false }));
+              if (d.ok) {
+                setActivoTel(null);
+                await cargar();
+              }
+            }}
           />
         ) : (
           <EmptyState
@@ -393,6 +404,7 @@ function Ficha({
   onConversar,
   onEditar,
   onGuardarParcial,
+  onEliminar,
 }: {
   contacto: ContactoDTO;
   tags: string[];
@@ -400,6 +412,7 @@ function Ficha({
   onConversar: () => void;
   onEditar: () => void;
   onGuardarParcial: (patch: Partial<ContactoDTO>) => void;
+  onEliminar: () => void;
 }) {
   const [nota, setNota] = useState(contacto.notas ?? "");
   const [pickerTags, setPickerTags] = useState(false);
@@ -419,6 +432,15 @@ function Ficha({
           <ChevronLeft size={22} />
         </button>
         <div className="flex-1 lg:hidden" />
+        <button
+          type="button"
+          onClick={onEliminar}
+          className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1.5 text-[13px] font-semibold text-[var(--text-3)] transition hover:border-[var(--brand-red)] hover:text-[var(--brand-red)]"
+          title="Eliminar el contacto"
+        >
+          <Trash2 size={15} />
+          Eliminar
+        </button>
         <button
           type="button"
           onClick={onEditar}
@@ -462,6 +484,13 @@ function Ficha({
               correo={contacto.correo}
               nombre={nombreDe(contacto)}
             />
+          )}
+
+          {/* Sus reservas: apartadas por Sofía, detectadas del chat o tomadas a mano. */}
+          {activeTenantId() === "yaly" && (
+            <Seccion titulo="Reservas">
+              <ReservasDeContacto from={contacto.telefono} />
+            </Seccion>
           )}
 
           {/* Comprobantes de pago y lo que mandó por WhatsApp. */}
