@@ -1,5 +1,7 @@
 "use client";
 
+import { ConectarWhatsApp } from "@/components/settings/ConectarWhatsApp";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
@@ -373,6 +375,9 @@ export default function SettingsPage() {
             </p>
           )}
         </div>
+
+        {/* El número de WhatsApp del negocio, conectado por el cliente. */}
+        <ConectarWhatsApp />
 
         {/* Plantillas de WhatsApp. Escondidas para las cuentas de persona: el
             tramite es con Meta, no algo que administre un hotel, y ademas

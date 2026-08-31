@@ -4,6 +4,9 @@ import { addInbound } from "@/lib/wa-store";
 import { addAdjunto } from "@/lib/contacts-store";
 import { programarRespuestaIA } from "@/lib/ai-reply";
 import { getWaTenant } from "@/lib/wa-routing";
+import { conexionPorPhoneNumberId } from "@/lib/wa-conexiones-store";
+import { phoneNumberIdDe } from "@/lib/wa-webhook-numero";
+import { isTenantId } from "@/lib/tenants";
 import { TENANTS } from "@/lib/tenants";
 import { origenDelContacto, type ReferralWa } from "@/lib/origen-sede";
 import { getEstadoSucursal, guardarSucursal } from "@/lib/sucursal-store";
@@ -82,9 +85,13 @@ export async function POST(req: Request) {
     return new Response("Bad Request", { status: 400 });
   }
 
-  // A qué cliente entra el número en vivo (switch global). Etiqueta cada mensaje
-  // y decide con qué guion responde la IA.
-  const tenantActivo = await getWaTenant();
+  // De qué cliente es el número al que llegó esto. Si es un número que un
+  // cliente conectó desde su panel, es de ese cliente. Si no (el número de la
+  // demo), decide el interruptor global, como siempre.
+  const numeroDestino = phoneNumberIdDe(payload);
+  const conexion = numeroDestino ? await conexionPorPhoneNumberId(numeroDestino) : null;
+  const tenantActivo =
+    conexion && isTenantId(conexion.tenant) ? conexion.tenant : await getWaTenant();
   // Si el agente de este cliente ve fotos, una imagen también dispara la IA
   // (se la baja y se la manda al modelo en lib/ai-reply). Si no, la imagen se
   // guarda y la atiende una persona, como siempre.

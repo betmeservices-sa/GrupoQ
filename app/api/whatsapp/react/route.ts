@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { tenantFromRequest } from "@/lib/tenants/server";
 import { enviarReaccion } from "@/lib/wa-send";
 
 export const runtime = "nodejs";
@@ -25,6 +26,6 @@ export async function POST(req: Request) {
     );
   }
 
-  await enviarReaccion(to, messageId, emoji);
+  await enviarReaccion(to, messageId, emoji, { tenant: tenantFromRequest(req) });
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,5 @@
 import { abrirMediaWa } from "@/lib/wa-media";
+import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const rango = req.headers.get("range");
-  const r = await abrirMediaWa(id, rango);
+  const r = await abrirMediaWa(id, rango, tenantFromRequest(req));
   if (!r.ok) return new Response(r.error, { status: r.status });
 
   // Imagen/audio/video se sirven inline (para verse/reproducir en el chat); todo

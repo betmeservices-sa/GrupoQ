@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   // Enviar plantilla cuenta como tomar el chat: la IA se apaga en esta conversación.
   if (body.manual) await setChatOverride(to, false);
 
-  const env = await enviarPlantilla(to, name, language, variables);
+  const env = await enviarPlantilla(to, name, language, variables, { tenant: tenantFromRequest(req) });
   if (!env.ok) {
     return NextResponse.json({ ok: false, error: env.error }, { status: 502 });
   }

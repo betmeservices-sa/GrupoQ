@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { tenantFromRequest } from "@/lib/tenants/server";
 import { bloquearNumeroWa } from "@/lib/wa-send";
 import { borrarConversacionCompleta } from "@/lib/wa-store";
 
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   }
 
   // 1. Bloquear en WhatsApp (que no vuelva a escribir).
-  const bloqueo = await bloquearNumeroWa(from);
+  const bloqueo = await bloquearNumeroWa(from, { tenant: tenantFromRequest(req) });
   // 2. Borrar toda la conversación de la base (aunque el bloqueo falle).
   await borrarConversacionCompleta(from);
 

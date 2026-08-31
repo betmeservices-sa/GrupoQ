@@ -1,3 +1,4 @@
+import { credencialesWa } from "./wa-credenciales";
 // Descarga de archivos de WhatsApp desde Meta.
 //
 // Bajar un archivo son SIEMPRE dos pasos: el media_id se resuelve a una URL
@@ -40,8 +41,14 @@ export type ResultadoMedia =
  * Sin esto, un `<audio>` no puede adelantar ni retroceder la nota de voz: el
  * reproductor solo sabe seguir de largo.
  */
-export async function abrirMediaWa(id: string, rango?: string | null): Promise<ResultadoMedia> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+export async function abrirMediaWa(
+  id: string,
+  rango?: string | null,
+  tenant?: string,
+): Promise<ResultadoMedia> {
+  // Los archivos son de la cuenta que los recibió: se bajan con su token.
+  const c = await credencialesWa(tenant);
+  const token = c?.token;
   if (!token) return { ok: false, error: "Faltan credenciales de WhatsApp", status: 500 };
   if (!id) return { ok: false, error: "Falta el id del archivo", status: 400 };
   if (!MEDIA_ID_VALIDO.test(id)) return { ok: false, error: "Id invalido", status: 400 };

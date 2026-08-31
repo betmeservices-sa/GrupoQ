@@ -1,18 +1,29 @@
 // Envío a la WhatsApp Cloud API (texto e indicador "escribiendo"). Lo usan
 // tanto la respuesta manual del staff como la respuesta automática de la IA.
+//
+// Cada función recibe el cliente en nombre del que habla. Con eso se manda
+// desde SU número (lib/wa-credenciales.ts). Sin cliente, habla el número de la
+// demo, que es lo que hacía siempre.
+
+import { credencialesWa } from "./wa-credenciales";
 
 const VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v21.0";
 const GRAPH = `https://graph.facebook.com/${VERSION}`;
 
+export interface OpcionesEnvio {
+  tenant?: string;
+}
+
+const SIN_NUMERO = "Este cliente no tiene un número de WhatsApp conectado.";
+
 export async function enviarTextoWa(
   to: string,
   text: string,
+  opts: OpcionesEnvio = {},
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) {
-    return { ok: false, error: "Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID" };
-  }
+  const c = await credencialesWa(opts.tenant);
+  if (!c) return { ok: false, error: SIN_NUMERO };
+  const { token, phoneId } = c;
 
   const res = await fetch(`${GRAPH}/${phoneId}/messages`, {
     method: "POST",
@@ -41,12 +52,11 @@ export async function enviarTextoWa(
 // bloqueado, Graph responde ok igual.
 export async function bloquearNumeroWa(
   waId: string,
+  opts: OpcionesEnvio = {},
 ): Promise<{ ok: boolean; error?: string }> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) {
-    return { ok: false, error: "Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID" };
-  }
+  const c = await credencialesWa(opts.tenant);
+  if (!c) return { ok: false, error: SIN_NUMERO };
+  const { token, phoneId } = c;
   const res = await fetch(`${GRAPH}/${phoneId}/block_users`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -63,10 +73,10 @@ export async function bloquearNumeroWa(
 
 // Muestra "escribiendo..." en el WhatsApp del cliente (y marca leído) usando el
 // wamid del último mensaje recibido. Dura hasta 25s o hasta que llegue la respuesta.
-export async function mostrarEscribiendo(messageId: string): Promise<void> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) return;
+export async function mostrarEscribiendo(messageId: string, opts: OpcionesEnvio = {}): Promise<void> {
+  const c = await credencialesWa(opts.tenant);
+  if (!c) return;
+  const { token, phoneId } = c;
   await fetch(`${GRAPH}/${phoneId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -87,12 +97,11 @@ export async function enviarPlantilla(
   name: string,
   language: string,
   variables: string[] = [],
+  opts: OpcionesEnvio = {},
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) {
-    return { ok: false, error: "Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID" };
-  }
+  const c = await credencialesWa(opts.tenant);
+  if (!c) return { ok: false, error: SIN_NUMERO };
+  const { token, phoneId } = c;
 
   const components = variables.length
     ? [{ type: "body", parameters: variables.map((v) => ({ type: "text", text: v })) }]
@@ -125,10 +134,15 @@ export async function enviarPlantilla(
 }
 
 // Reacciona a un mensaje del cliente con un emoji.
-export async function enviarReaccion(to: string, messageId: string, emoji: string): Promise<void> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) return;
+export async function enviarReaccion(
+  to: string,
+  messageId: string,
+  emoji: string,
+  opts: OpcionesEnvio = {},
+): Promise<void> {
+  const c = await credencialesWa(opts.tenant);
+  if (!c) return;
+  const { token, phoneId } = c;
   await fetch(`${GRAPH}/${phoneId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

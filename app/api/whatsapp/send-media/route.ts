@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { addOutbound } from "@/lib/wa-store";
 import { addAdjunto } from "@/lib/contacts-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
+import { credencialesWa } from "@/lib/wa-credenciales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,14 +16,14 @@ const GRAPH = `https://graph.facebook.com/${VERSION}`;
 // Error de Graph: { ok: false, error } con status 502
 // Sin credenciales: 500
 export async function POST(req: Request) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) {
+  const credenciales = await credencialesWa(tenantFromRequest(req));
+  if (!credenciales) {
     return NextResponse.json(
-      { ok: false, error: "Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID" },
+      { ok: false, error: "Este cliente no tiene un número de WhatsApp conectado." },
       { status: 500 },
     );
   }
+  const { token, phoneId } = credenciales;
 
   let formData: FormData;
   try {

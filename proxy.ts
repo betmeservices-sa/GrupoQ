@@ -22,6 +22,8 @@ import { MODULO_RUTA, primerModulo, puedeVerRuta, VE } from "@/lib/modulos";
 const PUBLICAS = [
   "/api/auth/login",
   "/api/auth/logout",
+  // Entrar sin clave, SOLO en desarrollo local (la ruta misma devuelve 404 en producción).
+  "/api/auth/entrar-como",
   "/api/webhooks/",
   // Los cron de Vercel: no tienen sesión, validan su propio secreto (CRON_SECRET).
   "/api/cron/",

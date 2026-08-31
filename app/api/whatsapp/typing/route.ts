@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { tenantFromRequest } from "@/lib/tenants/server";
+import { credencialesWa } from "@/lib/wa-credenciales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,14 +13,14 @@ const GRAPH = `https://graph.facebook.com/${VERSION}`;
 // Meta marca ese mensaje como leído y muestra el indicador hasta 25s o hasta
 // que envíes la respuesta, lo que ocurra primero.
 export async function POST(req: Request) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) {
+  const credenciales = await credencialesWa(tenantFromRequest(req));
+  if (!credenciales) {
     return NextResponse.json(
-      { ok: false, error: "Faltan WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID" },
+      { ok: false, error: "Este cliente no tiene un número de WhatsApp conectado." },
       { status: 500 },
     );
   }
+  const { token, phoneId } = credenciales;
 
   let body: { messageId?: string };
   try {

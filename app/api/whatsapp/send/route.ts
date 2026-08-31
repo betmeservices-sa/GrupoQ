@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   // Un humano tomó la conversación: la IA se apaga (override OFF) en este chat.
   if (body.manual) await setChatOverride(to, false);
 
-  const env = await enviarTextoWa(to, text);
+  const env = await enviarTextoWa(to, text, { tenant: tenantFromRequest(req) });
   if (!env.ok) {
     return NextResponse.json({ ok: false, error: env.error }, { status: 502 });
   }

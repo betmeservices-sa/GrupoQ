@@ -74,7 +74,7 @@ async function avisarAlHuesped(
   try {
     if (p.clave.startsWith("wa:")) {
       const to = p.clave.slice(3);
-      const env = await enviarTextoWa(to, texto);
+      const env = await enviarTextoWa(to, texto, { tenant: "yaly" });
       if (!env.ok || !env.id) return { ok: false, error: env.error };
       await addOutbound({ waId: env.id, to, texto, ts: new Date().toISOString(), tenant });
       return { ok: true };

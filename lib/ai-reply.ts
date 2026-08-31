@@ -130,7 +130,7 @@ export async function programarRespuestaIA(opts: {
     // Recien ahora aparece el "escribiendo...". Va aqui y no antes porque Meta
     // pide no mostrarlo si no vas a responder, y hasta este punto no lo sabiamos.
     // Ojo: mostrarlo tambien marca el mensaje como leido (doble check azul).
-    await mostrarEscribiendo(opts.triggerWamid);
+    await mostrarEscribiendo(opts.triggerWamid, { tenant: opts.tenant });
 
     // Tramo 2: el resto de la espera, ya con el indicador puesto.
     await sleep(restoAleatorio());
@@ -238,7 +238,7 @@ export async function programarRespuestaIA(opts: {
             tenant: opts.tenant,
           });
         },
-        onReaccionar: (emoji) => enviarReaccion(opts.from, opts.triggerWamid, emoji),
+        onReaccionar: (emoji) => enviarReaccion(opts.from, opts.triggerWamid, emoji, { tenant: opts.tenant }),
         // El modelo dedujo de qué hotel habla el huésped: se guarda igual que si
         // lo hubiera contestado a la pregunta fija, para no volver a pedirlo.
         onElegirHotel: async (sede) => {
@@ -255,7 +255,7 @@ export async function programarRespuestaIA(opts: {
     );
 
     const textoWa = paraWhatsApp(respuesta.texto);
-    const env = await enviarTextoWa(opts.from, textoWa);
+    const env = await enviarTextoWa(opts.from, textoWa, { tenant: opts.tenant });
     if (env.ok) ultimoAtendidoWa.set(opts.from, opts.triggerWamid);
     if (env.ok && env.id) {
       await addOutbound({
@@ -288,7 +288,7 @@ export async function programarRespuestaIA(opts: {
 
 /** Manda un texto fijo del agente y lo deja en el hilo (para que cuente). */
 async function enviarYGuardar(from: string, texto: string, tenant: TenantId): Promise<void> {
-  const env = await enviarTextoWa(from, texto);
+  const env = await enviarTextoWa(from, texto, { tenant });
   if (env.ok && env.id) {
     await addOutbound({
       waId: env.id,
