@@ -36,10 +36,23 @@ export function useAuth() {
 
   useEffect(() => {
     let cancelado = false;
-    fetch("/api/auth/me")
-      .then((r) => {
+    // /sesion y no /me: ademas de "hay sesion", dice DE QUE cliente es. El
+    // navegador guarda el cliente activo en localStorage y solo lo escribia la
+    // pantalla de login; entrar por otra puerta (entrar-como en local) dejaba
+    // la sesion de un cliente con la pintura de otro: el panel salia azul de
+    // Grupo Q con los datos de Yali, y sin los modulos que dependen del tenant.
+    // Ahora manda la sesion: si el navegador tiene otro cliente guardado, se
+    // corrige y se recarga una vez (los modulos leen el tenant al evaluarse).
+    fetch("/api/auth/sesion")
+      .then(async (r) => {
         if (cancelado) return;
         if (r.ok) {
+          const d = (await r.json().catch(() => ({}))) as { tenant?: string };
+          if (d.tenant && isTenantId(d.tenant) && d.tenant !== window.localStorage.getItem("ccg.tenant")) {
+            setActiveTenant(d.tenant);
+            window.location.reload();
+            return;
+          }
           setSesion(true);
         } else {
           // Sesión del servidor inválida o expirada: limpiar el estado stale del
