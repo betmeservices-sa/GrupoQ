@@ -66,9 +66,13 @@ export interface RoleDef {
 const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "agentes", "settings"];
 export const VE: Record<RoleId, ModuleId[]> = {
   recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "interno", "comentarios"],
-  // Solo contestar: los mensajes privados y lo publico de las redes. Nada de
-  // metricas, ajustes, promociones ni perfil del agente.
-  atencion: ["bandeja", "mis-chats", "comentarios", "redes"],
+  // Atencion es quien da la cara: contesta lo privado y lo publico, trabaja
+  // los casos que el agente no resuelve (los de pago van a Veronica desde el
+  // kickoff), habla con el equipo, y VE COMO VA EL HOTEL: Veronica y Olga son
+  // los ojos de los duenos, asi que el dashboard y Probar a Sofia son suyos.
+  // Lo que sigue cerrado: ajustes, promociones y el perfil del agente, que
+  // cambian como se comporta Sofia.
+  atencion: ["bandeja", "mis-chats", "tickets", "interno", "comentarios", "redes", "sofia", "dashboard"],
   marketing: ["bandeja", "mis-chats", "contactos", "cartera", "publicacion", "cobros", "redes", "comentarios", "promociones"],
   gerente_marketing: TODO,
   medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno"],

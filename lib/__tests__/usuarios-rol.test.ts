@@ -130,30 +130,43 @@ describe("el equipo de Yali", () => {
 });
 
 describe("lo que ve el rol de atencion", () => {
-  it("contesta mensajes y redes, y nada mas", () => {
-    expect(VE.atencion).toEqual(["bandeja", "mis-chats", "comentarios", "redes"]);
+  it("atiende, trabaja sus casos y ve como va el hotel", () => {
+    // Se abrio el 31 de agosto a pedido de Yali: Veronica y Olga son los ojos
+    // de los duenos. Ven el dashboard y prueban a Sofia; tickets e interno ya
+    // les tocaban (los casos de pago van a Veronica desde el kickoff, y el
+    // chat interno se construyo para ellas).
+    expect(VE.atencion).toEqual([
+      "bandeja",
+      "mis-chats",
+      "tickets",
+      "interno",
+      "comentarios",
+      "redes",
+      "sofia",
+      "dashboard",
+    ]);
   });
 
   it("entra a lo suyo", () => {
-    for (const ruta of ["/", "/mis-chats", "/comentarios", "/redes"]) {
+    for (const ruta of [
+      "/",
+      "/mis-chats",
+      "/tickets",
+      "/interno",
+      "/comentarios",
+      "/redes",
+      "/sofia",
+      "/dashboard",
+    ]) {
       expect(puedeVerRuta("atencion", ruta), ruta).toBe(true);
     }
   });
 
-  it("NO entra a lo del negocio, ni escribiendo la direccion a mano", () => {
+  it("NO entra a lo que cambia como se comporta el agente, ni a mano", () => {
     // Esta es la prueba que importa. Que el menu no muestre el modulo es
-    // comodidad; lo que cuenta es que la ruta este cerrada.
-    for (const ruta of [
-      "/dashboard",
-      "/settings",
-      "/agentes",
-      "/llamadas",
-      "/perfil",
-      "/promociones",
-      "/tickets",
-      "/contactos",
-      "/interno",
-    ]) {
+    // comodidad; lo que cuenta es que la ruta este cerrada. Ajustes, perfil y
+    // promociones cambian a Sofia para TODOS: eso sigue siendo de direccion.
+    for (const ruta of ["/settings", "/agentes", "/llamadas", "/perfil", "/promociones", "/contactos"]) {
       expect(puedeVerRuta("atencion", ruta), ruta).toBe(false);
     }
   });
