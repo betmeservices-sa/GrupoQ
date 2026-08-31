@@ -69,11 +69,18 @@ interface WaMessage {
 export async function POST(req: Request) {
   const raw = await req.text();
 
-  // Valida la firma solo si configuraste el App Secret (en prueba local puede ir vacío).
-  const secret = process.env.WHATSAPP_APP_SECRET;
-  if (secret) {
+  // Valida la firma contra las apps que pueden mandar acá. Son dos: la app de
+  // la demo (WHATSAPP_APP_SECRET, el número de siempre) y la app MiAgentIA
+  // (META_APP_SECRET), que es por donde entran los números que cada cliente
+  // conecta desde su panel. Con una sola, los mensajes de la otra volvían 401
+  // sin que nadie se enterara. Sin ningún secreto configurado (prueba local)
+  // se acepta todo.
+  const secretos = [process.env.WHATSAPP_APP_SECRET, process.env.META_APP_SECRET].filter(
+    (x): x is string => Boolean(x),
+  );
+  if (secretos.length > 0) {
     const firma = req.headers.get("x-hub-signature-256");
-    if (!firmaValida(raw, firma, secret)) {
+    if (!secretos.some((sec) => firmaValida(raw, firma, sec))) {
       return new Response("Invalid signature", { status: 401 });
     }
   }
