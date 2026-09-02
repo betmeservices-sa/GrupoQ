@@ -102,3 +102,123 @@ export async function fetchCuotaEleven(): Promise<CuotaEleven | null> {
     clearTimeout(timer);
   }
 }
+
+// ===== Consumo por rango de fechas =====
+//
+// La cuota de arriba es UN numero del periodo de facturacion en curso: no se
+// puede filtrar por fecha porque el endpoint no devuelve una serie. Para
+// filtrar hay que ir al historial, que si trae una entrada por generacion con
+// su fecha y sus caracteres.
+//
+// El historial completo de esta cuenta son ~1,400 entradas (2 paginas, ~4s),
+// asi que se trae ENTERO una vez y se cachea en memoria. Aggregar rangos sobre
+// el cache es instantaneo, y evita repaginar cada vez que alguien cambia el
+// filtro. Si la instancia se recicla, el peor caso son esos 4 segundos.
+
+const TTL_CACHE_MS = 60_000;
+const PAGINAS_MAX = 20; // corte de seguridad si la cuenta crece mucho
+
+interface ItemHistorial {
+  date_unix?: number;
+  character_count_change_from?: number;
+  character_count_change_to?: number;
+}
+
+interface HistorialResp {
+  history?: ItemHistorial[];
+  has_more?: boolean;
+  last_history_item_id?: string;
+}
+
+export interface ConsumoEleven {
+  caracteres: number;
+  generaciones: number;
+  porDia: { dia: string; caracteres: number }[]; // dia YYYY-MM-DD en hora del cliente
+  desdeUnix: number | null; // inicio del rango pedido (null = todo)
+  hastaUnix: number | null;
+  masAntiguoUnix: number | null; // lo mas viejo que existe en la cuenta
+}
+
+let cache: { items: ItemHistorial[]; ts: number } | null = null;
+
+async function traerHistorial(key: string): Promise<ItemHistorial[]> {
+  if (cache && Date.now() - cache.ts < TTL_CACHE_MS) return cache.items;
+
+  const items: ItemHistorial[] = [];
+  let despuesDe: string | undefined;
+  for (let i = 0; i < PAGINAS_MAX; i++) {
+    const url = new URL(`${EL_BASE}/v1/history`);
+    url.searchParams.set("page_size", "1000");
+    if (despuesDe) url.searchParams.set("start_after_history_item_id", despuesDe);
+
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 15000);
+    try {
+      const res = await fetch(url, {
+        headers: { "xi-api-key": key },
+        cache: "no-store",
+        signal: ac.signal,
+      });
+      if (!res.ok) throw new Error(`ElevenLabs respondio ${res.status} al leer el historial`);
+      const d = (await res.json()) as HistorialResp;
+      items.push(...(d.history ?? []));
+      if (!d.has_more || !d.last_history_item_id) break;
+      despuesDe = d.last_history_item_id;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  cache = { items, ts: Date.now() };
+  return items;
+}
+
+// Los limites llegan en unix (segundos) ya resueltos por el cliente, que es
+// quien conoce la zona horaria de quien mira. Asi "hoy" es el hoy del usuario y
+// no el del servidor, que en Vercel corre en UTC.
+//
+// offsetMin es lo que devuelve getTimezoneOffset() en el navegador: minutos que
+// hay que SUMAR a la hora local para llegar a UTC (El Salvador = 360). Se usa
+// solo para agrupar por dia; sin el, una generacion de las 7pm de El Salvador
+// caeria en el dia siguiente porque en UTC ya es la 1am.
+export async function fetchConsumoEleven(
+  desdeUnix: number | null,
+  hastaUnix: number | null,
+  offsetMin = 0,
+): Promise<ConsumoEleven | null> {
+  const key = claveEleven();
+  if (!key) return null;
+
+  const items = await traerHistorial(key);
+
+  let caracteres = 0;
+  let generaciones = 0;
+  let masAntiguo: number | null = null;
+  const dias = new Map<string, number>();
+
+  for (const it of items) {
+    const t = it.date_unix;
+    if (typeof t !== "number") continue;
+    masAntiguo = masAntiguo === null ? t : Math.min(masAntiguo, t);
+    if (desdeUnix !== null && t < desdeUnix) continue;
+    if (hastaUnix !== null && t > hastaUnix) continue;
+
+    const usados = (it.character_count_change_to ?? 0) - (it.character_count_change_from ?? 0);
+    if (usados <= 0) continue;
+    caracteres += usados;
+    generaciones += 1;
+
+    const dia = new Date(t * 1000 - offsetMin * 60_000).toISOString().slice(0, 10);
+    dias.set(dia, (dias.get(dia) ?? 0) + usados);
+  }
+
+  return {
+    caracteres,
+    generaciones,
+    porDia: [...dias.entries()]
+      .map(([dia, c]) => ({ dia, caracteres: c }))
+      .sort((a, b) => a.dia.localeCompare(b.dia)),
+    desdeUnix,
+    hastaUnix,
+    masAntiguoUnix: masAntiguo,
+  };
+}

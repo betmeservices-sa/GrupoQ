@@ -207,7 +207,7 @@ export default function LlamadasPage() {
                 <CostBreakdown metrics={data.metrics} tarifaCarrier={data.tarifaCarrier} />
                 <OutcomePanel metrics={data.metrics} />
                 <CarrierPanel metrics={data.metrics} />
-                <ElevenLabsPanel />
+                <ElevenLabsPanel calls={data.calls} tarifaCarrier={data.tarifaCarrier} />
               </div>
             </>
           ) : (
