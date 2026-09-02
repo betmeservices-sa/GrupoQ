@@ -71,7 +71,21 @@ export async function fetchCuotaEleven(): Promise<CuotaEleven | null> {
       cache: "no-store",
       signal: ac.signal,
     });
-    if (!res.ok) throw new Error(`ElevenLabs respondio ${res.status}`);
+    if (!res.ok) {
+      // El cuerpo trae el motivo real y el status solo no alcanza: ElevenLabs
+      // usa 400 invalid_api_key cuando el valor TIENE forma de llave pero esta
+      // muerta, y 401 cuando ni siquiera parece llave (un key ID, comillas
+      // pegadas) o cuando no llego el header. Sin el detalle los tres casos se
+      // ven iguales en la UI.
+      let motivo = "";
+      try {
+        const e = (await res.json()) as { detail?: { status?: string; message?: string } };
+        motivo = e?.detail?.message || e?.detail?.status || "";
+      } catch {
+        // cuerpo no JSON: nos quedamos con el status a secas
+      }
+      throw new Error(`ElevenLabs respondio ${res.status}${motivo ? `: ${motivo}` : ""}`);
+    }
     const d = (await res.json()) as SubscriptionResp;
 
     const usados = d.character_count ?? 0;
