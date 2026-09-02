@@ -1,6 +1,16 @@
 // Datos semilla de Grupo Q / Grupo Nissan (tenant "grupoq").
-// El demo muestra leads de anuncios IG/FB; WhatsApp queda limpio para lo real.
 // Timestamps fijos (sin Date.now) para un demo estable.
+//
+// Antes WhatsApp se dejaba vacío a propósito, para que un número conectado de
+// verdad no mezclara conversaciones reales con las de ejemplo. Eso dejaba dos
+// pantallas en blanco en el demo: Contactos, que llavea la ficha por teléfono y
+// por eso ignora a los contactos que solo tienen handle de IG o FB, y Mis
+// chats, que lista lo que el agente ya pasó a una persona.
+//
+// Ahora sí hay chats de WhatsApp de ejemplo. La contrapartida: si a este tenant
+// se le conecta un número real, estos conviven con los de verdad hasta que se
+// borre el seed. Con Supabase configurado el problema no existe, porque ahí
+// manda la base y el seed ni se lee (ver sembrarDesdeSeed en contacts-store).
 
 import type { TenantSeed } from "../types";
 
@@ -36,6 +46,21 @@ export const grupoqSeed: TenantSeed = {
     { id: "c4", nombre: "Andrea Sosa", handle: "Andrea Sosa", canal: "facebook" },
     { id: "c5", nombre: "Claudia Reyes", handle: "@clau.reyes", canal: "instagram", notas: "Interesada en X-Trail e-POWER con financiamiento." },
     { id: "c6", nombre: "Rosa Campos", handle: "Rosa Campos", canal: "facebook" },
+    // De acá para abajo, contactos de WhatsApp. Van CON teléfono a propósito:
+    // la pestaña Contactos llavea la ficha por número, así que los de arriba,
+    // que solo tienen handle de Instagram o Facebook, nunca aparecen ahí. Sin
+    // estos, esa pantalla se ve vacía en el demo.
+    //
+    // Cada uno lleva su etapa del proceso y el vehículo que está viendo, que es
+    // lo que un asesor necesita ver de un vistazo antes de contestar.
+    { id: "c7", nombre: "Óscar Molina", telefono: "+503 7712 4408", correo: "omolina@gmail.com", canal: "whatsapp", tags: ["Interés Pickup", "Pre-aprobado"], notas: "Frontier Doble Cabina diésel. CrediQ lo pre-aprobó a 60 meses con prima del 20%. Trabaja en construcción, la quiere para obra." },
+    { id: "c8", nombre: "Gabriela Portillo", telefono: "+503 7845 3391", correo: "gaby.portillo@outlook.com", canal: "whatsapp", tags: ["Interés SUV", "Pendiente documentos"], notas: "X-Trail e-POWER. Le faltan las últimas dos boletas de pago y la copia del DUI para completar el expediente." },
+    { id: "c9", nombre: "Luis Menéndez", telefono: "+503 6023 7714", correo: "lmenendez@hotmail.com", canal: "whatsapp", tags: ["Interés SUV", "Aprobado"], notas: "Kicks aprobado por CrediQ a 72 meses. Falta que elija color: pidió ver el gris y el rojo." },
+    { id: "c10", nombre: "Marielos Cañas", telefono: "+503 7190 6652", correo: "mcanas@gmail.com", canal: "whatsapp", tags: ["Interés SUV", "Cotización enviada"], notas: "Qashqai. Se le mandó cotización el lunes, está comparando contra una compra de contado." },
+    { id: "c11", nombre: "Ernesto Batres", telefono: "+503 7433 8807", canal: "whatsapp", tags: ["Interés Pickup", "Test drive agendado"], notas: "Frontier Cabina Simple. Test drive el sábado a las 10 en la sucursal principal." },
+    { id: "c12", nombre: "Patricia Aguilar", telefono: "+503 6688 2214", correo: "paguilar@yahoo.com", canal: "whatsapp", tags: ["Interés SUV", "Pendiente documentos"], notas: "X-Trail gasolina. Es su primer vehículo financiado; hay que explicarle bien qué papelería pide CrediQ." },
+    { id: "c13", nombre: "Diego Salazar", telefono: "+503 7052 9938", correo: "dsalazar@gmail.com", canal: "whatsapp", tags: ["Interés SUV", "Entrega programada"], notas: "Kicks. Entrega el viernes a las 3 de la tarde, ya firmó. Pidió que le expliquen el CarPlay al recibirlo." },
+    { id: "c14", nombre: "Rocío Zelaya", telefono: "+503 7361 4470", correo: "rzelaya@gmail.com", canal: "whatsapp", tags: ["Interés Pickup", "Pre-aprobado"], notas: "Frontier. Pre-aprobada, pero quiere bajar la cuota: pidió cotizar a 84 meses." },
   ],
   conversations: [
     { id: "v1", canal: "instagram", contactId: "c1", departamento: "ventas", estado: "en_progreso", asignadoA: "s2", noLeidos: 0, ultimoMensajeTs: "2026-06-23T10:20:00" },
@@ -44,6 +69,17 @@ export const grupoqSeed: TenantSeed = {
     { id: "v4", canal: "facebook", contactId: "c4", departamento: "atencion", estado: "resuelto", asignadoA: ME, noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:15:00" },
     { id: "v5", canal: "instagram", contactId: "c5", departamento: "crediq", estado: "nuevo", noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:31:00" },
     { id: "v6", canal: "facebook", contactId: "c6", departamento: "taller", estado: "resuelto", asignadoA: "s7", noLeidos: 0, ultimoMensajeTs: "2026-06-22T16:40:00" },
+    // Los chats de WhatsApp. Varios quedan asignados a ME porque un chat con
+    // dueño es justo lo que la IA ya no contesta: son los que caen en "Mis
+    // chats", la pantalla de lo que Sofía pasó a una persona.
+    { id: "v7", canal: "whatsapp", contactId: "c7", departamento: "crediq", estado: "en_progreso", asignadoA: ME, noLeidos: 0, ultimoMensajeTs: "2026-06-23T10:41:00" },
+    { id: "v8", canal: "whatsapp", contactId: "c8", departamento: "crediq", estado: "en_progreso", asignadoA: ME, noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:36:00" },
+    { id: "v9", canal: "whatsapp", contactId: "c9", departamento: "ventas", estado: "en_progreso", asignadoA: "s5", noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:58:00" },
+    { id: "v10", canal: "whatsapp", contactId: "c10", departamento: "ventas", estado: "nuevo", asignadoA: ME, noLeidos: 2, ultimoMensajeTs: "2026-06-23T10:44:00" },
+    { id: "v11", canal: "whatsapp", contactId: "c11", departamento: "ventas", estado: "en_progreso", asignadoA: "s2", noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:31:00" },
+    { id: "v12", canal: "whatsapp", contactId: "c13", departamento: "ventas", estado: "en_progreso", asignadoA: ME, noLeidos: 0, ultimoMensajeTs: "2026-06-23T10:29:00" },
+    { id: "v13", canal: "whatsapp", contactId: "c14", departamento: "crediq", estado: "nuevo", noLeidos: 2, ultimoMensajeTs: "2026-06-23T10:47:00" },
+    { id: "v14", canal: "whatsapp", contactId: "c12", departamento: "crediq", estado: "en_progreso", asignadoA: "s5", noLeidos: 0, ultimoMensajeTs: "2026-06-23T08:52:00" },
   ],
   messages: [
     // v1 - IG, lead de anuncio de la Frontier (en progreso)
@@ -64,6 +100,33 @@ export const grupoqSeed: TenantSeed = {
     { id: "m10", conversationId: "v6", autor: "cliente", texto: "Buenas, ¿el taller de Santa Ana atiende los sábados?", ts: "2026-06-22T16:20:00" },
     { id: "m11", conversationId: "v6", autor: "staff", staffId: "s7", texto: "Hola Rosa, sí, los sábados atendemos con cita. ¿Le agendo un espacio para su vehículo?", ts: "2026-06-22T16:35:00" },
     { id: "m12", conversationId: "v6", autor: "cliente", texto: "Perfecto, la otra semana le escribo para coordinarlo. ¡Gracias!", ts: "2026-06-22T16:40:00" },
+    // --- WhatsApp ---
+    // v7 - Oscar, pre-aprobado, empujando el cierre (mio)
+    { id: "m13", conversationId: "v7", autor: "cliente", texto: "Buenos dias, me llamaron de CrediQ que ya sali pre-aprobado. Que sigue?", ts: "2026-06-23T10:31:00" },
+    { id: "m14", conversationId: "v7", autor: "staff", staffId: ME, texto: "Buenos dias don Oscar, correcto. Quedo pre-aprobado a 60 meses con prima del 20%. Lo que sigue es traer DUI, NIT y las dos ultimas boletas de pago, y con eso armamos el expediente final.", ts: "2026-06-23T10:38:00" },
+    { id: "m15", conversationId: "v7", autor: "cliente", texto: "Perfecto. Las boletas las tengo en digital, se las puedo mandar por aqui?", ts: "2026-06-23T10:41:00" },
+    // v8 - Gabriela, le falta papeleria (mio, 1 sin leer)
+    { id: "m16", conversationId: "v8", autor: "staff", staffId: ME, texto: "Buenos dias Gabriela, le escribo por la X-Trail e-POWER. Para cerrar el expediente solo faltan las dos ultimas boletas de pago y la copia del DUI.", ts: "2026-06-23T09:12:00" },
+    { id: "m17", conversationId: "v8", autor: "cliente", texto: "Si disculpe, ando fuera esta semana. El lunes le mando todo sin falta.", ts: "2026-06-23T10:36:00" },
+    // v9 - Luis, ya aprobado, eligiendo color
+    { id: "m18", conversationId: "v9", autor: "cliente", texto: "Me confirmaron que quedo aprobado el Kicks. Lo puedo ver en gris?", ts: "2026-06-23T09:44:00" },
+    { id: "m19", conversationId: "v9", autor: "staff", staffId: "s5", texto: "Asi es don Luis, aprobado a 72 meses. Tenemos el gris y el rojo en sala. Le aparto los dos para que los vea juntos y decida.", ts: "2026-06-23T09:58:00" },
+    // v10 - Marielos, comparando contra contado (mio, 2 sin leer)
+    { id: "m20", conversationId: "v10", autor: "staff", staffId: ME, texto: "Buenas tardes Marielos, le comparto la cotizacion del Qashqai que quedamos.", ts: "2026-06-22T15:20:00" },
+    { id: "m21", conversationId: "v10", autor: "cliente", texto: "Gracias. Una consulta, si lo pago de contado hay algun descuento adicional?", ts: "2026-06-23T10:40:00" },
+    { id: "m22", conversationId: "v10", autor: "cliente", texto: "Y cuanto seria la cuota a 60 meses para comparar?", ts: "2026-06-23T10:44:00" },
+    // v11 - Ernesto, test drive el sabado
+    { id: "m23", conversationId: "v11", autor: "cliente", texto: "Queria probar la Frontier cabina simple antes de decidir.", ts: "2026-06-23T09:20:00" },
+    { id: "m24", conversationId: "v11", autor: "staff", staffId: "s2", texto: "Con gusto don Ernesto. Le agende el test drive el sabado a las diez en la sucursal principal. Solo traiga su licencia vigente.", ts: "2026-06-23T09:31:00" },
+    // v12 - Diego, entrega el viernes (mio)
+    { id: "m25", conversationId: "v12", autor: "cliente", texto: "Todo listo para el viernes? A que hora paso por el carro?", ts: "2026-06-23T10:22:00" },
+    { id: "m26", conversationId: "v12", autor: "staff", staffId: ME, texto: "Todo listo don Diego. La entrega es el viernes a las tres de la tarde. Calcule una hora, ahi mismo le configuramos el CarPlay y le explicamos el mantenimiento.", ts: "2026-06-23T10:29:00" },
+    // v13 - Rocio, quiere bajar la cuota (sin asignar, 2 sin leer)
+    { id: "m27", conversationId: "v13", autor: "cliente", texto: "Buenos dias, ya me dijeron que sali pre-aprobada para la Frontier.", ts: "2026-06-23T10:45:00" },
+    { id: "m28", conversationId: "v13", autor: "cliente", texto: "Pero la cuota me queda alta. Se podra a 84 meses?", ts: "2026-06-23T10:47:00" },
+    // v14 - Patricia, primer financiamiento
+    { id: "m29", conversationId: "v14", autor: "cliente", texto: "Es la primera vez que voy a financiar un carro, que papeles necesito?", ts: "2026-06-23T08:40:00" },
+    { id: "m30", conversationId: "v14", autor: "staff", staffId: "s5", texto: "Con gusto le explico Patricia. Para la X-Trail son tres cosas: DUI y NIT, las dos ultimas boletas de pago y una constancia laboral. Nada mas, y el tramite sale en 48 horas.", ts: "2026-06-23T08:52:00" },
   ],
   internalChannels: [
     { id: "ic1", nombre: "general", tipo: "canal", miembros: [ME, "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10"] },

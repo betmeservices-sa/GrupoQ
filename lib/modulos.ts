@@ -18,6 +18,10 @@ export type ModuleId =
   | "habitaciones"
   | "calendario"
   | "pipeline"
+  // Tablero de prospectos de CrediQ, la financiera de Grupo Q. Es su propio
+  // modulo y no el "pipeline" de arriba: ese es el tablero inmobiliario, con
+  // propiedades y carriles que aca no aplican.
+  | "crediq"
   | "visitas"
   | "cartera"
   | "publicacion"
@@ -63,9 +67,9 @@ export interface RoleDef {
 // marketing no gestiona casos, asi que no lo ve.
 // "mis-chats" lo ve todo el mundo: es donde caen los chats que el agente pasa a
 // una persona, y quien atiende tiene que verlos sin depender de su rol.
-const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "agentes", "settings"];
+const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "agentes", "settings"];
 export const VE: Record<RoleId, ModuleId[]> = {
-  recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "interno", "comentarios"],
+  recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "interno", "comentarios"],
   // Atencion es quien da la cara: contesta lo privado y lo publico, trabaja
   // los casos que el agente no resuelve (los de pago van a Veronica desde el
   // kickoff), habla con el equipo, y VE COMO VA EL HOTEL: Veronica y Olga son
@@ -75,8 +79,8 @@ export const VE: Record<RoleId, ModuleId[]> = {
   atencion: ["bandeja", "mis-chats", "tickets", "interno", "comentarios", "redes", "sofia", "dashboard"],
   marketing: ["bandeja", "mis-chats", "contactos", "cartera", "publicacion", "cobros", "redes", "comentarios", "promociones"],
   gerente_marketing: TODO,
-  medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno"],
-  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "visitas", "cartera", "publicacion", "cobros", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard"],
+  medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno"],
+  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard"],
   admin: TODO,
 };
 
@@ -91,6 +95,7 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   habitaciones: "/habitaciones",
   calendario: "/calendario",
   pipeline: "/pipeline",
+  crediq: "/crediq",
   visitas: "/visitas",
   cartera: "/cartera",
   publicacion: "/publicacion",

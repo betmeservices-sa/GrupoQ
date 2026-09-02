@@ -146,12 +146,22 @@ export const grupoqTenant: TenantConfig = {
     admin: "Dirección (todo)",
   },
   defaultDepartment: "atencion",
+  // Las primeras son el interés (qué anda buscando) y las últimas el estado en
+  // el proceso de compra, que es lo que de verdad se filtra a diario: quién ya
+  // pasó por CrediQ, a quién le falta papelería y quién está por recibir su
+  // vehículo. El orden importa: el color de cada etiqueta sale de su posición.
   tags: [
     "Servicio al cliente",
     "Interés SUV",
     "Interés Pickup",
     "Interés Microbuses",
     "Interés Sedán",
+    "Cotización enviada",
+    "Test drive agendado",
+    "Pendiente documentos",
+    "Pre-aprobado",
+    "Aprobado",
+    "Entrega programada",
     "Cliente cerrado",
   ],
   seed: grupoqSeed,

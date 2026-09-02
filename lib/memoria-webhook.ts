@@ -15,6 +15,54 @@ import {
   type FrasesMemoria,
 } from "./memoria-llamadas";
 import { diagnostico, guardarMemoria, leerMemoria } from "./memoria-store";
+import { getContacto, upsertContacto } from "./contacts-store";
+
+// Marca de las notas que escribió el agente. Sirve para saber cuáles puede
+// volver a pisar: lo que escribió una persona no se toca nunca.
+const MARCA_AUTO = "Sofía anotó: ";
+
+/** La nota de la ficha: qué vehículo mira y para qué lo quiere. */
+function notaDeLlamada(e: ExtractoLlamada): string | undefined {
+  const partes: string[] = [];
+  if (e.modelos?.length) partes.push(e.modelos.join(", "));
+  if (e.uso) partes.push(`lo quiere para ${e.uso}`);
+  if (e.pago) partes.push(`pensaba pagarlo ${e.pago}`);
+  // Sin datos sueltos, sirve el resumen de la llamada antes que nada.
+  if (partes.length === 0 && e.resumen) partes.push(e.resumen);
+  if (partes.length === 0) return undefined;
+  const texto = partes.join(", ");
+  return MARCA_AUTO + texto.charAt(0).toUpperCase() + texto.slice(1) + ".";
+}
+
+// La ficha se crea con que haya número, aunque la llamada no deje nada más:
+// alguien que llamó y colgó igual es un prospecto, y sin esto no existiría en
+// Contactos ni en el pipeline. El nombre y la nota se llenan si la llamada los
+// dio.
+//
+// Nunca tumba la llamada: si la ficha falla, se registra y se sigue.
+async function crearOActualizarFicha(
+  tenant: string,
+  telefono: string,
+  e: ExtractoLlamada,
+): Promise<void> {
+  try {
+    const previo = await getContacto(telefono);
+    const nota = notaDeLlamada(e);
+    // Solo se pisa la nota si está vacía o si la anterior también es del
+    // agente. Lo que escribió el staff a mano manda.
+    const escribirNota = Boolean(nota) && (!previo?.notas || previo.notas.startsWith(MARCA_AUTO));
+
+    const partes = (e.nombre ?? "").trim().split(/\s+/).filter(Boolean);
+    await upsertContacto({
+      from: telefono,
+      tenant,
+      ...(partes.length > 0 ? { nombre: partes[0], apellido: partes.slice(1).join(" ") } : {}),
+      ...(escribirNota ? { notas: nota } : {}),
+    });
+  } catch (err) {
+    console.error(`[memoria ${tenant}] no se pudo crear la ficha del contacto:`, err);
+  }
+}
 
 export interface CuerpoVapi {
   message?: {
@@ -111,6 +159,11 @@ export async function manejarMemoria(req: Request, op: OpcionesMemoria) {
     if (!telefono) return NextResponse.json({ ok: true, ignorado: "sin número" });
 
     const extracto = op.extraer(msg.analysis?.structuredData ?? {}, msg.analysis?.summary);
+
+    // Primero la ficha, y a propósito ANTES del corte por "nada que recordar":
+    // el contacto se crea aunque la llamada no haya dejado dato alguno.
+    await crearOActualizarFicha(op.tenant, telefono, extracto);
+
     const vacio =
       !extracto.nombre && !extracto.modelos?.length && !extracto.uso && !extracto.pago && !extracto.resumen;
     if (vacio) return NextResponse.json({ ok: true, ignorado: "sin nada que recordar" });

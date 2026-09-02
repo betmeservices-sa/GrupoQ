@@ -14,6 +14,8 @@ function aDTO(c: Contacto) {
     correo: c.correo ?? "",
     notas: c.notas ?? "",
     tags: c.tags ?? [],
+    // La usa el pipeline para poner lo mas reciente arriba.
+    actualizado: c.updated_at ?? null,
   };
 }
 

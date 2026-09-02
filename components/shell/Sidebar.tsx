@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
+import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, GitBranch, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { useStore } from "@/lib/store";
@@ -35,6 +35,7 @@ const NAV: NavItem[] = [
   { id: "habitaciones", href: "/habitaciones", label: "Habitaciones", Icon: BedDouble },
   { id: "calendario", href: "/calendario", label: "Calendario", Icon: CalendarDays },
   { id: "pipeline", href: "/pipeline", label: "Pipeline", Icon: Filter },
+  { id: "crediq", href: "/crediq", label: "Pipeline", Icon: GitBranch },
   { id: "visitas", href: "/visitas", label: "Visitas", Icon: CalendarClock },
   { id: "cartera", href: "/cartera", label: "Cartera", Icon: Building2 },
   { id: "publicacion", href: "/publicacion", label: "Publicación", Icon: Share2 },
@@ -87,6 +88,10 @@ export function Sidebar({
   const veAgentes = veLlamadas;
   const veHotel = tenant === "hotel";
   const veInmobiliaria = tenant === "inmobiliaria";
+  // Grupo Q: el tablero de prospectos de CrediQ, su financiera. Y "Mis chats",
+  // que es donde caen las conversaciones que el agente ya paso a una persona:
+  // sin esa pantalla el traspaso existe pero nadie lo ve.
+  const veCrediq = tenant === "grupoq";
   const veCobros = tenant === "promerica";
   // "promociones" y "perfil" son el tablero con el que Yali maneja a su agente:
   // lo que enciende en Promociones es lo único que el agente puede ofrecer, y
@@ -107,6 +112,7 @@ export function Sidebar({
       (item.id !== "calendario" || veHotel) &&
       (item.id !== "hoy" || veHotel) &&
       (item.id !== "pipeline" || veInmobiliaria) &&
+      (item.id !== "crediq" || veCrediq) &&
       (item.id !== "visitas" || veInmobiliaria) &&
       (item.id !== "cartera" || veInmobiliaria) &&
       (item.id !== "publicacion" || veInmobiliaria) &&
@@ -114,7 +120,7 @@ export function Sidebar({
       (item.id !== "campanas" || veCobros) &&
       (item.id !== "redes" || veRedes) &&
       (item.id !== "comentarios" || veRedes) &&
-      (item.id !== "mis-chats" || veYali) &&
+      (item.id !== "mis-chats" || veYali || veCrediq) &&
       (item.id !== "tickets" || tieneTickets) &&
       (item.id !== "promociones" || veYali) &&
       (item.id !== "perfil" || veYali) &&

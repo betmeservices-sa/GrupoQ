@@ -11,9 +11,11 @@ export interface Contacto {
   notas?: string | null;
   tags?: string[] | null;
   tenant?: string | null;
+  /** Ultima vez que se toco la ficha. La usa el pipeline para ordenar. */
+  updated_at?: string | null;
 }
 
-const COLS = "wa_from, nombre, apellido, correo, notas, tags, tenant";
+const COLS = "wa_from, nombre, apellido, correo, notas, tags, tenant, updated_at";
 const memContactos = new Map<string, Contacto>();
 
 function unirTags(prev: string[] | null | undefined, add: string[] | undefined): string[] {
