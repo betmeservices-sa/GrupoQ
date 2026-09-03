@@ -7,7 +7,7 @@ import {
 } from "@/lib/vapi";
 import { destinoRiesgoso, normalizarDestinoSV } from "@/lib/phone";
 import { tenantFromRequest } from "@/lib/tenants/server";
-import { assistantIdDeTenant, esAgencia, veModuloVoz } from "@/lib/tenants/voz";
+import { assistantIdDeTenant, assistantIdsDeTenant, esAgencia, esDelTenant, veModuloVoz } from "@/lib/tenants/voz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,10 +24,10 @@ export async function GET(req: Request) {
 
   try {
     const todos = await fetchVapiAgentes();
-    const mio = assistantIdDeTenant(tenant);
+    const mios = assistantIdsDeTenant(tenant);
     const agentes = esAgencia(tenant)
       ? todos
-      : todos.filter((a) => a.id === mio).map((a) => ({ ...a, script: "" }));
+      : todos.filter((a) => mios.includes(a.id)).map((a) => ({ ...a, script: "" }));
     return NextResponse.json({
       source: hayLlaveVapi() ? "vapi" : "demo",
       agentes,
@@ -96,7 +96,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Este módulo no está habilitado." }, { status: 403 });
   }
 
-  let body: { assistantId?: string; phoneNumberId?: string; numero?: string };
+  let body: {
+    assistantId?: string;
+    phoneNumberId?: string;
+    numero?: string;
+    nombre?: string;
+    fechaPago?: string;
+    monto?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -105,8 +112,14 @@ export async function POST(req: Request) {
 
   // El agente NO se toma del cuerpo cuando llama un cliente: se impone el suyo.
   // Asi nadie puede marcar (ni facturar minutos) con el agente de otro.
-  const propio = assistantIdDeTenant(tenant);
-  const assistantId = esAgencia(tenant) ? body.assistantId?.trim() : propio;
+  // Con varios agentes por cliente, el del cuerpo SI se respeta, pero solo si
+  // es suyo. Si manda el de otro cliente (o ninguno), cae en su principal.
+  const pedido = body.assistantId?.trim();
+  const assistantId = esAgencia(tenant)
+    ? pedido
+    : esDelTenant(pedido, tenant)
+      ? pedido
+      : assistantIdDeTenant(tenant);
   let phoneNumberId = body.phoneNumberId?.trim();
 
   if (!esAgencia(tenant) && assistantId) {
@@ -145,7 +158,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    const llamada = await lanzarLlamadaVapi({ assistantId, phoneNumberId, numero });
+    // Las tres viajan SIEMPRE, aunque vengan vacias. Si una {{variable}} del
+    // guion no recibe valor, Vapi la deja escrita tal cual y el agente termina
+    // diciendo "hablo con llave llave nombre" en voz alta. Con el relleno, el
+    // guion tiene una rama para hablar en general.
+    const variables = {
+      nombre: body.nombre?.trim() || "no disponible",
+      fecha_pago: body.fechaPago?.trim() || "no disponible",
+      monto: body.monto?.trim() || "no disponible",
+    };
+    const llamada = await lanzarLlamadaVapi({ assistantId, phoneNumberId, numero, variables });
     return NextResponse.json({
       ok: true,
       id: llamada.id,

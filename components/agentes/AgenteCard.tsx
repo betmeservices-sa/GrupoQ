@@ -29,14 +29,23 @@ export function AgenteCard({
   agente,
   onAbrir,
   modoCliente = false,
+  puedeMarcar = false,
 }: {
   agente: AgenteRecord;
   onAbrir: (seccion: "script" | "numeros" | "llamar") => void;
+  /**
+   * Si el CLIENTE tiene alguna linea, aunque no sea de este agente. Un agente
+   * de salida (cobros) no atiende entrante y por eso no tiene numero propio,
+   * pero puede marcar desde otra linea de la misma empresa. Sin esto la tarjeta
+   * lo daba por inservible y no dejaba ni abrir el marcador.
+   */
+  puedeMarcar?: boolean;
   // El cliente ve a su agente y lo puede probar; el script y la administracion
   // de lineas son de la agencia y ni siquiera le llegan del servidor.
   modoCliente?: boolean;
 }) {
   const activo = agente.numeros.length > 0;
+  const marcable = activo || puedeMarcar;
   const h = tono(agente.nombre);
 
   return (
@@ -139,8 +148,8 @@ export function AgenteCard({
         <button
           type="button"
           onClick={() => onAbrir("llamar")}
-          disabled={!activo}
-          title={activo ? undefined : "Necesita un número asignado"}
+          disabled={!marcable}
+          title={marcable ? undefined : "Necesita un número asignado"}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-2.5 py-2 text-[12px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
         >
           <Phone size={13} />

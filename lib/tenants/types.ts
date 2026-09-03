@@ -97,7 +97,15 @@ export interface TenantWhatsApp {
 // (y solo puede marcar con) SU agente. Sin este bloque, el tenant no tiene
 // módulo de voz.
 export interface TenantVoz {
+  /** El agente principal: el que marca por defecto y el que responde entrante. */
   assistantId: string;
+  /**
+   * Otros agentes del MISMO cliente. Un concesionario puede tener el de ventas
+   * y el de cobros, que son guiones y voces distintas pero la misma empresa.
+   * Todos entran en la frontera del tenant: se ven y se pueden usar, y ninguno
+   * de otro cliente se cuela.
+   */
+  assistantIdsExtra?: string[];
 }
 
 // --- Simulación de bandeja en vivo (el interruptor "En vivo" del demo) ---

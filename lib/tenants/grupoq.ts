@@ -209,5 +209,11 @@ export const grupoqTenant: TenantConfig = {
   ],
   whatsapp: {},
   // Agente de voz "Sofia Nissan".
-  voz: { assistantId: "f4e60d15-31f9-4278-b014-fb1e0ab1eaff" },
+  voz: {
+    // Ventas (Sofia Nissan) es el principal: el que atiende lo entrante.
+    assistantId: "f4e60d15-31f9-4278-b014-fb1e0ab1eaff",
+    // Cobros (Sofia CrediQ) sale a marcar recordatorios de cuota. Es del mismo
+    // cliente, asi que entra en su frontera y se ve en Agentes.
+    assistantIdsExtra: ["c447405e-c39f-4197-a2c7-f54236d7d2bd"],
+  },
 };

@@ -19,6 +19,13 @@ export function LlamarForm({
   numeros: NumeroAsignado[];
 }) {
   const [destino, setDestino] = useState("");
+  // El nombre no es adorno: el guion lo usa para preguntar "¿hablo con X?" y
+  // para saludar. Sin el, el agente arranca preguntando por un {{nombre}} vacio.
+  const [nombre, setNombre] = useState("");
+  // Solo los usa el agente de cobros. Al que no los usa no le estorban: si el
+  // guion no los menciona, no se dicen.
+  const [fechaPago, setFechaPago] = useState("");
+  const [monto, setMonto] = useState("");
   const [desdeId, setDesdeId] = useState(numeros[0]?.id ?? "");
   const [estado, setEstado] = useState<Estado>({ fase: "idle" });
 
@@ -37,15 +44,25 @@ export function LlamarForm({
   const valido = e164 !== null;
   const riesgoso = valido && destinoRiesgoso(e164);
   const marcando = estado.fase === "marcando";
+  // El nombre es obligatorio: el guion abre preguntando por la persona, y sin
+  // el la llamada arranca preguntando por nadie.
+  const conNombre = nombre.trim().length > 1;
 
   async function marcar() {
-    if (!e164) return;
+    if (!e164 || !conNombre) return;
     setEstado({ fase: "marcando" });
     try {
       const res = await fetch("/api/agentes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assistantId, phoneNumberId: desdeId, numero: e164 }),
+        body: JSON.stringify({
+          assistantId,
+          phoneNumberId: desdeId,
+          numero: e164,
+          nombre: nombre.trim(),
+          fechaPago: fechaPago.trim(),
+          monto: monto.trim(),
+        }),
       });
       const data = (await res.json()) as {
         ok?: boolean;
@@ -66,6 +83,29 @@ export function LlamarForm({
 
   return (
     <div className="space-y-2">
+      <div className="grid gap-2 sm:grid-cols-3">
+        <input
+          value={nombre}
+          onChange={(ev) => setNombre(ev.target.value)}
+          placeholder="Nombre de quien contesta *"
+          className="rounded-lg border border-line bg-card px-2 py-1.5 text-xs"
+          aria-label="Nombre de la persona"
+        />
+        <input
+          value={fechaPago}
+          onChange={(ev) => setFechaPago(ev.target.value)}
+          placeholder="Fecha de pago (opcional)"
+          className="rounded-lg border border-line bg-card px-2 py-1.5 text-xs"
+          aria-label="Fecha de pago"
+        />
+        <input
+          value={monto}
+          onChange={(ev) => setMonto(ev.target.value)}
+          placeholder="Monto (opcional)"
+          className="rounded-lg border border-line bg-card px-2 py-1.5 text-xs"
+          aria-label="Monto de la cuota"
+        />
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         {numeros.length > 1 && (
           <select
@@ -98,7 +138,7 @@ export function LlamarForm({
         <button
           type="button"
           onClick={() => void marcar()}
-          disabled={!valido || marcando}
+          disabled={!valido || !conNombre || marcando}
           className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
         >
           <Phone size={13} />

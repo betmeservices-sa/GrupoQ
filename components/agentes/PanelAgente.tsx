@@ -104,7 +104,14 @@ export function PanelAgente({
                   ? "El agente marca de verdad y consume minutos del plan. El destino debe ser de El Salvador, 8 dígitos."
                   : "Se marca de verdad y consume minutos. El destino debe ser de El Salvador, 8 dígitos."}
               </p>
-              <LlamarForm assistantId={agente.id} numeros={agente.numeros} />
+              {/* Para SALIR no hace falta que la linea sea de este agente: basta
+                  que sea del mismo cliente. El de cobros no atiende entrante, no
+                  tiene numero propio, y sin esto no podria marcar nunca. La
+                  frontera la sigue poniendo el servidor. */}
+              <LlamarForm
+                assistantId={agente.id}
+                numeros={agente.numeros.length > 0 ? agente.numeros : numeros}
+              />
             </div>
           )}
         </div>

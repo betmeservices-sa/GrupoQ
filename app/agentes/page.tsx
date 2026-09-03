@@ -147,6 +147,7 @@ export default function AgentesPage() {
                 key={a.id}
                 agente={a}
                 modoCliente={!agencia}
+                puedeMarcar={numeros.length > 0}
                 onAbrir={(seccion) => setPanel({ id: a.id, seccion })}
               />
             ))}
