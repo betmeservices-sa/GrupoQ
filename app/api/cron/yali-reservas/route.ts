@@ -1,6 +1,10 @@
 // Barrido programado: reservas cerradas por el equipo en el chat.
 //
-// Dos veces al día (ver vercel.json) se leen los chats de Yali con señal de
+// Ya no corre desde acá: el cron vive en hub.miagentia.com (repo yali), que
+// lee el mismo esquema. Correrlo en los dos era barrer dos veces. La ruta
+// queda por si hace falta lanzarlo a mano con el CRON_SECRET.
+//
+// Dos veces al día se leen los chats de Yali con señal de
 // reserva en las últimas 24 horas (una foto del huésped, o mensajes sobre
 // reservar o precios) que todavía no tienen tarjeta, y se detecta la reserva
 // en cada uno. Lo inmediato (una foto que llega) ya lo hace el webhook; esto

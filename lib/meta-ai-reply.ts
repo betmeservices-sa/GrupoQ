@@ -116,6 +116,11 @@ async function conexionDe(tenant: TenantId, pageId: string): Promise<MetaConnect
 }
 
 export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
+  // A Yali la contesta hub.miagentia.com (repo yali), que lee este mismo
+  // esquema. Cuando los dos contestaban, ganaba este por rápido (5-12 s contra
+  // 15-35 s) y con el guion viejo: "Sunsal", día de la semana mal, sin las
+  // barandas que solo existen allá. Acá los mensajes de Yali solo se guardan.
+  if (t.tenant === "yaly") return;
   const cfg = TENANTS[t.tenant];
   if (!cfg) return;
   const clave = claveMeta(t.canal, t.pageId, t.senderId);
