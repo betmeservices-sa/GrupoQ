@@ -21,7 +21,12 @@ import { getContacto, upsertContacto } from "./contacts-store";
 // volver a pisar: lo que escribió una persona no se toca nunca.
 const MARCA_AUTO = "Sofía anotó: ";
 
-/** La nota de la ficha: qué vehículo mira y para qué lo quiere. */
+/**
+ * La nota de la ficha para un concesionario: qué vehículo mira y para qué lo
+ * quiere. Es el DEFECTO, no la única forma: un agente de cobros que reusa los
+ * mismos campos termina escribiendo "lo quiere para ya se le recordó". Cada
+ * agente puede traer la suya en `nota`.
+ */
 function notaDeLlamada(e: ExtractoLlamada): string | undefined {
   const partes: string[] = [];
   if (e.modelos?.length) partes.push(e.modelos.join(", "));
@@ -31,7 +36,7 @@ function notaDeLlamada(e: ExtractoLlamada): string | undefined {
   if (partes.length === 0 && e.resumen) partes.push(e.resumen);
   if (partes.length === 0) return undefined;
   const texto = partes.join(", ");
-  return MARCA_AUTO + texto.charAt(0).toUpperCase() + texto.slice(1) + ".";
+  return texto.charAt(0).toUpperCase() + texto.slice(1) + ".";
 }
 
 // La ficha se crea con que haya número, aunque la llamada no deje nada más:
@@ -44,10 +49,12 @@ async function crearOActualizarFicha(
   tenant: string,
   telefono: string,
   e: ExtractoLlamada,
+  redactar: (e: ExtractoLlamada) => string | undefined,
 ): Promise<void> {
   try {
     const previo = await getContacto(telefono);
-    const nota = notaDeLlamada(e);
+    const bruto = redactar(e);
+    const nota = bruto ? MARCA_AUTO + bruto : undefined;
     // Solo se pisa la nota si está vacía o si la anterior también es del
     // agente. Lo que escribió el staff a mano manda.
     const escribirNota = Boolean(nota) && (!previo?.notas || previo.notas.startsWith(MARCA_AUTO));
@@ -87,6 +94,11 @@ export interface OpcionesMemoria {
    * atiende.
    */
   extraer: (d: Record<string, unknown>, resumen?: string) => ExtractoLlamada;
+  /**
+   * Cómo se redacta la nota de la ficha. Sin esto se usa la del concesionario,
+   * que habla de vehículos y no le sirve a un agente de otra cosa.
+   */
+  nota?: (e: ExtractoLlamada) => string | undefined;
   /** Cómo se redacta el párrafo. Por defecto, el vocabulario del concesionario. */
   frases?: FrasesMemoria;
   /**
@@ -171,7 +183,8 @@ export async function manejarMemoria(req: Request, op: OpcionesMemoria) {
 
     // Primero la ficha, y a propósito ANTES del corte por "nada que recordar":
     // el contacto se crea aunque la llamada no haya dejado dato alguno.
-    if (op.tenantFicha) await crearOActualizarFicha(op.tenantFicha, telefono, extracto);
+    if (op.tenantFicha)
+      await crearOActualizarFicha(op.tenantFicha, telefono, extracto, op.nota ?? notaDeLlamada);
 
     const vacio =
       !extracto.nombre && !extracto.modelos?.length && !extracto.uso && !extracto.pago && !extracto.resumen;

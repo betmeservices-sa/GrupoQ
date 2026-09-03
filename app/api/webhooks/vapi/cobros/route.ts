@@ -32,6 +32,17 @@ const OPCIONES = {
     agendo: d.se_compromete === true,
     resumen: comoTexto(d.resumen) ?? comoTexto(resumen),
   }),
+  // La redacción del concesionario acá no sirve: escribía "lo quiere para ya se
+  // le recordó", porque el campo `uso` guarda otra cosa en cobros.
+  nota: (e: { uso?: string; pago?: string; resumen?: string }) => {
+    const partes: string[] = [];
+    if (e.uso) partes.push(`quedó en: ${e.uso}`);
+    if (e.pago) partes.push(`dijo que paga el ${e.pago}`);
+    if (partes.length === 0 && e.resumen) partes.push(e.resumen);
+    if (partes.length === 0) return undefined;
+    const texto = `Recordatorio de cuota. ${partes.join(", ")}`;
+    return texto.endsWith(".") ? texto : `${texto}.`;
+  },
 };
 
 export const GET = (req: Request) => diagnosticoMemoria(req);
