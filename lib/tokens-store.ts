@@ -42,7 +42,7 @@ export interface RegistroConsumo {
   tipo?: "respuesta" | "transcripcion";
 }
 
-interface FilaConsumo extends RegistroConsumo {
+export interface FilaConsumo extends RegistroConsumo {
   tokensTexto: number;
   costo: CostoDesglosado;
   costoImagen: number;

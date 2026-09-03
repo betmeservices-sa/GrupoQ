@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/cn";
 import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import { telefonoBonito } from "@/lib/phone";
+import { checklistDe, esEtiquetaDeDocumento, etiquetaDe } from "@/lib/crediq-requisitos";
 import { esContactoDeMeta, etiquetaDeContacto } from "@/lib/contacto-canal";
 import { Archivos } from "@/components/contactos/Archivos";
 import { ReservasDeContacto } from "@/components/contactos/ReservasDeContacto";
@@ -498,13 +499,54 @@ function Ficha({
             <Archivos from={contacto.telefono} />
           </Seccion>
 
+          {/* Requisitos de la solicitud. Se marcan solos cuando la persona manda
+              el documento por WhatsApp, y a mano cuando lo entrega en sala. */}
+          <Seccion titulo="Requisitos de la solicitud">
+            <div className="flex flex-col gap-1 px-1">
+              {checklistDe(contacto.tags).map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => {
+                    const tag = etiquetaDe(r.id);
+                    onGuardarParcial({
+                      tags: r.entregado
+                        ? contacto.tags.filter((x) => x !== tag)
+                        : [...contacto.tags, tag],
+                    });
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-surface"
+                  title={r.entregado ? "Marcar como no entregado" : "Marcar como entregado"}
+                >
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold ${
+                      r.entregado
+                        ? "border-emerald-500 bg-emerald-500 text-white"
+                        : "border-line text-transparent"
+                    }`}
+                  >
+                    ✓
+                  </span>
+                  <span
+                    className={`text-[12.5px] ${
+                      r.entregado ? "text-[var(--text-3)] line-through" : "text-[var(--text)]"
+                    }`}
+                  >
+                    {r.nombre}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Seccion>
+
           {/* Etiquetas editables */}
           <Seccion titulo="Etiquetas">
             <div className="flex flex-wrap items-center gap-1.5 px-1">
-              {contacto.tags.length === 0 && !pickerTags && (
+              {contacto.tags.filter((t) => !esEtiquetaDeDocumento(t)).length === 0 &&
+                !pickerTags && (
                 <span className="text-[12.5px] text-[var(--text-3)]">Sin etiquetas.</span>
               )}
-              {contacto.tags.map((t) => (
+              {contacto.tags.filter((t) => !esEtiquetaDeDocumento(t)).map((t) => (
                 <TagBadge
                   key={t}
                   tag={t}
