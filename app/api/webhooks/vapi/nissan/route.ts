@@ -19,6 +19,7 @@ export const maxDuration = 30;
 
 const OPCIONES = {
   tenant: "nissan",
+  tenantFicha: "grupoq",
   extraer: (d: Record<string, unknown>, resumen?: string) => ({
     nombre: comoTexto(d.nombre),
     modelos: comoLista(d.modelos),

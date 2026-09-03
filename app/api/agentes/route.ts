@@ -8,6 +8,8 @@ import {
 import { destinoRiesgoso, normalizarDestinoSV } from "@/lib/phone";
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { assistantIdDeTenant, assistantIdsDeTenant, esAgencia, esDelTenant, veModuloVoz } from "@/lib/tenants/voz";
+import { upsertContacto } from "@/lib/contacts-store";
+import { normalizarTelefono } from "@/lib/memoria-llamadas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -168,6 +170,30 @@ export async function POST(req: Request) {
       monto: body.monto?.trim() || "no disponible",
     };
     const llamada = await lanzarLlamadaVapi({ assistantId, phoneNumberId, numero, variables });
+
+    // La ficha se guarda al MARCAR, no al terminar. Cuando nosotros llamamos ya
+    // sabemos a quién y a qué número, así que esperar al final solo agrega una
+    // forma de perderlo: si no contestan, si se corta, o si el webhook falla, el
+    // intento igual tiene que quedar registrado. Al cerrar, el webhook vuelve
+    // sobre la misma ficha y le agrega qué pasó.
+    //
+    // Va con la misma normalización que usa el webhook (8 dígitos) para no
+    // terminar con dos fichas de la misma persona.
+    if (!esAgencia(tenant)) {
+      const partes = (body.nombre ?? "").trim().split(/\s+/).filter(Boolean);
+      try {
+        await upsertContacto({
+          from: normalizarTelefono(numero),
+          tenant,
+          ...(partes.length > 0
+            ? { nombre: partes[0], apellido: partes.slice(1).join(" ") }
+            : {}),
+        });
+      } catch (err) {
+        // Que no se guarde la ficha no puede tumbar una llamada que ya salió.
+        console.error("[agentes] no se pudo guardar la ficha al marcar:", err);
+      }
+    }
     return NextResponse.json({
       ok: true,
       id: llamada.id,

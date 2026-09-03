@@ -89,6 +89,15 @@ export interface OpcionesMemoria {
   extraer: (d: Record<string, unknown>, resumen?: string) => ExtractoLlamada;
   /** Cómo se redacta el párrafo. Por defecto, el vocabulario del concesionario. */
   frases?: FrasesMemoria;
+  /**
+   * En qué cliente del panel se guarda la ficha del contacto. Va aparte de
+   * `tenant` a propósito: ese es el espacio de la MEMORIA del agente ("nissan",
+   * "toyota"), que no es un TenantId del panel. Guardar la ficha con ese nombre
+   * la deja invisible, porque Contactos lista por tenant real ("grupoq",
+   * "excel"). Sin este campo no se crea ninguna ficha: preferible no guardar a
+   * guardar donde nadie lo va a ver.
+   */
+  tenantFicha?: string;
 }
 
 function secretoValido(req: Request): boolean {
@@ -162,7 +171,7 @@ export async function manejarMemoria(req: Request, op: OpcionesMemoria) {
 
     // Primero la ficha, y a propósito ANTES del corte por "nada que recordar":
     // el contacto se crea aunque la llamada no haya dejado dato alguno.
-    await crearOActualizarFicha(op.tenant, telefono, extracto);
+    if (op.tenantFicha) await crearOActualizarFicha(op.tenantFicha, telefono, extracto);
 
     const vacio =
       !extracto.nombre && !extracto.modelos?.length && !extracto.uso && !extracto.pago && !extracto.resumen;

@@ -14,6 +14,7 @@ export const maxDuration = 30;
 
 const OPCIONES = {
   tenant: "toyota",
+  tenantFicha: "excel",
   extraer: (d: Record<string, unknown>, resumen?: string) => ({
     nombre: comoTexto(d.nombre),
     modelos: comoLista(d.modelos),

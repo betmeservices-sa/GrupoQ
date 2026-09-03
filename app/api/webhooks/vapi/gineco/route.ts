@@ -18,6 +18,7 @@ export const maxDuration = 30;
 
 const OPCIONES = {
   tenant: "gineco",
+  tenantFicha: "hospital",
   frases: FRASES_HOSPITAL,
   extraer: (d: Record<string, unknown>, resumen?: string) => ({
     nombre: comoTexto(d.nombre),
