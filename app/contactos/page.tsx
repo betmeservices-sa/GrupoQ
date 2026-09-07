@@ -123,6 +123,10 @@ export default function ContactosPage() {
   const [activoTel, setActivoTel] = useState<string | null>(null);
   const [modal, setModal] = useState<null | { modo: "crear" } | { modo: "editar"; contacto: ContactoDTO }>(null);
   const [aviso, setAviso] = useState("");
+  // Apagado por defecto, y se apaga solo despues de cada tanda: llamar cuesta
+  // plata y no se deshace. Que quedara prendido de un import al siguiente seria
+  // la forma mas facil de marcarle sin querer a una lista entera.
+  const [llamarAlImportar, setLlamarAlImportar] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function cargar(seleccionar?: string) {
@@ -201,6 +205,7 @@ export default function ContactosPage() {
     const iTags = col("etiqueta", "tag");
 
     let ok = 0;
+    const importados: { telefono: string; nombre: string }[] = [];
     for (const fila of filas.slice(1)) {
       const telefono = (iTel >= 0 ? fila[iTel] ?? "" : "").replace(/\D/g, "");
       if (telefono.length < 8) continue;
@@ -220,12 +225,48 @@ export default function ContactosPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(cuerpo),
         });
-        if ((await r.json()).ok) ok++;
+        if ((await r.json()).ok) {
+          ok++;
+          importados.push({
+            telefono,
+            nombre: [cuerpo.nombre, cuerpo.apellido].filter(Boolean).join(" ").trim(),
+          });
+        }
       } catch {
         // sigue con el resto
       }
     }
-    setAviso(`${ok} contacto${ok === 1 ? "" : "s"} importado${ok === 1 ? "" : "s"}.`);
+    let cola = `${ok} contacto${ok === 1 ? "" : "s"} importado${ok === 1 ? "" : "s"}.`;
+
+    // Las llamadas van DESPUES de guardar a todos: si la tanda falla a la
+    // mitad, los contactos ya quedaron y se puede reintentar sin duplicar.
+    if (llamarAlImportar && importados.length > 0) {
+      const cuantos = Math.min(importados.length, 25);
+      if (
+        window.confirm(
+          `Se van a lanzar ${cuantos} llamada${cuantos === 1 ? "" : "s"} REAL${cuantos === 1 ? "" : "ES"} ahora mismo, y cuestan. ¿Seguimos?`,
+        )
+      ) {
+        try {
+          const r = await fetch("/api/ventas/llamar-tanda", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ destinos: importados, confirmado: true }),
+          });
+          const d = (await r.json()) as { ok?: boolean; lanzadas?: number; fallidas?: number; error?: string };
+          cola += d.ok
+            ? ` ${d.lanzadas} llamada${d.lanzadas === 1 ? "" : "s"} lanzada${d.lanzadas === 1 ? "" : "s"}${d.fallidas ? `, ${d.fallidas} no salieron` : ""}.`
+            : ` No se pudieron lanzar las llamadas: ${d.error ?? "error"}.`;
+        } catch {
+          cola += " No se pudieron lanzar las llamadas: falló la conexión.";
+        }
+      } else {
+        cola += " Llamadas canceladas.";
+      }
+      setLlamarAlImportar(false);
+    }
+
+    setAviso(cola);
     await cargar();
   }
 
@@ -261,6 +302,24 @@ export default function ContactosPage() {
               <span className="hidden sm:inline">Crear</span>
             </button>
           </div>
+          {/* El interruptor va PEGADO al boton de importar, no escondido en
+              ajustes: quien sube el archivo tiene que ver, en ese momento, que
+              esto va a marcarle a la gente. */}
+          <label className="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-[var(--text-2)]">
+            <input
+              type="checkbox"
+              checked={llamarAlImportar}
+              onChange={(e) => setLlamarAlImportar(e.target.checked)}
+              className="h-3.5 w-3.5 accent-[var(--brand-blue)]"
+            />
+            Llamar a los importados con Sofía
+            {llamarAlImportar && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                lanza llamadas reales, máximo 25
+              </span>
+            )}
+          </label>
+
           <input
             ref={fileRef}
             type="file"
