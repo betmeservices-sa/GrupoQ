@@ -86,6 +86,37 @@
   --brand-accent-soft: #ecfeff;
 }
 
+/* Grupo Q va en CLARO: gris azulado de oficina y tinta oscura. Va DESPUÉS del
+   bloque de marca unificada para ganarle con la misma especificidad, igual que
+   los otros temas claros.
+
+   El violeta de marca se queda: sobre este fondo da 5.3:1 y no hacía falta
+   tocarlo. Lo que SÍ hubo que cambiar es el rojo y el verde de estado, que
+   estaban calibrados para fondo oscuro y sobre claro se caían a 4.0:1 y 3.1:1,
+   por debajo del 4.5:1 de WCAG AA. El rojo nuevo es el rojo REAL de Grupo Q.
+
+   Contraste medido sobre el fondo #F4F6F9: tinta #16202C 15.2:1, secundario
+   #43505F 7.6:1, terciario #5C6A7A 5.1:1, violeta #7C3AED 5.3:1, rojo #A32923
+   6.7:1 y verde #146C43 6.0:1. Sobre la tarjeta blanca todos suben. */
+[data-tenant="grupoq"] {
+  --brand-red: #a32923;
+  --brand-green: #146c43;
+
+  --surface: #f4f6f9;
+  --surface-2: #e8ecf2;
+  --card: #ffffff;
+  --border: #dfe4ec;
+  --border-2: #c6cfdc;
+  --text: #16202c;
+  --text-2: #43505f;
+  --text-3: #5c6a7a;
+}
+
+/* La barra de scroll clara de Grupo Q. */
+[data-tenant="grupoq"] ::-webkit-scrollbar-thumb:hover {
+  background: #a9b4c2;
+}
+
 /* El Descanso Antigua va en CLARO: hueso y jade, con aire de hotel. Es el único
    tenant que se sale del tema oscuro, y por eso este bloque va DESPUÉS del de
    marca unificada, para ganarle con la misma especificidad. Los otros cuatro

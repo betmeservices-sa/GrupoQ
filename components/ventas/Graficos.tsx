@@ -35,15 +35,18 @@ const fmt = (n: number) => n.toLocaleString("es-SV");
 // --- Embudo ---
 // Un solo tono, de claro a oscuro conforme se avanza. Es una sola magnitud a lo
 // largo de un proceso ordenado, no categorías: por eso rampa y no paleta.
+// Va de medio a oscuro, no de claro a oscuro: sobre la tarjeta blanca los
+// azules claros se pierden. Medido contra #ffffff, los tres primeros tonos de
+// la rampa anterior daban 1.8:1, 2.2:1 y 2.5:1, debajo del 3:1 que pide WCAG
+// para un objeto grafico. Estos siete arrancan en 3.7:1 y llegan a 12.8:1.
 const RAMPA = [
-  "#93C5FD",
-  "#7CB0FA",
-  "#60A5FA",
-  "#4B93F7",
   "#3B82F6",
   "#2E6FE0",
   "#2563EB",
   "#1D4ED8",
+  "#1E40AF",
+  "#1E3A8A",
+  "#172E6B",
 ];
 
 export function Embudo({
