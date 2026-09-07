@@ -1,6 +1,7 @@
 "use client";
 
 import { ConectarWhatsApp } from "@/components/settings/ConectarWhatsApp";
+import { WaRoutingPanel } from "@/components/settings/WaRoutingPanel";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -375,6 +376,12 @@ export default function SettingsPage() {
             </p>
           )}
         </div>
+
+        {/* A cuál dashboard entran los mensajes del número en vivo.
+            El componente existía y estaba completo, pero no lo montaba nadie:
+            quedó huérfano en algún cambio anterior y con él se fue la única
+            forma de traer el número a un cliente sin tocar la base. */}
+        <WaRoutingPanel />
 
         {/* El número de WhatsApp del negocio, conectado por el cliente. */}
         <ConectarWhatsApp />
