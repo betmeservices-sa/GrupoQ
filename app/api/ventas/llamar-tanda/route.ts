@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { assistantCampanasDeTenant, esAgencia, esDelTenant, veModuloVoz } from "@/lib/tenants/voz";
 import { fetchVapiAgentes, hayLlaveVapi, lanzarLlamadaVapi } from "@/lib/vapi";
@@ -8,7 +8,9 @@ import { normalizarTelefono } from "@/lib/memoria-llamadas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// La tanda ya no dispara todo de una: espacia las llamadas, y eso toma
+// minutos. El maximo del plan es 300s y de ahi sale cuantas caben.
+export const maxDuration = 300;
 
 // Lanzar una tanda de llamadas: lo que dispara el CSV de leads.
 //
@@ -22,8 +24,24 @@ export const maxDuration = 60;
 
 /** Nadie marca a mas gente que esto de una sentada. */
 const TOPE = 25;
-/** Respiro entre llamada y llamada. */
-const ESPERA_MS = 1200;
+
+// Cuanto se espera entre una llamada y la siguiente.
+//
+// Salio de mirar las llamadas reales del 2026-09-07, no de un numero al azar:
+// de 11 llamadas SUELTAS ese dia no fallo ninguna, y de 10 tandas disparadas
+// con 1 a 3 segundos de diferencia, 4 perdieron una con
+// "providerfault-outbound-sip-503-service-unavailable", con el trunk ocioso y
+// sin nada hablando. El carrier no aguanta la rafaga; separadas, entran.
+//
+// Se puede mover sin desplegar (TANDA_ESPERA_SEGUNDOS) porque el numero bueno
+// depende del carrier y hoy no lo sabemos con precision.
+const ESPERA_MS = (() => {
+  const s = Number(process.env.TANDA_ESPERA_SEGUNDOS);
+  return Math.min(60, Math.max(1, Number.isFinite(s) && s > 0 ? s : 10)) * 1000;
+})();
+
+/** Margen dentro del maxDuration para que la ultima llamada quepa entera. */
+const PRESUPUESTO_MS = 270_000;
 
 interface Destino {
   telefono?: string;
@@ -94,7 +112,7 @@ export async function POST(req: Request) {
       vistos.add(d.e164);
       return true;
     })
-    .slice(0, TOPE);
+    .slice(0, Math.min(TOPE, Math.floor(PRESUPUESTO_MS / ESPERA_MS) + 1));
 
   if (destinos.length === 0) {
     return NextResponse.json(
@@ -103,39 +121,63 @@ export async function POST(req: Request) {
     );
   }
 
-  const lanzadas: { numero: string; id: string }[] = [];
-  const fallidas: { numero: string; error: string }[] = [];
-
+  // Las fichas van TODAS primero, antes de marcarle a nadie: si algo se cae a
+  // mitad de la tanda, los contactos ya quedaron y se puede repetir sin perder
+  // a quien nunca llego a sonar.
   for (const d of destinos) {
-    try {
-      // La ficha primero: si la llamada no entra, el intento igual queda.
-      const partes = d.nombre.split(/\s+/).filter(Boolean);
-      await upsertContacto({
-        from: normalizarTelefono(d.e164),
-        tenant,
-        ...(partes.length > 0 ? { nombre: partes[0], apellido: partes.slice(1).join(" ") } : {}),
-      }).catch(() => undefined);
+    const partes = d.nombre.split(/\s+/).filter(Boolean);
+    await upsertContacto({
+      from: normalizarTelefono(d.e164),
+      tenant,
+      ...(partes.length > 0 ? { nombre: partes[0], apellido: partes.slice(1).join(" ") } : {}),
+    }).catch(() => undefined);
+  }
 
-      const ll = await lanzarLlamadaVapi({
-        assistantId,
-        phoneNumberId,
-        numero: d.e164,
-        variables: { nombre: d.nombre || "no disponible" },
-      });
-      lanzadas.push({ numero: d.e164, id: ll.id });
-    } catch (err) {
-      fallidas.push({ numero: d.e164, error: err instanceof Error ? err.message : "Error" });
-    }
-    if (destinos.indexOf(d) < destinos.length - 1) {
-      await new Promise((r) => setTimeout(r, ESPERA_MS));
-    }
+  const marcar = (d: { e164: string; nombre: string }) =>
+    lanzarLlamadaVapi({
+      assistantId,
+      phoneNumberId,
+      numero: d.e164,
+      variables: { nombre: d.nombre || "no disponible" },
+    });
+
+  // La primera sale ya y en linea: es la que dice si el trunk esta contestando.
+  // Si esa no entra, no tiene sentido dejar corriendo las otras veinticuatro.
+  const [primera, ...resto] = destinos;
+  const fallidas: { numero: string; error: string }[] = [];
+  let lanzadas = 0;
+  try {
+    await marcar(primera);
+    lanzadas = 1;
+  } catch (err) {
+    fallidas.push({ numero: primera.e164, error: err instanceof Error ? err.message : "Error" });
+  }
+
+  // El resto sale espaciado y DESPUES de responder. Espaciado porque el carrier
+  // rechaza las rafagas, y despues de responder para que quien subio el CSV no
+  // se quede mirando una pantalla cargando varios minutos.
+  if (resto.length > 0 && lanzadas > 0) {
+    after(async () => {
+      for (const d of resto) {
+        await new Promise((r) => setTimeout(r, ESPERA_MS));
+        try {
+          await marcar(d);
+        } catch (err) {
+          // No se reintenta desde aca: lo que el carrier rechaza queda visible
+          // en Llamadas, y decidir si se vuelve a marcar no es de este codigo.
+          console.error(`[tanda] no salio ${d.e164}:`, err);
+        }
+      }
+    });
   }
 
   return NextResponse.json({
     ok: true,
-    lanzadas: lanzadas.length,
+    lanzadas,
+    programadas: lanzadas > 0 ? resto.length : 0,
     fallidas: fallidas.length,
-    detalle: { lanzadas, fallidas },
-    recortado: (body.destinos ?? []).length > TOPE ? TOPE : null,
+    espaciadoSegundos: ESPERA_MS / 1000,
+    detalle: { fallidas },
+    recortado: (body.destinos ?? []).length > destinos.length ? destinos.length : null,
   });
 }

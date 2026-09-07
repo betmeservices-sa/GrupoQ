@@ -244,7 +244,7 @@ export default function ContactosPage() {
       const cuantos = Math.min(importados.length, 25);
       if (
         window.confirm(
-          `Se van a lanzar ${cuantos} llamada${cuantos === 1 ? "" : "s"} REAL${cuantos === 1 ? "" : "ES"} ahora mismo, y cuestan. ¿Seguimos?`,
+          `Se van a lanzar ${cuantos} llamada${cuantos === 1 ? "" : "s"} REAL${cuantos === 1 ? "" : "ES"}, de a una y espaciadas, y cuestan. ¿Seguimos?`,
         )
       ) {
         try {
@@ -253,14 +253,26 @@ export default function ContactosPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ destinos: importados, confirmado: true }),
           });
-          const d = (await r.json()) as { ok?: boolean; lanzadas?: number; fallidas?: number; error?: string };
+          const d = (await r.json()) as {
+            ok?: boolean;
+            lanzadas?: number;
+            programadas?: number;
+            fallidas?: number;
+            espaciadoSegundos?: number;
+            error?: string;
+          };
           // "Lanzada" solo quiere decir que Vapi la acepto, NO que timbro: el
           // carrier puede rechazarla despues y eso no se sabe todavia. Decir
           // "2 llamadas lanzadas" cuando una nunca sono es mentirle a quien
           // mira, asi que se manda a ver Llamadas.
-          cola += d.ok
-            ? ` ${d.lanzadas} llamada${d.lanzadas === 1 ? "" : "s"} salieron a la cola${d.fallidas ? `, ${d.fallidas} ni se pudieron encolar` : ""}. Mirá Llamadas para ver cuáles timbraron de verdad.`
-            : ` No se pudieron lanzar las llamadas: ${d.error ?? "error"}.`;
+          // Salen de a una y espaciadas porque el carrier rechaza las ráfagas.
+          // Solo la primera está confirmada cuando esto responde; las demás
+          // salen después, por eso se manda a mirar Llamadas.
+          cola += !d.ok
+            ? ` No se pudieron lanzar las llamadas: ${d.error ?? "error"}.`
+            : d.lanzadas
+              ? ` Marcando al primero${d.programadas ? `, y los otros ${d.programadas} van saliendo uno cada ${d.espaciadoSegundos ?? 10} segundos` : ""}. Mirá Llamadas para ver cuáles timbraron de verdad.`
+              : " La primera llamada ni se pudo encolar, así que la tanda no salió.";
         } catch {
           cola += " No se pudieron lanzar las llamadas: falló la conexión.";
         }
