@@ -7,12 +7,24 @@
 // papeles y por qué, cuánto se cerró y cuánto tarda el proceso. Los números de
 // "ahora" y los del periodo van separados y rotulados: son preguntas distintas.
 
+import { useMemo, useState } from "react";
 import { AlertTriangle, Clock, FileWarning, Trophy, UserX } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { telefonoBonito } from "@/lib/phone";
 import { HORAS_AVISO, HORAS_VENCIDO } from "@/lib/ventas-pipeline";
 import type { Vendedor } from "@/lib/ventas-pipeline";
-import type { RespuestaReporte } from "./tipos";
+import type { Caso, RespuestaReporte } from "./tipos";
+import { Dona, Embudo, LineaActividad } from "./Graficos";
+
+// El color de cada documento. Orden FIJO: la paleta se valido con el script de
+// la guia en ese orden de adyacencia. Si se agrega un quinto documento hay que
+// volver a correr el validador, no elegir un tono a ojo.
+const COLOR_DOC: Record<string, string> = {
+  dui: "#3B82F6",
+  salario: "#059669",
+  recibo: "#D97706",
+  referencias: "#DB2777",
+};
 
 function horas(n: number | null): string {
   if (n === null) return "sin datos";
@@ -26,7 +38,34 @@ function nombreCorto(vendedores: Vendedor[], id: string | null): string {
   return vendedores.find((v) => v.id === id)?.nombre ?? id;
 }
 
-export function ReporteGerente({ r }: { r: RespuestaReporte }) {
+export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?: Caso[] }) {
+  // La etapa abierta en el embudo. Null = ninguna, y ahi no se muestra texto.
+  const [etapaAbierta, setEtapaAbierta] = useState<string | null>(null);
+
+  // Leads nuevos por dia. Sale de la fecha de creacion de cada caso, no de un
+  // agregado del servidor: asi la linea y el tablero no pueden discrepar.
+  const porDia = useMemo(() => {
+    const clave = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const cuenta = new Map<string, number>();
+    for (const c of casos) {
+      const d = new Date(c.creado);
+      if (Number.isNaN(d.getTime())) continue;
+      d.setHours(0, 0, 0, 0);
+      cuenta.set(clave(d), (cuenta.get(clave(d)) ?? 0) + 1);
+    }
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    return Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(hoy.getTime() - (29 - i) * 86400000);
+      return { dia: clave(d), cantidad: cuenta.get(clave(d)) ?? 0 };
+    });
+  }, [casos]);
+
+  const enEtapa = useMemo(
+    () => (etapaAbierta ? casos.filter((c) => c.etapa === etapaAbierta) : []),
+    [casos, etapaAbierta],
+  );
   const vendedores = r.vendedores.map((v) => ({ id: v.id, nombre: v.nombre, iniciales: v.iniciales }));
   const enEmbudo = r.embudo.filter((e) => e.etapa !== "cerrado").reduce((n, e) => n + e.n, 0);
   const vencidos = r.alertas.filter((a) => a.nivel === "vencido").length;
@@ -202,48 +241,150 @@ export function ReporteGerente({ r }: { r: RespuestaReporte }) {
         </section>
 
         <section className="rounded-2xl border border-line bg-card p-4">
-          <h3 className="text-[14px] font-bold text-[var(--text)]">El embudo hoy</h3>
-          <ul className="mt-2 space-y-1.5">
-            {r.embudo.map((e) => (
-              <li key={e.etapa} className="flex items-center gap-2 text-[12.5px]" title={e.ayuda}>
-                <span className="w-52 shrink-0 text-[var(--text-2)]">{e.nombre}</span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface">
-                  <span
-                    className="block h-full rounded-full bg-brand/70"
-                    style={{ width: `${enEmbudo ? Math.round((e.n / Math.max(1, enEmbudo)) * 100) : 0}%` }}
-                  />
-                </span>
-                <span className="w-6 text-right font-semibold text-[var(--text)]">{e.n}</span>
-              </li>
-            ))}
-          </ul>
+          <h3 className="text-[14px] font-bold text-[var(--text)]">Dónde está la gente</h3>
+          <p className="mb-3 text-[12px] text-[var(--text-3)]">
+            Tocá una etapa para ver quiénes están ahí.
+          </p>
+          <Embudo
+            pasos={r.embudo.map((e) => ({ etapa: e.nombre, cantidad: e.n }))}
+            seleccion={
+              etapaAbierta ? (r.embudo.find((e) => e.etapa === etapaAbierta)?.nombre ?? null) : null
+            }
+            onSeleccion={(nombre) => {
+              const id = r.embudo.find((e) => e.nombre === nombre)?.etapa ?? null;
+              setEtapaAbierta((v) => (v === id ? null : id));
+            }}
+          />
 
-          <h4 className="mt-4 flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-2)]">
-            <Clock size={12} /> Cuánto tarda el proceso
-          </h4>
-          <ul className="mt-1 space-y-0.5 text-[12.5px] text-[var(--text-3)]">
-            <li>De lead nuevo a expediente completo · {horas(r.tiempos.aExpedienteCompleto)}</li>
-            <li>De asignarlo a que el vendedor lo contacte · {horas(r.tiempos.aPrimerContacto)}</li>
-            <li>De asignarlo a cerrarlo · {horas(r.tiempos.aCierre)}</li>
-          </ul>
+          {/* El texto aparece SOLO cuando alguien abre una etapa. */}
+          {etapaAbierta && (
+            <div className="mt-3 rounded-xl border border-brand/40 bg-surface p-3">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <p className="text-[12.5px] font-bold text-[var(--text)]">
+                  {r.embudo.find((e) => e.etapa === etapaAbierta)?.nombre}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEtapaAbierta(null)}
+                  className="text-[11px] font-semibold text-[var(--text-3)] hover:text-[var(--text)]"
+                >
+                  Cerrar
+                </button>
+              </div>
+              <p className="mb-2 text-[11.5px] text-[var(--text-3)]">
+                {r.embudo.find((e) => e.etapa === etapaAbierta)?.ayuda}
+              </p>
+              {enEtapa.length === 0 ? (
+                <p className="text-[12px] text-[var(--text-3)]">No hay nadie en esta etapa.</p>
+              ) : (
+                <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
+                  {enEtapa.map((c) => (
+                    <li
+                      key={c.telefono}
+                      className="flex flex-wrap items-center gap-2 rounded-lg bg-card px-2.5 py-1.5 text-[12px]"
+                    >
+                      <span className="font-semibold text-[var(--text)]">{c.nombre}</span>
+                      <span className="text-[var(--text-3)]">{telefonoBonito(c.telefono)}</span>
+                      {c.vehiculo && (
+                        <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">
+                          {c.vehiculo}
+                        </span>
+                      )}
+                      <span className="ml-auto text-[11px] text-[var(--text-3)]">
+                        {c.doc.resumen}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </section>
 
-          <h4 className="mt-4 text-[12px] font-semibold text-[var(--text-2)]">
-            Movimiento de {r.periodo.etiqueta.toLowerCase()}
-          </h4>
-          <ul className="mt-1 space-y-0.5 text-[12.5px] text-[var(--text-3)]">
-            <li>
-              Entraron {r.movimiento.nuevos} · antes {r.anterior.nuevos}
-            </li>
-            <li>
-              Completaron expediente {r.movimiento.completados} · antes {r.anterior.completados}
-            </li>
-            <li>
-              Asignados {r.movimiento.asignados} · tomados {r.movimiento.tomados}
-            </li>
-            <li>
-              Cerrados {r.movimiento.ventas + r.movimiento.perdidos} · {r.movimiento.ventas} ventas y {r.movimiento.perdidos} perdidos
-            </li>
-          </ul>
+        <section className="rounded-2xl border border-line bg-card p-4">
+          <h3 className="mb-3 text-[14px] font-bold text-[var(--text)]">Qué documento falta</h3>
+          <Dona
+            datos={r.documentos.faltantes
+              .filter((d) => d.n > 0)
+              .map((d) => ({
+                nombre: d.nombre,
+                valor: d.n,
+                color: COLOR_DOC[d.id] ?? "#6B7280",
+              }))}
+          />
+        </section>
+
+        <section className="rounded-2xl border border-line bg-card p-4 lg:col-span-2">
+          <h3 className="text-[14px] font-bold text-[var(--text)]">Leads nuevos por día</h3>
+          <p className="mb-2 text-[12px] text-[var(--text-3)]">Últimos 30 días.</p>
+          <LineaActividad puntos={porDia} />
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <h4 className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-2)]">
+                <Clock size={12} /> Cuánto tarda el proceso
+              </h4>
+              <ul className="mt-1.5 flex flex-col gap-1">
+                {[
+                  ["A expediente completo", r.tiempos.aExpedienteCompleto],
+                  ["A primer contacto", r.tiempos.aPrimerContacto],
+                  ["A cierre", r.tiempos.aCierre],
+                ].map(([txt, v]) => (
+                  <li key={txt as string} className="flex items-center gap-2 text-[12px]">
+                    <span className="w-36 shrink-0 text-[var(--text-3)]">{txt as string}</span>
+                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface">
+                      <span
+                        className="block h-full rounded-full bg-brand/70"
+                        style={{
+                          width: `${Math.min(100, ((v as number | null) ?? 0) / 1.2)}%`,
+                        }}
+                      />
+                    </span>
+                    <span className="w-16 shrink-0 text-right font-semibold text-[var(--text)]">
+                      {horas(v as number | null)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-[12px] font-semibold text-[var(--text-2)]">
+                Movimiento de {r.periodo.etiqueta.toLowerCase()}
+              </h4>
+              <ul className="mt-1.5 flex flex-col gap-1">
+                {[
+                  ["Entraron", r.movimiento.nuevos, r.anterior.nuevos],
+                  ["Completaron expediente", r.movimiento.completados, r.anterior.completados],
+                  ["Ventas", r.movimiento.ventas, r.anterior.ventas],
+                ].map(([txt, ahora, antes]) => {
+                  const a = ahora as number;
+                  const b = antes as number;
+                  const dif = a - b;
+                  return (
+                    <li key={txt as string} className="flex items-center gap-2 text-[12px]">
+                      <span className="w-36 shrink-0 text-[var(--text-3)]">{txt as string}</span>
+                      <span className="flex-1 text-right text-[15px] font-extrabold text-[var(--text)]">
+                        {a}
+                      </span>
+                      <span
+                        className={cn(
+                          "w-16 shrink-0 text-right text-[11px] font-semibold",
+                          dif > 0
+                            ? "text-[#2f9e2f]"
+                            : dif < 0
+                              ? "text-[var(--brand-red)]"
+                              : "text-[var(--text-3)]",
+                        )}
+                      >
+                        {dif === 0 ? "igual" : `${dif > 0 ? "+" : ""}${dif}`}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
         </section>
       </div>
 

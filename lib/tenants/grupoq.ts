@@ -141,8 +141,11 @@ export const grupoqTenant: TenantConfig = {
     atencion: "Atención",
     marketing: "Marketing",
     gerente_marketing: "Gerente de Marketing",
-    medico: "Asesor",
-    jefe: "Jefe de área",
+    // En un concesionario el que atiende es el vendedor, y su jefe es el
+    // gerente de ventas. Son los dos roles que se alternan en "Ver como": el
+    // gerente ve el resumen del embudo, el vendedor solo su tablero.
+    medico: "Vendedor",
+    jefe: "Gerente de ventas",
     admin: "Dirección (todo)",
   },
   defaultDepartment: "atencion",

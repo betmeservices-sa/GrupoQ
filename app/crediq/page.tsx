@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, BarChart3, GitBranch, Loader2, RefreshCw, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useRole } from "@/lib/roles";
 import { telefonoBonito } from "@/lib/phone";
 import { PERIODOS, type Periodo } from "@/lib/periodos";
 import { ETAPAS, HORAS_AVISO, NOMBRE_SUB, type EtapaId, type SubEstado } from "@/lib/ventas-pipeline";
@@ -42,11 +43,22 @@ function hace(iso: string | null): string {
 }
 
 export default function CrediqPage() {
-  const [vista, setVista] = useState<"tablero" | "reporte">("tablero");
+  // Quien ve los numeros del equipo y quien no.
+  //
+  // El gerente de ventas entra a la REPORTERIA: su trabajo es decidir a quien
+  // mover, y para eso necesita el conjunto. El vendedor entra al TABLERO y ni
+  // siquiera ve la pestana: la conversion del equipo no le sirve para trabajar,
+  // y tenerla a la vista invita a compararse en vez de llamar.
+  const { def } = useRole();
+  const veReporte = ["jefe", "gerente_marketing", "admin", "marketing"].includes(def.id);
+  const [vista, setVista] = useState<"tablero" | "reporte">(veReporte ? "reporte" : "tablero");
   const [datos, setDatos] = useState<RespuestaTablero | null>(null);
   const [reporte, setReporte] = useState<RespuestaReporte | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("7d");
   const [busqueda, setBusqueda] = useState("");
+  useEffect(() => {
+    if (!veReporte) setVista("tablero");
+  }, [veReporte]);
   const [seleccion, setSeleccion] = useState<string | null>(null);
   const [eventos, setEventos] = useState<EventoCaso[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -189,10 +201,12 @@ export default function CrediqPage() {
         </div>
 
         <nav className="mt-2 flex gap-1">
-          {([
-            ["tablero", "Tablero", GitBranch],
-            ["reporte", "Reportería", BarChart3],
-          ] as const).map(([id, label, Icon]) => (
+          {(
+            [
+              ["tablero", "Tablero", GitBranch],
+              ...(veReporte ? [["reporte", "Reportería", BarChart3] as const] : []),
+            ] as const
+          ).map(([id, label, Icon]) => (
             <button
               key={id}
               type="button"
@@ -291,7 +305,7 @@ export default function CrediqPage() {
             )}
           </div>
           {reporte ? (
-            <ReporteGerente r={reporte} />
+            <ReporteGerente r={reporte} casos={datos?.solicitudes ?? []} />
           ) : (
             <p className="flex items-center gap-2 text-[13px] text-[var(--text-3)]">
               <Loader2 size={15} className="animate-spin text-brand" /> Armando el reporte
