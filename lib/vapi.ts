@@ -390,6 +390,12 @@ export async function lanzarLlamadaVapi(params: {
   // Valores que rellenan las {{variables}} del script del agente. Es lo que
   // hace que una misma campaña le diga a cada quien su nombre y su monto.
   variables?: Record<string, string>;
+  // Fecha ISO para que Vapi la marque SOLA. Es lo que hace posible el "llámeme
+  // en dos minutos" sin dejar nada esperando de nuestro lado: la agenda ellos.
+  programadaPara?: string;
+  // Reemplaza la primera frase, solo en esta llamada. Quien devuelve una
+  // llamada no puede volver a presentarse como si fuera la primera vez.
+  primerMensaje?: string;
 }): Promise<LlamadaLanzada> {
   const key = process.env.VAPI_PRIVATE_KEY;
   if (!key) throw new Error("Falta VAPI_PRIVATE_KEY: no se puede llamar en modo demostración.");
@@ -404,9 +410,15 @@ export async function lanzarLlamadaVapi(params: {
         assistantId: params.assistantId,
         phoneNumberId: params.phoneNumberId,
         customer: { number: params.numero },
-        ...(params.variables
-          ? { assistantOverrides: { variableValues: params.variables } }
+        ...(params.variables || params.primerMensaje
+          ? {
+              assistantOverrides: {
+                ...(params.variables ? { variableValues: params.variables } : {}),
+                ...(params.primerMensaje ? { firstMessage: params.primerMensaje } : {}),
+              },
+            }
           : {}),
+        ...(params.programadaPara ? { schedulePlan: { earliestAt: params.programadaPara } } : {}),
       }),
       cache: "no-store",
       signal: ac.signal,

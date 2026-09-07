@@ -16,6 +16,7 @@ import {
 } from "./memoria-llamadas";
 import { diagnostico, guardarMemoria, leerMemoria } from "./memoria-store";
 import { getContacto, upsertContacto } from "./contacts-store";
+import { secretoVapiValido as secretoValido } from "./vapi-secreto";
 
 // Marca de las notas que escribió el agente. Sirve para saber cuáles puede
 // volver a pisar: lo que escribió una persona no se toca nunca.
@@ -110,16 +111,6 @@ export interface OpcionesMemoria {
    * guardar donde nadie lo va a ver.
    */
   tenantFicha?: string;
-}
-
-function secretoValido(req: Request): boolean {
-  const esperado = process.env.VAPI_MEMORIA_SECRET || process.env.VAPI_WEBHOOK_SECRET;
-  if (!esperado) return false;
-  const recibido = req.headers.get("x-vapi-secret") ?? "";
-  if (recibido.length !== esperado.length) return false;
-  let dif = 0;
-  for (let i = 0; i < recibido.length; i++) dif |= recibido.charCodeAt(i) ^ esperado.charCodeAt(i);
-  return dif === 0;
 }
 
 function telefonoDe(msg: CuerpoVapi["message"]): string {
