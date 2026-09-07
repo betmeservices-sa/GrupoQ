@@ -22,6 +22,16 @@ export function assistantIdDeTenant(tenant: TenantId): string | null {
   return TENANTS[tenant].voz?.assistantId ?? null;
 }
 
+/**
+ * El agente que sale en las tandas. Si el tenant no declara uno, cae en el
+ * principal, que es lo unico razonable, pero conviene declararlo: el principal
+ * atiende lo entrante y su guion suele no servir para salir a marcar.
+ */
+export function assistantCampanasDeTenant(tenant: TenantId): string | null {
+  const voz = TENANTS[tenant].voz;
+  return voz?.assistantIdCampanas ?? voz?.assistantId ?? null;
+}
+
 /** TODOS los agentes del tenant. Un cliente puede tener mas de uno. */
 export function assistantIdsDeTenant(tenant: TenantId): string[] {
   const voz = TENANTS[tenant].voz;

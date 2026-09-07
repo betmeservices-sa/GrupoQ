@@ -254,8 +254,12 @@ export default function ContactosPage() {
             body: JSON.stringify({ destinos: importados, confirmado: true }),
           });
           const d = (await r.json()) as { ok?: boolean; lanzadas?: number; fallidas?: number; error?: string };
+          // "Lanzada" solo quiere decir que Vapi la acepto, NO que timbro: el
+          // carrier puede rechazarla despues y eso no se sabe todavia. Decir
+          // "2 llamadas lanzadas" cuando una nunca sono es mentirle a quien
+          // mira, asi que se manda a ver Llamadas.
           cola += d.ok
-            ? ` ${d.lanzadas} llamada${d.lanzadas === 1 ? "" : "s"} lanzada${d.lanzadas === 1 ? "" : "s"}${d.fallidas ? `, ${d.fallidas} no salieron` : ""}.`
+            ? ` ${d.lanzadas} llamada${d.lanzadas === 1 ? "" : "s"} salieron a la cola${d.fallidas ? `, ${d.fallidas} ni se pudieron encolar` : ""}. Mirá Llamadas para ver cuáles timbraron de verdad.`
             : ` No se pudieron lanzar las llamadas: ${d.error ?? "error"}.`;
         } catch {
           cola += " No se pudieron lanzar las llamadas: falló la conexión.";

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { tenantFromRequest } from "@/lib/tenants/server";
-import { assistantIdsDeTenant, esAgencia, esDelTenant, veModuloVoz } from "@/lib/tenants/voz";
+import { assistantCampanasDeTenant, esAgencia, esDelTenant, veModuloVoz } from "@/lib/tenants/voz";
 import { fetchVapiAgentes, hayLlaveVapi, lanzarLlamadaVapi } from "@/lib/vapi";
 import { normalizarDestinoSV } from "@/lib/phone";
 import { upsertContacto } from "@/lib/contacts-store";
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     ? pedido
     : esDelTenant(pedido, tenant)
       ? pedido
-      : assistantIdsDeTenant(tenant)[0];
+      : assistantCampanasDeTenant(tenant);
   if (!assistantId) {
     return NextResponse.json({ ok: false, error: "Este cliente no tiene agente." }, { status: 400 });
   }

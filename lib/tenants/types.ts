@@ -106,6 +106,15 @@ export interface TenantVoz {
    * de otro cliente se cuela.
    */
   assistantIdsExtra?: string[];
+  /**
+   * El agente que sale a marcar en TANDA (la carga de un CSV de leads).
+   *
+   * Va aparte del principal a proposito: el principal es el que atiende lo
+   * ENTRANTE, y casi nunca es el mismo que sale a perseguir leads. Sin este
+   * campo la tanda caia en el primero de la lista y llamaba con el guion de
+   * ventas a gente que dejo una solicitud de credito.
+   */
+  assistantIdCampanas?: string;
 }
 
 // --- Simulación de bandeja en vivo (el interruptor "En vivo" del demo) ---
