@@ -20,7 +20,20 @@ export interface VapiCall {
   cost?: number;
   costBreakdown?: Partial<CallCostBreakdown>;
   transcript?: string;
+  /**
+   * OJO: apunta al bucket PRIVADO de Vapi y responde 400 al abrirlo. Sirve
+   * para saber SI hay grabación, nunca para reproducirla. Lo reproducible son
+   * las firmadas de `artifact`, y esas caducan (ver el endpoint
+   * /api/calls/[id]/grabacion).
+   */
   recordingUrl?: string;
+  artifact?: {
+    recordingUrl?: string;
+    /** Firmada y reproducible. Caduca en `presignedUrlsExpiresAt`. */
+    presignedMonoUrl?: string;
+    presignedStereoUrl?: string;
+    presignedUrlsExpiresAt?: string;
+  };
 }
 
 // Catalogos que traducen ids de Vapi a algo legible. Se piden una vez por
@@ -107,7 +120,9 @@ export function normalizarCall(call: VapiCall, dir: Directorio = DIRECTORIO_VACI
     estado: call.status,
     costoDesglose: desgloseDe(call.costBreakdown),
     transcript: call.transcript,
-    grabacionUrl: call.recordingUrl,
+    // No se guarda la URL de Vapi: la pública da 400 y la firmada caduca. Se
+    // guarda NUESTRA ruta, que pide una firmada fresca en cada reproducción.
+    grabacionUrl: tieneGrabacion(call) ? `/api/calls/${call.id}/grabacion` : undefined,
   };
 }
 
@@ -444,6 +459,29 @@ export async function lanzarLlamadaVapi(params: {
  * (id viejo, llamada purgada), que no es un error: es una llamada que ya no se
  * puede consultar y hay que cerrar igual.
  */
+/** Si Vapi dejó audio de esta llamada. */
+function tieneGrabacion(call: VapiCall): boolean {
+  return Boolean(call.recordingUrl || call.artifact?.recordingUrl || call.artifact?.presignedMonoUrl);
+}
+
+/**
+ * La grabación de una llamada, lista para reproducir AHORA.
+ *
+ * Devuelve la URL firmada del momento (caduca a las pocas horas) junto con el
+ * agente dueño de la llamada, que es lo que permite comprobar que quien la
+ * pide es el cliente correcto. null = Vapi no la reconoce.
+ */
+export async function detalleLlamadaVapi(
+  id: string,
+): Promise<{ assistantId: string | null; url: string | null } | null> {
+  const call = await fetchVapiCall(id);
+  if (!call) return null;
+  return {
+    assistantId: call.assistantId ?? null,
+    url: call.artifact?.presignedMonoUrl ?? call.artifact?.presignedStereoUrl ?? null,
+  };
+}
+
 export async function fetchVapiCall(id: string): Promise<VapiCall | null> {
   const key = process.env.VAPI_PRIVATE_KEY;
   if (!key) return null;

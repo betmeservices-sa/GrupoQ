@@ -61,21 +61,33 @@ function solicitud(over: Partial<Solicitud> & { telefono: string }): Solicitud {
 }
 
 describe("etapa", () => {
+  const T = AHORA.getTime();
+  const reciente = new Date(T - 3_600_000).toISOString();
+  const viejo = new Date(T - 5 * 86_400_000).toISOString();
+
   it("sale del expediente y las marcas de tiempo, en orden", () => {
-    expect(etapaDe(solicitud({ telefono: "1" }))).toBe("nuevo");
-    expect(etapaDe(solicitud({ telefono: "1", contactado: "2026-08-26T15:00:00.000Z" }))).toBe("contactado");
-    expect(etapaDe(solicitud({ telefono: "1", contactado: "x", pedidos: "y" }))).toBe("documentacion");
-    expect(etapaDe(solicitud({ telefono: "1", expediente: { dui: { estado: "recibido" } } }))).toBe("documentacion");
-    expect(etapaDe(solicitud({ telefono: "1", expediente: TODOS_OK }))).toBe("completa");
-    expect(etapaDe(solicitud({ telefono: "1", expediente: TODOS_OK, asignado: "a" }))).toBe("asignado");
-    expect(etapaDe(solicitud({ telefono: "1", expediente: TODOS_OK, asignado: "a", tomado: "b" }))).toBe("gestion");
-    expect(etapaDe(solicitud({ telefono: "1", expediente: TODOS_OK, asignado: "a", tomado: "b", cerrado: "c" }))).toBe("cerrado");
+    expect(etapaDe(solicitud({ telefono: "1" }), T)).toBe("asignadas");
+    expect(etapaDe(solicitud({ telefono: "1", contactado: reciente, actualizado: reciente }), T)).toBe("contactadas");
+    expect(etapaDe(solicitud({ telefono: "1", contactado: "x", pedidos: "y" }), T)).toBe("documentacion");
+    expect(etapaDe(solicitud({ telefono: "1", expediente: { dui: { estado: "recibido" } } }), T)).toBe("documentacion");
+    expect(etapaDe(solicitud({ telefono: "1", expediente: TODOS_OK }), T)).toBe("evaluacion");
+    expect(etapaDe(solicitud({ telefono: "1", expediente: TODOS_OK, asignado: "a" }), T)).toBe("evaluacion");
+    expect(etapaDe(solicitud({ telefono: "1", cerrado: "c", resultado: "venta" }), T)).toBe("aprobadas");
+    expect(etapaDe(solicitud({ telefono: "1", cerrado: "c", resultado: "perdido" }), T)).toBe("rechazadas");
   });
 
-  it("un expediente incompleto no queda en completa aunque diga que sí", () => {
+  it("un cierre sin resultado NO cuenta como aprobado", () => {
+    expect(etapaDe(solicitud({ telefono: "1", cerrado: "c" }), T)).toBe("rechazadas");
+  });
+
+  it("contactado y quieto varios días es sin respuesta, no contactado", () => {
+    expect(etapaDe(solicitud({ telefono: "1", contactado: viejo, actualizado: viejo }), T)).toBe("sin_respuesta");
+  });
+
+  it("un expediente incompleto no queda en evaluación aunque diga que sí", () => {
     const s = solicitud({ telefono: "1", expediente: { ...TODOS_OK, recibo: { estado: "rechazado", motivo: "vencido" } } });
     expect(expedienteCompleto(s.expediente)).toBe(false);
-    expect(etapaDe(s)).toBe("documentacion");
+    expect(etapaDe(s, T)).toBe("documentacion");
   });
 });
 
@@ -242,15 +254,16 @@ describe("reporte del gerente", () => {
 
   it("el embudo es la foto de ahora", () => {
     expect(Object.fromEntries(r.embudo.map((e) => [e.etapa, e.n]))).toEqual({
-      nuevo: 1,
-      contactado: 0,
+      asignadas: 1,
+      contactadas: 0,
+      sin_respuesta: 0,
+      evaluacion: 2,
       documentacion: 3,
-      completa: 1,
-      asignado: 1,
-      gestion: 0,
-      cerrado: 2,
+      aprobadas: 1,
+      rechazadas: 1,
     });
-    expect(r.sinAsignar).toBe(1);
+    // Sin vendedor: los cinco que nadie ha repartido todavía.
+    expect(r.sinAsignar).toBe(5);
   });
 
   it("el movimiento cuenta lo que pasó en el periodo", () => {
@@ -289,10 +302,21 @@ describe("reporte del gerente", () => {
     expect(por.s10.tasaCierre).toBeNull();
   });
 
-  it("alertas y estancados salen listos para actuar", () => {
+  it("alertas y enfriándose salen listos para actuar", () => {
     expect(r.alertas.map((a) => [a.nombre, a.nivel])).toEqual([["Vencido", "vencido"]]);
-    expect(r.estancados.map((e) => [e.nombre, e.dias])).toEqual([["Devuelto", 4]]);
-    expect(r.estancados[0].resumen).toContain("volver a pedir");
+    // El que debe papeles y lleva cuatro días quieto.
+    expect(r.enfriandose.pendientesDoc.map((e) => [e.nombre, e.diasSinContacto])).toEqual([["Devuelto", 4]]);
+    expect(r.enfriandose.pendientesDoc[0].resumen).toContain("volver a pedir");
+    expect(r.enfriandose.pendientesDoc[0].diasDesdeInfo).toBe(4);
+    // El que ya entregó todo y aun así nadie movió.
+    expect(r.enfriandose.docCompleta.map((e) => e.nombre)).toEqual(["Vencido"]);
+  });
+
+  it("el embudo trae la plata y la gente de cada etapa", () => {
+    const docs = r.embudo.find((e) => e.etapa === "documentacion");
+    expect(docs?.leads.map((l) => l.nombre).sort()).toEqual(["Devuelto", "Parcial", "Sin nada"]);
+    // Nadie tiene monto en este fixture: el embudo suma cero, no inventa.
+    expect(docs?.monto).toBe(0);
   });
 
   it("los tiempos promedio del proceso", () => {

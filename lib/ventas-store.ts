@@ -25,7 +25,7 @@ import {
 const TABLA = "ventas_solicitudes";
 const TABLA_EVENTOS = "ventas_eventos";
 const COLS =
-  "tenant, wa_from, nombre, vehiculo, expediente, vendedor, creado, contactado, pedidos, completado, asignado, tomado, cerrado, resultado, motivo_cierre, avisado, escalado, actualizado";
+  "tenant, wa_from, nombre, vehiculo, monto, expediente, vendedor, creado, contactado, pedidos, completado, asignado, tomado, cerrado, resultado, motivo_cierre, avisado, escalado, actualizado";
 
 export type TipoEvento =
   | "creado"
@@ -63,6 +63,9 @@ function aSolicitud(f: Fila): Solicitud {
     telefono: (f.wa_from as string) ?? "",
     nombre: (f.nombre as string) ?? "",
     vehiculo: (f.vehiculo as string | null) ?? null,
+    // numeric de Postgres llega como texto por REST; sin el Number() el embudo
+    // sumaria concatenando.
+    monto: f.monto == null ? null : Number(f.monto),
     expediente: ((f.expediente as Expediente | null) ?? {}) as Expediente,
     vendedor: (f.vendedor as string | null) ?? null,
     creado: iso(f.creado) ?? new Date().toISOString(),
@@ -86,6 +89,7 @@ function aFila(s: Solicitud): Fila {
     wa_from: s.telefono,
     nombre: s.nombre,
     vehiculo: s.vehiculo ?? null,
+    monto: s.monto ?? null,
     expediente: s.expediente,
     vendedor: s.vendedor,
     creado: s.creado,

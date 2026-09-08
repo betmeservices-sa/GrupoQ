@@ -345,3 +345,19 @@ select:-webkit-autofill {
   border-radius: inherit;
   transition: background-color 9999s ease-in-out 0s;
 }
+
+/* Despliegue del embudo y de las barras de vendedor.
+   El truco de grid-template-rows deja que el contenido crezca desde cero sin
+   medirlo en JavaScript, que es lo que hace que un acordeon se vea entrecortado
+   cuando el contenido cambia de alto. */
+.ccg-desplegar {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+.ccg-desplegar[data-abierto="true"] {
+  grid-template-rows: 1fr;
+}
+.ccg-desplegar > * {
+  overflow: hidden;
+}

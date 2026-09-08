@@ -16,6 +16,19 @@ import type { TenantSeed } from "../types";
 
 const ME = "me";
 
+/**
+ * Fecha relativa al momento de cargar el demo.
+ *
+ * Las publicaciones no llevan fecha fija a proposito: el muro muestra los
+ * ultimos siete dias, y con fechas de junio nace vacio el dia que se ensena.
+ */
+function haceDias(d: number, hora: number): string {
+  const x = new Date();
+  x.setDate(x.getDate() - d);
+  x.setHours(hora, 0, 0, 0);
+  return x.toISOString();
+}
+
 export const grupoqSeed: TenantSeed = {
   ME,
   departments: [
@@ -24,7 +37,8 @@ export const grupoqSeed: TenantSeed = {
     { id: "taller", nombre: "Taller de Servicio", color: "#a32923" },
     { id: "repuestos", nombre: "Repuestos", color: "#9b51e0" },
     { id: "pintura", nombre: "Centro de Pintura", color: "#2baab1" },
-    { id: "crediq", nombre: "CrediQ", color: "#00c040" },
+    { id: "crediq", nombre: "Créditos nuevos", color: "#00c040" },
+    { id: "seguimiento", nombre: "Seguimiento de créditos", color: "#2baab1" },
     { id: "atencion", nombre: "Atención al Cliente", color: "#64748b" },
   ],
   staff: [
@@ -65,7 +79,7 @@ export const grupoqSeed: TenantSeed = {
   conversations: [
     { id: "v1", canal: "instagram", contactId: "c1", departamento: "ventas", estado: "en_progreso", asignadoA: "s2", noLeidos: 0, ultimoMensajeTs: "2026-06-23T10:20:00" },
     { id: "v2", canal: "facebook", contactId: "c2", departamento: "ventas", estado: "nuevo", noLeidos: 2, ultimoMensajeTs: "2026-06-23T10:12:00" },
-    { id: "v3", canal: "instagram", contactId: "c3", departamento: "usados", estado: "nuevo", noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:27:00" },
+    { id: "v3", canal: "instagram", contactId: "c3", departamento: "seguimiento", estado: "nuevo", noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:27:00" },
     { id: "v4", canal: "facebook", contactId: "c4", departamento: "atencion", estado: "resuelto", asignadoA: ME, noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:15:00" },
     { id: "v5", canal: "instagram", contactId: "c5", departamento: "crediq", estado: "nuevo", noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:31:00" },
     { id: "v6", canal: "facebook", contactId: "c6", departamento: "taller", estado: "resuelto", asignadoA: "s7", noLeidos: 0, ultimoMensajeTs: "2026-06-22T16:40:00" },
@@ -74,9 +88,9 @@ export const grupoqSeed: TenantSeed = {
     // chats", la pantalla de lo que Sofía pasó a una persona.
     { id: "v7", canal: "whatsapp", contactId: "c7", departamento: "crediq", estado: "en_progreso", asignadoA: ME, noLeidos: 0, ultimoMensajeTs: "2026-06-23T10:41:00" },
     { id: "v8", canal: "whatsapp", contactId: "c8", departamento: "crediq", estado: "en_progreso", asignadoA: ME, noLeidos: 1, ultimoMensajeTs: "2026-06-23T10:36:00" },
-    { id: "v9", canal: "whatsapp", contactId: "c9", departamento: "ventas", estado: "en_progreso", asignadoA: "s5", noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:58:00" },
+    { id: "v9", canal: "whatsapp", contactId: "c9", departamento: "seguimiento", estado: "en_progreso", asignadoA: "s5", noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:58:00" },
     { id: "v10", canal: "whatsapp", contactId: "c10", departamento: "ventas", estado: "nuevo", asignadoA: ME, noLeidos: 2, ultimoMensajeTs: "2026-06-23T10:44:00" },
-    { id: "v11", canal: "whatsapp", contactId: "c11", departamento: "ventas", estado: "en_progreso", asignadoA: "s2", noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:31:00" },
+    { id: "v11", canal: "whatsapp", contactId: "c11", departamento: "seguimiento", estado: "en_progreso", asignadoA: "s2", noLeidos: 0, ultimoMensajeTs: "2026-06-23T09:31:00" },
     { id: "v12", canal: "whatsapp", contactId: "c13", departamento: "ventas", estado: "en_progreso", asignadoA: ME, noLeidos: 0, ultimoMensajeTs: "2026-06-23T10:29:00" },
     { id: "v13", canal: "whatsapp", contactId: "c14", departamento: "crediq", estado: "nuevo", noLeidos: 2, ultimoMensajeTs: "2026-06-23T10:47:00" },
     { id: "v14", canal: "whatsapp", contactId: "c12", departamento: "crediq", estado: "en_progreso", asignadoA: "s5", noLeidos: 0, ultimoMensajeTs: "2026-06-23T08:52:00" },
@@ -149,11 +163,13 @@ export const grupoqSeed: TenantSeed = {
     { id: "im9", channelId: "dm1", staffId: ME, texto: "Claro Verónica, se lo envío antes del mediodía.", ts: "2026-06-23T09:55:00" },
   ],
   socialPosts: [
-    { id: "sp1", red: "instagram", estado: "publicado", texto: "La nueva Frontier te está esperando. Agenda tu test drive hoy mismo. Vas a llegar.", fecha: "2026-06-22T09:00:00", engagement: { alcance: 8420, meGusta: 612, comentarios: 38, compartidos: 47, guardados: 121 } },
-    { id: "sp2", red: "facebook", estado: "publicado", texto: "Nuestro Taller de Servicio cuenta con técnicos certificados y repuestos originales de fábrica. Tu vehículo en las mejores manos.", fecha: "2026-06-21T15:00:00", engagement: { alcance: 11200, meGusta: 540, comentarios: 64, compartidos: 132 } },
-    { id: "sp3", red: "instagram", estado: "programado", texto: "Conoce Active Motors: seminuevos certificados con garantía y respaldo Grupo Q. Agenda tu visita.", fecha: "2026-06-24T10:00:00" },
-    { id: "sp4", red: "facebook", estado: "programado", texto: "Precio de Empleado: del 1 al 31 de julio, con tasa desde el 7.99% y plazos de hasta 108 meses. Escríbenos por mensaje directo.", fecha: "2026-06-25T08:00:00" },
-    { id: "sp5", red: "instagram", estado: "borrador", texto: "5 señales de que tu vehículo ya necesita servicio. Te contamos en este carrusel.", fecha: "2026-06-23T12:00:00" },
+    { id: "sp1", red: "instagram", estado: "publicado", texto: "La nueva Frontier te está esperando. Agenda tu test drive hoy mismo. Vas a llegar.", fecha: haceDias(1, 9), imagenes: ["/grupoq/post-usados.svg"], engagement: { alcance: 8420, meGusta: 612, comentarios: 38, compartidos: 47, guardados: 121 } },
+    { id: "sp2", red: "facebook", estado: "publicado", texto: "Nuestro Taller de Servicio cuenta con técnicos certificados y repuestos originales de fábrica. Tu vehículo en las mejores manos.", fecha: haceDias(2, 15), imagenes: ["/grupoq/post-servicio.svg"], engagement: { alcance: 11200, meGusta: 540, comentarios: 64, compartidos: 132 } },
+    { id: "sp3", red: "instagram", estado: "programado", texto: "Conoce Active Motors: seminuevos certificados con garantía y respaldo Grupo Q. Agenda tu visita.", fecha: haceDias(-1, 10) },
+    { id: "sp4", red: "facebook", estado: "programado", texto: "Precio de Empleado: del 1 al 31 de julio, con tasa desde el 7.99% y plazos de hasta 108 meses. Escríbenos por mensaje directo.", fecha: haceDias(-2, 8) },
+    { id: "sp6", red: "facebook", estado: "publicado", texto: "Cerramos la semana entregando llaves. Gracias por confiar en Grupo Q para llegar donde querés llegar.", fecha: haceDias(4, 17), imagenes: ["/grupoq/post-taller.svg"], engagement: { alcance: 9350, meGusta: 431, comentarios: 27, compartidos: 58 } },
+    { id: "sp7", red: "instagram", estado: "publicado", texto: "¿Sabías que con CrediQ podés mandar tus documentos por WhatsApp sin venir a la sala? Te contamos cómo.", fecha: haceDias(5, 11), imagenes: ["/grupoq/post-crediq.svg"], engagement: { alcance: 14100, meGusta: 903, comentarios: 52, compartidos: 74, guardados: 288 } },
+    { id: "sp5", red: "instagram", estado: "borrador", texto: "5 señales de que tu vehículo ya necesita servicio. Te contamos en este carrusel.", fecha: haceDias(3, 12) },
   ],
   socialStats: [
     { red: "instagram", handle: "@grupoq_centroamerica", seguidores: 18420, nuevosSeguidores: 574, crecimientoPct: 3.2, alcance30d: 42100, vistas30d: 96300, interacciones30d: 5840 },

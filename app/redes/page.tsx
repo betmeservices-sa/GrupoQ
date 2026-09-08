@@ -6,6 +6,8 @@ import { PenSquare, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { PostComposer } from "@/components/social/PostComposer";
 import { ColumnaRed } from "@/components/social/ColumnaRed";
+import { MuroRedes } from "@/components/social/MuroRedes";
+import { SocialStats } from "@/components/social/SocialStats";
 import { PreviewModal } from "@/components/social/PreviewModal";
 import { imagenesDe, ordenarCuentas } from "@/lib/social";
 import { activeTenant, activeTenantId } from "@/lib/tenants/active";
@@ -18,6 +20,10 @@ export default function RedesPage() {
   // El banco no publica en redes: su tablero es de cobranza. El menú ya no
   // muestra el módulo, y esto cierra la puerta de escribir la URL a mano.
   const vePublicacion = activeTenantId() !== "promerica";
+  // Grupo Q no programa contenido acá: su mercadeo publica por su cuenta y a
+  // este panel viene a MIRAR cómo va la semana. Sin composer y sin botón de
+  // vista previa, porque la publicación ya se ve como se ve en la red.
+  const soloMira = activeTenantId() === "grupoq";
   useEffect(() => {
     if (!vePublicacion) router.replace("/");
   }, [vePublicacion, router]);
@@ -81,29 +87,44 @@ export default function RedesPage() {
         <div>
           <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Redes sociales</h1>
           <p className="text-[12.5px] text-[var(--text-3)]">
-            Programa, publica y revisa cómo queda en cada red
+            {soloMira
+              ? "Lo publicado en los últimos 7 días, con sus números"
+              : "Programa, publica y revisa cómo queda en cada red"}
           </p>
         </div>
-        <button
-          onClick={() => setComponiendo(true)}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
-        >
-          <PenSquare size={14} />
-          Nueva publicación
-        </button>
+        {!soloMira && (
+          <button
+            onClick={() => setComponiendo(true)}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            <PenSquare size={14} />
+            Nueva publicación
+          </button>
+        )}
       </header>
 
+      {soloMira && <SocialStats stats={cuentas} live={reales !== null} />}
+
       <div className="min-h-0 flex-1 overflow-y-auto bg-surface px-5 py-4">
-        <div className="grid gap-4 lg:grid-cols-3">
-          {cuentas.map((c) => (
-            <ColumnaRed
-              key={c.red}
-              cuenta={c}
-              posts={porRed.get(c.red) ?? []}
-              onVerPreview={setPreview}
-            />
-          ))}
-        </div>
+        {soloMira ? (
+          <MuroRedes
+            cuentas={cuentas}
+            posts={state.socialPosts}
+            marca={activeTenant().brand.nombre}
+            iniciales={activeTenant().brand.nombre.slice(0, 2).toUpperCase()}
+          />
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-3">
+            {cuentas.map((c) => (
+              <ColumnaRed
+                key={c.red}
+                cuenta={c}
+                posts={porRed.get(c.red) ?? []}
+                onVerPreview={setPreview}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {componiendo && (

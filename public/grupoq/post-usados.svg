@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350" role="img" aria-label="Grupo Q">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7a1f1b"/>
+      <stop offset="100%" stop-color="#a32923"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2">
+    <circle cx="880" cy="230" r="180"/>
+    <circle cx="880" cy="230" r="120"/>
+    <circle cx="180" cy="1140" r="220"/>
+  </g>
+  <text x="80" y="640" font-family="Barlow, system-ui, sans-serif" font-size="120" font-weight="800" fill="#ffffff">GRUPO Q</text>
+  <text x="84" y="710" font-family="Barlow, system-ui, sans-serif" font-size="42" font-weight="600" fill="#ffffff" fill-opacity="0.85" letter-spacing="6">ACTIVE MOTORS</text>
+  <rect x="80" y="780" width="150" height="8" fill="#a32923"/>
+  <text x="80" y="1250" font-family="Barlow, system-ui, sans-serif" font-size="34" font-weight="500" fill="#ffffff" fill-opacity="0.6">Imagen de ejemplo del demo</text>
+</svg>

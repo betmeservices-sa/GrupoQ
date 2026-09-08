@@ -203,8 +203,10 @@ export default function CrediqPage() {
         <nav className="mt-2 flex gap-1">
           {(
             [
-              ["tablero", "Tablero", GitBranch],
+              // La reporteria va primero: el gerente entra a decidir a quien
+              // mover, no a mirar tarjetas una por una.
               ...(veReporte ? [["reporte", "Reportería", BarChart3] as const] : []),
+              ["tablero", "Tablero", GitBranch] as const,
             ] as const
           ).map(([id, label, Icon]) => (
             <button
@@ -387,7 +389,7 @@ function Tarjeta({
         </p>
       )}
 
-      {caso.etapa === "cerrado" && (
+      {(caso.etapa === "aprobadas" || caso.etapa === "rechazadas") && (
         <p className="mt-1.5 text-[10.5px] font-semibold text-[var(--text-2)]">
           {caso.resultado === "venta" ? "Venta" : `Perdido${caso.motivoCierre ? ` · ${caso.motivoCierre}` : ""}`}
         </p>

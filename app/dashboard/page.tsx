@@ -27,6 +27,7 @@ import { CallsPanel } from "@/components/dashboard/CallsPanel";
 import { HotelOcupacion } from "@/components/dashboard/HotelOcupacion";
 import { YaliDashboard } from "@/components/dashboard/YaliDashboard";
 import { AgenciaDashboard } from "@/components/dashboard/AgenciaDashboard";
+import { CrediqDashboard } from "@/components/dashboard/CrediqDashboard";
 import { OrigenCanales } from "@/components/dashboard/OrigenCanales";
 import { ConsumoIA } from "@/components/dashboard/ConsumoIA";
 import { RedesResumen } from "@/components/dashboard/RedesResumen";
@@ -84,6 +85,9 @@ export default function DashboardPage() {
   if (esYali) return <YaliDashboard />;
   // La agencia no mira su propia bandeja: mira a sus clientes.
   if (activeTenantId() === "miagentia") return <AgenciaDashboard />;
+  // Grupo Q mira el rendimiento del agente sobre sus leads de credito, no la
+  // actividad de comunicacion en general.
+  if (activeTenantId() === "grupoq") return <CrediqDashboard />;
 
   return (
     <div className="flex h-full flex-col">

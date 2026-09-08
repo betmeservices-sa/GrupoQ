@@ -14,7 +14,10 @@ import { telefonoBonito } from "@/lib/phone";
 import { HORAS_AVISO, HORAS_VENCIDO } from "@/lib/ventas-pipeline";
 import type { Vendedor } from "@/lib/ventas-pipeline";
 import type { Caso, RespuestaReporte } from "./tipos";
-import { Dona, Embudo, LineaActividad } from "./Graficos";
+import { Dona, LineaActividad } from "./Graficos";
+import { Embudo } from "./Embudo";
+import { BarrasVendedor } from "./BarrasVendedor";
+import { Enfriandose } from "./Enfriandose";
 
 // El color de cada documento. Orden FIJO: la paleta se valido con el script de
 // la guia en ese orden de adyacencia. Si se agrega un quinto documento hay que
@@ -39,9 +42,6 @@ function nombreCorto(vendedores: Vendedor[], id: string | null): string {
 }
 
 export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?: Caso[] }) {
-  // La etapa abierta en el embudo. Null = ninguna, y ahi no se muestra texto.
-  const [etapaAbierta, setEtapaAbierta] = useState<string | null>(null);
-
   // Leads nuevos por dia. Sale de la fecha de creacion de cada caso, no de un
   // agregado del servidor: asi la linea y el tablero no pueden discrepar.
   const porDia = useMemo(() => {
@@ -62,12 +62,11 @@ export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?:
     });
   }, [casos]);
 
-  const enEtapa = useMemo(
-    () => (etapaAbierta ? casos.filter((c) => c.etapa === etapaAbierta) : []),
-    [casos, etapaAbierta],
-  );
   const vendedores = r.vendedores.map((v) => ({ id: v.id, nombre: v.nombre, iniciales: v.iniciales }));
-  const enEmbudo = r.embudo.filter((e) => e.etapa !== "cerrado").reduce((n, e) => n + e.n, 0);
+  // Lo que sigue vivo: ni aprobado ni rechazado.
+  const enEmbudo = r.embudo
+    .filter((e) => e.etapa !== "aprobadas" && e.etapa !== "rechazadas")
+    .reduce((n, e) => n + e.n, 0);
   const vencidos = r.alertas.filter((a) => a.nivel === "vencido").length;
 
   return (
@@ -77,7 +76,7 @@ export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?:
           Icon={AlertTriangle}
           alarma={r.alertas.length > 0}
           valor={r.alertas.length}
-          label={`Sin tomar a tiempo (${HORAS_AVISO} h)`}
+          label="Leads sin contactar 48+"
           pie={vencidos > 0 ? `${vencidos} pasaron las ${HORAS_VENCIDO} h` : "ninguno vencido"}
         />
         <Tarjeta
@@ -89,7 +88,7 @@ export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?:
         <Tarjeta
           Icon={UserX}
           valor={r.sinAsignar}
-          label="Completos sin vendedor"
+          label="Sin vendedor asignado"
           pie={r.sinAsignar > 0 ? "hay que repartirlos" : "todos repartidos"}
         />
         <Tarjeta
@@ -103,6 +102,8 @@ export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?:
           }
         />
       </div>
+
+      <Embudo etapas={r.embudo} nombreVendedor={(id) => nombreCorto(vendedores, id)} />
 
       {r.alertas.length > 0 && (
         <section className="rounded-2xl border border-[var(--brand-red)]/40 bg-[var(--brand-red)]/5 p-4">
@@ -147,53 +148,13 @@ export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?:
         </section>
       )}
 
-      <section className="rounded-2xl border border-line bg-card p-4">
-        <h3 className="text-[14px] font-bold text-[var(--text)]">Por vendedor</h3>
-        <p className="text-[12px] text-[var(--text-3)]">
-          Lo de la izquierda es ahora mismo; lo de la derecha, {r.periodo.etiqueta.toLowerCase()}.
-        </p>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full text-[12.5px]">
-            <thead className="text-[11px] uppercase tracking-wide text-[var(--text-3)]">
-              <tr className="text-left">
-                <th className="py-1.5 pr-3 font-semibold">Vendedor</th>
-                <th className="py-1.5 pr-3 text-right font-semibold">Activos</th>
-                <th className="py-1.5 pr-3 text-right font-semibold">Sin tomar</th>
-                <th className="py-1.5 pr-3 text-right font-semibold">Vencidos</th>
-                <th className="py-1.5 pr-3 text-right font-semibold">Tarda en tomar</th>
-                <th className="py-1.5 pr-3 text-right font-semibold">Asignados</th>
-                <th className="py-1.5 pr-3 text-right font-semibold">Ventas</th>
-                <th className="py-1.5 text-right font-semibold">Cierre</th>
-              </tr>
-            </thead>
-            <tbody>
-              {r.vendedores.map((v) => (
-                <tr key={v.id} className="border-t border-line">
-                  <td className="py-2 pr-3 font-semibold text-[var(--text)]">{v.nombre}</td>
-                  <td className="py-2 pr-3 text-right text-[var(--text-2)]">{v.activos}</td>
-                  <td className={cn("py-2 pr-3 text-right", v.sinTomar > 0 ? "font-semibold text-[var(--text)]" : "text-[var(--text-2)]")}>
-                    {v.sinTomar}
-                  </td>
-                  <td className={cn("py-2 pr-3 text-right", v.vencidos > 0 ? "font-bold text-[var(--brand-red)]" : "text-[var(--text-2)]")}>
-                    {v.vencidos}
-                  </td>
-                  <td className="py-2 pr-3 text-right text-[var(--text-2)]">{horas(v.horasEnTomar)}</td>
-                  <td className="py-2 pr-3 text-right text-[var(--text-2)]">{v.asignados}</td>
-                  <td className="py-2 pr-3 text-right text-[var(--text-2)]">
-                    {v.ventas}
-                    {v.perdidos > 0 && <span className="text-[var(--text-3)]"> / {v.perdidos} perdidos</span>}
-                  </td>
-                  <td className="py-2 text-right text-[var(--text-2)]">{v.tasaCierre === null ? "·" : `${v.tasaCierre}%`}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <BarrasVendedor casos={casos} vendedores={vendedores} />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <section className="rounded-2xl border border-line bg-card p-4">
-          <h3 className="text-[14px] font-bold text-[var(--text)]">Dónde está trabada la documentación</h3>
+          <h3 className="text-[14px] font-bold text-[var(--text)]">
+            Cantidad de trámites con documentación pendiente
+          </h3>
           {r.documentos.faltantes.length === 0 ? (
             <p className="mt-1 text-[12.5px] text-[var(--text-3)]">Nadie debe papeles ahora mismo.</p>
           ) : (
@@ -236,67 +197,6 @@ export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?:
                   {s.nombre} · {s.n}
                 </span>
               ))}
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-2xl border border-line bg-card p-4">
-          <h3 className="text-[14px] font-bold text-[var(--text)]">Dónde está la gente</h3>
-          <p className="mb-3 text-[12px] text-[var(--text-3)]">
-            Tocá una etapa para ver quiénes están ahí.
-          </p>
-          <Embudo
-            pasos={r.embudo.map((e) => ({ etapa: e.nombre, cantidad: e.n }))}
-            seleccion={
-              etapaAbierta ? (r.embudo.find((e) => e.etapa === etapaAbierta)?.nombre ?? null) : null
-            }
-            onSeleccion={(nombre) => {
-              const id = r.embudo.find((e) => e.nombre === nombre)?.etapa ?? null;
-              setEtapaAbierta((v) => (v === id ? null : id));
-            }}
-          />
-
-          {/* El texto aparece SOLO cuando alguien abre una etapa. */}
-          {etapaAbierta && (
-            <div className="mt-3 rounded-xl border border-brand/40 bg-surface p-3">
-              <div className="mb-2 flex items-baseline justify-between gap-2">
-                <p className="text-[12.5px] font-bold text-[var(--text)]">
-                  {r.embudo.find((e) => e.etapa === etapaAbierta)?.nombre}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setEtapaAbierta(null)}
-                  className="text-[11px] font-semibold text-[var(--text-3)] hover:text-[var(--text)]"
-                >
-                  Cerrar
-                </button>
-              </div>
-              <p className="mb-2 text-[11.5px] text-[var(--text-3)]">
-                {r.embudo.find((e) => e.etapa === etapaAbierta)?.ayuda}
-              </p>
-              {enEtapa.length === 0 ? (
-                <p className="text-[12px] text-[var(--text-3)]">No hay nadie en esta etapa.</p>
-              ) : (
-                <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
-                  {enEtapa.map((c) => (
-                    <li
-                      key={c.telefono}
-                      className="flex flex-wrap items-center gap-2 rounded-lg bg-card px-2.5 py-1.5 text-[12px]"
-                    >
-                      <span className="font-semibold text-[var(--text)]">{c.nombre}</span>
-                      <span className="text-[var(--text-3)]">{telefonoBonito(c.telefono)}</span>
-                      {c.vehiculo && (
-                        <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">
-                          {c.vehiculo}
-                        </span>
-                      )}
-                      <span className="ml-auto text-[11px] text-[var(--text-3)]">
-                        {c.doc.resumen}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           )}
         </section>
@@ -388,21 +288,11 @@ export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?:
         </section>
       </div>
 
-      {r.estancados.length > 0 && (
-        <section className="rounded-2xl border border-line bg-card p-4">
-          <h3 className="text-[14px] font-bold text-[var(--text)]">Expedientes enfriándose</h3>
-          <p className="text-[12px] text-[var(--text-3)]">Sin un solo movimiento en tres días o más</p>
-          <ul className="mt-2 space-y-1">
-            {r.estancados.map((e) => (
-              <li key={e.telefono} className="flex flex-wrap items-baseline gap-x-2 text-[12.5px]">
-                <span className="font-semibold text-[var(--text)]">{e.nombre}</span>
-                <span className="text-[var(--text-3)]">{e.resumen}</span>
-                <span className="ml-auto text-[var(--text-2)]">{e.dias} días</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <Enfriandose
+        pendientesDoc={r.enfriandose.pendientesDoc}
+        docCompleta={r.enfriandose.docCompleta}
+        nombreVendedor={(id) => nombreCorto(vendedores, id)}
+      />
     </div>
   );
 }

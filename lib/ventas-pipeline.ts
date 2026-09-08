@@ -12,29 +12,56 @@ import { REQUISITOS, type Requisito } from "./crediq-requisitos";
 import { HORA, DIA, type Rango } from "./periodos";
 
 export type EtapaId =
-  | "nuevo"
-  | "contactado"
+  | "asignadas"
+  | "contactadas"
+  | "sin_respuesta"
+  | "evaluacion"
   | "documentacion"
-  | "completa"
-  | "asignado"
-  | "gestion"
-  | "cerrado";
+  | "aprobadas"
+  | "rechazadas";
 
 export interface Etapa {
   id: EtapaId;
   nombre: string;
   /** Qué significa estar acá, para quien abre el tablero por primera vez. */
   ayuda: string;
+  /** El color del tramo en el embudo. Uno por etapa, para leerlo de un vistazo. */
+  color: string;
 }
 
 export const ETAPAS: Etapa[] = [
-  { id: "nuevo", nombre: "Nuevo lead", ayuda: "Escribió y todavía nadie le contesta" },
-  { id: "contactado", nombre: "Contactado", ayuda: "Ya se le habló, falta pedirle la documentación" },
-  { id: "documentacion", nombre: "Pendiente de documentación", ayuda: "Se le pidieron los papeles y falta alguno o hay que corregirlo" },
-  { id: "completa", nombre: "Documentación completa", ayuda: "Expediente aprobado, listo para que lo tome un vendedor" },
-  { id: "asignado", nombre: "Asignado a vendedor", ayuda: "Tiene vendedor, esperando que lo contacte" },
-  { id: "gestion", nombre: "En gestión", ayuda: "El vendedor ya lo contactó y está negociando" },
-  { id: "cerrado", nombre: "Cerrado", ayuda: "Venta hecha o descartado" },
+  {
+    id: "asignadas",
+    nombre: "Leads asignadas",
+    ayuda: "Entró el lead y tiene vendedor, pero todavía nadie le habla",
+    color: "#38bdf8",
+  },
+  {
+    id: "contactadas",
+    nombre: "Leads contactadas",
+    ayuda: "Ya se le habló y respondió",
+    color: "#0ea5e9",
+  },
+  {
+    id: "sin_respuesta",
+    nombre: "Sin respuesta del lead",
+    ayuda: "Se le habló, no mandó nada y lleva días sin moverse",
+    color: "#f59e0b",
+  },
+  {
+    id: "evaluacion",
+    nombre: "Leads en evaluación",
+    ayuda: "Expediente completo, esperando resolución",
+    color: "#6366f1",
+  },
+  {
+    id: "documentacion",
+    nombre: "Leads pendientes de documentación",
+    ayuda: "Se le pidieron los papeles y falta alguno o hay que corregirlo",
+    color: "#0369a1",
+  },
+  { id: "aprobadas", nombre: "Leads aprobadas", ayuda: "Crédito aprobado", color: "#16a34a" },
+  { id: "rechazadas", nombre: "Leads rechazadas", ayuda: "No procedió", color: "#dc2626" },
 ];
 
 export const ETAPA: Record<EtapaId, Etapa> = Object.fromEntries(ETAPAS.map((e) => [e.id, e])) as Record<EtapaId, Etapa>;
@@ -135,7 +162,10 @@ export function detalleDocumentacion(exp: Expediente | null | undefined): Detall
     resumen = "no ha mandado nada todavía";
   } else if (faltan.length === 0) {
     sub = "en_revision";
-    resumen = `entregó todo, falta revisar ${porRevisar.length} ${porRevisar.length === 1 ? "documento" : "documentos"}`;
+    resumen =
+      porRevisar.length === 0
+        ? "expediente completo, esperando resolución"
+        : `entregó todo, falta revisar ${porRevisar.length} ${porRevisar.length === 1 ? "documento" : "documentos"}`;
   } else {
     sub = "parcial";
     resumen = `${faltan.length === 1 ? "falta" : "faltan"} ${lista(faltan.map((d) => d.nombre.toLowerCase()))}`;
@@ -172,19 +202,46 @@ export interface Solicitud {
   avisado: string | null;
   /** Cuándo se marcó vencido (pasó el plazo largo). */
   escalado: string | null;
+  /**
+   * Cuánto quiere financiar, en dólares. Es lo que Sofía le pregunta por
+   * teléfono, así que llega en palabras y puede no llegar nunca: sin monto el
+   * lead vale cero en el embudo, no se inventa un promedio.
+   */
+  monto?: number | null;
+  /**
+   * Cuántas veces se le ha buscado. No sale del expediente sino de las
+   * llamadas y del chat, por eso es opcional: quien arma la lista decide si
+   * paga esa consulta.
+   */
+  contactos?: { llamadas: number; mensajes: number; ultimo: string | null } | null;
   actualizado: string;
 }
 
-/** La etapa sale del expediente y las marcas de tiempo, nunca de un campo suelto. */
-export function etapaDe(s: Solicitud): EtapaId {
-  if (s.cerrado) return "cerrado";
-  if (s.tomado) return "gestion";
-  if (s.asignado) return "asignado";
-  if (expedienteCompleto(s.expediente)) return "completa";
+/**
+ * La etapa sale del expediente y las marcas de tiempo, nunca de un campo suelto.
+ *
+ * El orden de las preguntas ES la definición: se resuelve de lo más avanzado a
+ * lo menos, así un caso cerrado nunca se confunde con uno que además debe
+ * papeles. "Sin respuesta" es el único que mira el reloj: no hay un campo que
+ * diga que el lead dejó de contestar, se deduce de que se le habló, no mandó
+ * nada y hace días que nadie mueve el caso.
+ */
+export function etapaDe(s: Solicitud, ahora: number = Date.now()): EtapaId {
+  // Aprobada es SOLO lo que se marcó como venta. Un caso cerrado sin resultado
+  // no se cuenta como aprobado: en un embudo de crédito eso sería inflar la
+  // única cifra que nadie quiere ver inflada.
+  if (s.cerrado) return s.resultado === "venta" ? "aprobadas" : "rechazadas";
+  if (expedienteCompleto(s.expediente)) return "evaluacion";
   if (s.pedidos || Object.keys(s.expediente ?? {}).length > 0) return "documentacion";
-  if (s.contactado) return "contactado";
-  return "nuevo";
+  if (s.contactado) {
+    const quieto = ahora - Date.parse(s.actualizado) >= DIAS_SIN_RESPUESTA * DIA;
+    return quieto ? "sin_respuesta" : "contactadas";
+  }
+  return "asignadas";
 }
+
+/** Días de silencio tras el contacto para dar al lead por no respondido. */
+export const DIAS_SIN_RESPUESTA = 3;
 
 // ---- Plazos -----------------------------------------------------------------
 
@@ -241,11 +298,37 @@ export function alertasDe(solicitudes: Solicitud[], ahora = Date.now()): Alerta[
     .sort((a, b) => b.horas - a.horas);
 }
 
-/** Expedientes que llevan días sin moverse: el equipo los dejó enfriar. */
-export function estancados(solicitudes: Solicitud[], ahora = Date.now(), dias = DIAS_ESTANCADO): Solicitud[] {
+/** Los que llevan días sin moverse en una etapa: el equipo los dejó enfriar. */
+export function estancados(
+  solicitudes: Solicitud[],
+  ahora = Date.now(),
+  dias = DIAS_ESTANCADO,
+  etapa: EtapaId = "documentacion",
+): Solicitud[] {
   return solicitudes
-    .filter((s) => etapaDe(s) === "documentacion" && ahora - Date.parse(s.actualizado) >= dias * DIA)
+    .filter((s) => etapaDe(s, ahora) === etapa && ahora - Date.parse(s.actualizado) >= dias * DIA)
     .sort((a, b) => a.actualizado.localeCompare(b.actualizado));
+}
+
+/**
+ * Lo mismo, ya redactado para la pantalla.
+ *
+ * Los días sin contacto salen del último contacto REAL (llamada o mensaje)
+ * cuando se conoce; si nadie lo consultó, del último movimiento del caso, que
+ * es lo más cerca que estamos de eso.
+ */
+export function friosDe(solicitudes: Solicitud[], etapa: EtapaId, ahora = Date.now()): LeadFrio[] {
+  return estancados(solicitudes, ahora, DIAS_ESTANCADO, etapa).map((s) => ({
+    telefono: s.telefono,
+    nombre: s.nombre,
+    vendedor: s.vendedor,
+    monto: s.monto ?? null,
+    resumen: detalleDocumentacion(s.expediente).resumen,
+    diasSinContacto: Math.floor((ahora - Date.parse(s.contactos?.ultimo ?? s.actualizado)) / DIA),
+    diasDesdeInfo: Math.floor((ahora - Date.parse(s.creado)) / DIA),
+    llamadas: s.contactos?.llamadas ?? 0,
+    mensajes: s.contactos?.mensajes ?? 0,
+  }));
 }
 
 // ---- Reparto ----------------------------------------------------------------
@@ -268,7 +351,7 @@ export function siguienteVendedor(vendedores: Vendedor[], solicitudes: Solicitud
   for (const s of solicitudes) {
     if (!s.vendedor) continue;
     const etapa = etapaDe(s);
-    if (etapa === "asignado" || etapa === "gestion") {
+    if (etapa !== "aprobadas" && etapa !== "rechazadas") {
       activos.set(s.vendedor, (activos.get(s.vendedor) ?? 0) + 1);
     }
     if (s.asignado) {
@@ -303,12 +386,44 @@ export interface FilaVendedor {
   horasEnTomar: number | null;
   /** Ventas sobre casos cerrados, en porcentaje. */
   tasaCierre: number | null;
+  /** Los leads que se le asignaron en el periodo, para abrir la barra. */
+  leads: LeadEnEtapa[];
+}
+
+/** Un lead como se ve en el embudo y en la barra del vendedor. */
+export interface LeadEnEtapa {
+  telefono: string;
+  nombre: string;
+  vendedor: string | null;
+  /** Cuánto quiere financiar. null si nunca lo dijo. */
+  monto: number | null;
+}
+
+/** Un lead que se está enfriando, con todo lo que hace falta para decidir. */
+export interface LeadFrio extends LeadEnEtapa {
+  /** Qué le falta, en una frase. */
+  resumen: string;
+  /** Días desde el último movimiento del caso. */
+  diasSinContacto: number;
+  /** Días desde que entró el lead. */
+  diasDesdeInfo: number;
+  llamadas: number;
+  mensajes: number;
 }
 
 export interface ReporteVentas {
   periodo: Rango;
-  /** Foto de ahora: cuántos hay en cada etapa. */
-  embudo: { etapa: EtapaId; nombre: string; ayuda: string; n: number }[];
+  /** Foto de ahora: cuántos hay en cada etapa, con su plata y su gente. */
+  embudo: {
+    etapa: EtapaId;
+    nombre: string;
+    ayuda: string;
+    color: string;
+    n: number;
+    /** Suma de lo que quieren financiar los de esta etapa. */
+    monto: number;
+    leads: LeadEnEtapa[];
+  }[];
   /** Lo que pasó DENTRO del periodo. */
   movimiento: {
     nuevos: number;
@@ -333,7 +448,12 @@ export interface ReporteVentas {
   /** Sin vendedor y con expediente completo: nadie los ha tomado. */
   sinAsignar: number;
   alertas: Alerta[];
-  estancados: { telefono: string; nombre: string; dias: number; resumen: string }[];
+  /**
+   * Los que llevan días quietos, separados por lo que hay que hacerles: a unos
+   * hay que perseguirles un papel, a los otros ya no se les debe nada y aun así
+   * nadie los movió, que es la peor de las dos.
+   */
+  enfriandose: { pendientesDoc: LeadFrio[]; docCompleta: LeadFrio[] };
   tiempos: {
     /** Horas promedio de lead nuevo a expediente completo. */
     aExpedienteCompleto: number | null;
@@ -369,12 +489,27 @@ export function reporteVentas(
   const t = ahora.getTime();
   const abiertas = solicitudes.filter((s) => !s.cerrado);
 
-  const embudo = ETAPAS.map((e) => ({
-    etapa: e.id,
-    nombre: e.nombre,
-    ayuda: e.ayuda,
-    n: solicitudes.filter((s) => etapaDe(s) === e.id).length,
-  }));
+  const comoLead = (s: Solicitud): LeadEnEtapa => ({
+    telefono: s.telefono,
+    nombre: s.nombre,
+    vendedor: s.vendedor,
+    monto: s.monto ?? null,
+  });
+
+  const embudo = ETAPAS.map((e) => {
+    const suyas = solicitudes.filter((s) => etapaDe(s, t) === e.id);
+    return {
+      etapa: e.id,
+      nombre: e.nombre,
+      ayuda: e.ayuda,
+      color: e.color,
+      n: suyas.length,
+      // Los que no dijeron monto suman cero. Es preferible un embudo que se
+      // queda corto a uno que promedia y le inventa plata al gerente.
+      monto: suyas.reduce((m, s) => m + (s.monto ?? 0), 0),
+      leads: suyas.map(comoLead).sort((a, b) => (b.monto ?? 0) - (a.monto ?? 0)),
+    };
+  });
 
   const enPeriodo = <K extends keyof Solicitud>(campo: K) =>
     solicitudes.filter((s) => dentro(s[campo] as string | null, rango));
@@ -387,7 +522,7 @@ export function reporteVentas(
     solicitudes.filter((s) => dentro(s[campo] as string | null, antes)).length;
 
   // Documentos: solo de quien todavía está en documentación.
-  const enDocs = abiertas.filter((s) => etapaDe(s) === "documentacion");
+  const enDocs = abiertas.filter((s) => etapaDe(s, t) === "documentacion");
   const faltantes = REQUISITOS.map((r) => ({
     id: r.id,
     nombre: r.nombre,
@@ -418,8 +553,8 @@ export function reporteVentas(
   const filasVendedor: FilaVendedor[] = vendedores.map((v) => {
     const suyas = solicitudes.filter((s) => s.vendedor === v.id);
     const activas = suyas.filter((s) => {
-      const e = etapaDe(s);
-      return e === "asignado" || e === "gestion";
+      const e = etapaDe(s, t);
+      return e !== "aprobadas" && e !== "rechazadas";
     });
     const cerradas = suyas.filter((s) => dentro(s.cerrado, rango));
     const ventasV = cerradas.filter((s) => s.resultado === "venta").length;
@@ -440,6 +575,7 @@ export function reporteVentas(
         suyas.filter((s) => s.asignado && s.tomado).map((s) => [s.asignado as string, s.tomado as string]),
       ),
       tasaCierre: cerradas.length ? Math.round((ventasV / cerradas.length) * 100) : null,
+      leads: suyas.filter((s) => dentro(s.asignado, rango)).map(comoLead).sort((a, b) => (b.monto ?? 0) - (a.monto ?? 0)),
     };
   });
 
@@ -470,14 +606,12 @@ export function reporteVentas(
       subEstados,
     },
     vendedores: filasVendedor.sort((a, b) => b.activos - a.activos || b.ventas - a.ventas),
-    sinAsignar: abiertas.filter((s) => etapaDe(s) === "completa").length,
+    sinAsignar: abiertas.filter((s) => !s.vendedor).length,
     alertas: alertasDe(abiertas, t),
-    estancados: estancados(abiertas, t).map((s) => ({
-      telefono: s.telefono,
-      nombre: s.nombre,
-      dias: Math.floor((t - Date.parse(s.actualizado)) / DIA),
-      resumen: detalleDocumentacion(s.expediente).resumen,
-    })),
+    enfriandose: {
+      pendientesDoc: friosDe(abiertas, "documentacion", t),
+      docCompleta: friosDe(abiertas, "evaluacion", t),
+    },
     tiempos: {
       aExpedienteCompleto: promedioHoras(
         solicitudes.filter((s) => s.completado).map((s) => [s.creado, s.completado as string]),

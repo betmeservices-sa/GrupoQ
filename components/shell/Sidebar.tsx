@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, GitBranch, HandCoins, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
+import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, GitBranch, HandCoins, Headphones, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { useStore } from "@/lib/store";
@@ -49,6 +49,7 @@ const NAV: NavItem[] = [
   { id: "sofia", href: "/sofia", label: "Probar a Sofía", Icon: Bot },
   { id: "dashboard", href: "/dashboard", label: "Dashboard", Icon: BarChart3 },
   { id: "llamadas", href: "/llamadas", label: "Llamadas", Icon: PhoneCall },
+  { id: "qa", href: "/qa", label: "QA", Icon: Headphones },
   { id: "agentes", href: "/agentes", label: "Agentes", Icon: Bot },
   { id: "settings", href: "/settings", label: "Configuración", Icon: Settings },
 ];
@@ -103,10 +104,15 @@ export function Sidebar({
   // El banco es un centro de COBRANZA: no publica en redes. Recibe mensajes de
   // Instagram y Facebook (eso sigue en la bandeja), pero no programa contenido.
   const veRedes = tenant !== "promerica";
+  // Los comentarios de Facebook e Instagram son la otra mitad de la bandeja,
+  // pero Grupo Q no los trabaja desde aca: su mercadeo lleva las redes por su
+  // cuenta y la pestana solo metia ruido en un panel de credito.
+  const veComentarios = veRedes && tenant !== "grupoq";
   const visibles = NAV.filter(
     (item) =>
       def.ve.includes(item.id) &&
       (item.id !== "llamadas" || veLlamadas) &&
+      (item.id !== "qa" || veLlamadas) &&
       (item.id !== "agentes" || veAgentes) &&
       (item.id !== "habitaciones" || veHotel) &&
       (item.id !== "calendario" || veHotel) &&
@@ -119,7 +125,7 @@ export function Sidebar({
       (item.id !== "cobros" || veCobros) &&
       (item.id !== "campanas" || veCobros) &&
       (item.id !== "redes" || veRedes) &&
-      (item.id !== "comentarios" || veRedes) &&
+      (item.id !== "comentarios" || veComentarios) &&
       (item.id !== "mis-chats" || veYali || veCrediq) &&
       (item.id !== "tickets" || tieneTickets) &&
       (item.id !== "promociones" || veYali) &&
@@ -170,6 +176,8 @@ export function Sidebar({
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {visibles.map(({ id, href, label, Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          // El tablero de Grupo Q no resume comunicacion: mide al agente.
+          const etiqueta = id === "dashboard" && tenant === "grupoq" ? "IA Performance" : label;
           return (
             <Link
               key={id}
@@ -183,7 +191,7 @@ export function Sidebar({
               )}
             >
               <Icon size={18} strokeWidth={2.1} />
-              <span className="min-w-0 flex-1 truncate">{label}</span>
+              <span className="min-w-0 flex-1 truncate">{etiqueta}</span>
               {(pendientes[id] ?? 0) > 0 && (
                 <span
                   className={cn(

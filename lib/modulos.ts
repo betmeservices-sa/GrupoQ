@@ -36,6 +36,9 @@ export type ModuleId =
   | "sofia"
   | "dashboard"
   | "llamadas"
+  // Escuchar lo que dijo el agente. Va aparte de "llamadas" (que es el tablero
+  // de costo y volumen) porque quien hace QA no viene a mirar cifras.
+  | "qa"
   | "agentes"
   | "settings";
 
@@ -67,7 +70,7 @@ export interface RoleDef {
 // marketing no gestiona casos, asi que no lo ve.
 // "mis-chats" lo ve todo el mundo: es donde caen los chats que el agente pasa a
 // una persona, y quien atiende tiene que verlos sin depender de su rol.
-const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "agentes", "settings"];
+const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "qa", "agentes", "settings"];
 export const VE: Record<RoleId, ModuleId[]> = {
   recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "interno", "comentarios"],
   // Atencion es quien da la cara: contesta lo privado y lo publico, trabaja
@@ -109,6 +112,7 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   sofia: "/sofia",
   dashboard: "/dashboard",
   llamadas: "/llamadas",
+  qa: "/qa",
   agentes: "/agentes",
   settings: "/settings",
 };
@@ -136,6 +140,7 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname.startsWith("/sofia")) return "sofia";
   if (pathname.startsWith("/dashboard")) return "dashboard";
   if (pathname.startsWith("/llamadas")) return "llamadas";
+  if (pathname.startsWith("/qa")) return "qa";
   if (pathname.startsWith("/agentes")) return "agentes";
   if (pathname.startsWith("/settings")) return "settings";
   return null;

@@ -16,6 +16,10 @@ export type DepartmentId =
   | "repuestos"
   | "pintura"
   | "crediq"
+  // Los que ya tienen credito vivo y escriben por su cuota, su estado de
+  // cuenta o su seguro. No es lo mismo que pedir uno nuevo y por eso no
+  // comparte departamento con crediq.
+  | "seguimiento"
   | "financiamiento" // Excel: AutoFácil
   | "atencion"
   // Hospital Centro Ginecológico
