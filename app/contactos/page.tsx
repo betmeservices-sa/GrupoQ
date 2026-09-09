@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ConfirmarTanda, type OrigenTanda } from "@/components/contactos/ConfirmarTanda";
 import { activeTenant, activeTenantId } from "@/lib/tenants/active";
 import { telefonoBonito } from "@/lib/phone";
 import { checklistDe, esEtiquetaDeDocumento, etiquetaDe } from "@/lib/crediq-requisitos";
@@ -127,6 +128,8 @@ export default function ContactosPage() {
   // plata y no se deshace. Que quedara prendido de un import al siguiente seria
   // la forma mas facil de marcarle sin querer a una lista entera.
   const [llamarAlImportar, setLlamarAlImportar] = useState(false);
+  // La tanda que quedo esperando a que se elija el guion en el modal.
+  const [porLlamar, setPorLlamar] = useState<{ destinos: { telefono: string; nombre: string }[]; cola: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function cargar(seleccionar?: string) {
@@ -236,58 +239,75 @@ export default function ContactosPage() {
         // sigue con el resto
       }
     }
-    let cola = `${ok} contacto${ok === 1 ? "" : "s"} importado${ok === 1 ? "" : "s"}.`;
+    const cola = `${ok} contacto${ok === 1 ? "" : "s"} importado${ok === 1 ? "" : "s"}.`;
 
     // Las llamadas van DESPUES de guardar a todos: si la tanda falla a la
     // mitad, los contactos ya quedaron y se puede reintentar sin duplicar.
+    //
+    // Y no salen de aca: se abre el modal, que es donde se elige el guion. El
+    // `confirm()` del navegador que habia antes no podia preguntar eso.
     if (llamarAlImportar && importados.length > 0) {
-      const cuantos = Math.min(importados.length, 25);
-      if (
-        window.confirm(
-          `Se van a lanzar ${cuantos} llamada${cuantos === 1 ? "" : "s"} REAL${cuantos === 1 ? "" : "ES"}, de a una y espaciadas, y cuestan. ¿Seguimos?`,
-        )
-      ) {
-        try {
-          const r = await fetch("/api/ventas/llamar-tanda", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ destinos: importados, confirmado: true }),
-          });
-          const d = (await r.json()) as {
-            ok?: boolean;
-            lanzadas?: number;
-            programadas?: number;
-            fallidas?: number;
-            espaciadoSegundos?: number;
-            error?: string;
-          };
-          // "Lanzada" solo quiere decir que Vapi la acepto, NO que timbro: el
-          // carrier puede rechazarla despues y eso no se sabe todavia. Decir
-          // "2 llamadas lanzadas" cuando una nunca sono es mentirle a quien
-          // mira, asi que se manda a ver Llamadas.
-          // Salen de a una y espaciadas porque el carrier rechaza las ráfagas.
-          // Solo la primera está confirmada cuando esto responde; las demás
-          // salen después, por eso se manda a mirar Llamadas.
-          cola += !d.ok
-            ? ` No se pudieron lanzar las llamadas: ${d.error ?? "error"}.`
-            : d.lanzadas
-              ? ` Marcando al primero${d.programadas ? `, y los otros ${d.programadas} van saliendo uno cada ${d.espaciadoSegundos ?? 10} segundos` : ""}. Mirá Llamadas para ver cuáles timbraron de verdad.`
-              : " La primera llamada ni se pudo encolar, así que la tanda no salió.";
-        } catch {
-          cola += " No se pudieron lanzar las llamadas: falló la conexión.";
-        }
-      } else {
-        cola += " Llamadas canceladas.";
-      }
-      setLlamarAlImportar(false);
+      setPorLlamar({ destinos: importados, cola });
+      return;
     }
 
     setAviso(cola);
     await cargar();
   }
 
+  /** Lanza la tanda ya con el guion elegido en el modal. */
+  async function lanzarTanda(origen: OrigenTanda) {
+    if (!porLlamar) return;
+    const { destinos: importados } = porLlamar;
+    let cola = porLlamar.cola;
+    try {
+      const r = await fetch("/api/ventas/llamar-tanda", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destinos: importados, confirmado: true, origen }),
+      });
+      const d = (await r.json()) as {
+        ok?: boolean;
+        lanzadas?: number;
+        programadas?: number;
+        fallidas?: number;
+        espaciadoSegundos?: number;
+        error?: string;
+      };
+      // "Lanzada" solo quiere decir que Vapi la acepto, NO que timbro: el
+      // carrier puede rechazarla despues y eso no se sabe todavia. Decir
+      // "2 llamadas lanzadas" cuando una nunca sono es mentirle a quien
+      // mira, asi que se manda a ver Llamadas.
+      // Salen de a una y espaciadas porque el carrier rechaza las ráfagas.
+      // Solo la primera está confirmada cuando esto responde; las demás
+      // salen después, por eso se manda a mirar Llamadas.
+      cola += !d.ok
+        ? ` No se pudieron lanzar las llamadas: ${d.error ?? "error"}.`
+        : d.lanzadas
+          ? ` Marcando al primero${d.programadas ? `, y los otros ${d.programadas} van saliendo uno cada ${d.espaciadoSegundos ?? 10} segundos` : ""}. Mirá Llamadas para ver cuáles timbraron de verdad.`
+          : " La primera llamada ni se pudo encolar, así que la tanda no salió.";
+    } catch {
+      cola += " No se pudieron lanzar las llamadas: falló la conexión.";
+    }
+    setLlamarAlImportar(false);
+    setPorLlamar(null);
+    setAviso(cola);
+    await cargar();
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-1">
+      {porLlamar && (
+        <ConfirmarTanda
+          cuantos={Math.min(porLlamar.destinos.length, 25)}
+          onCancelar={() => {
+            setPorLlamar(null);
+            setLlamarAlImportar(false);
+            setAviso(`${porLlamar.cola} Llamadas canceladas.`);
+          }}
+          onConfirmar={(origen) => void lanzarTanda(origen)}
+        />
+      )}
       {/* Columna 1: lista */}
       <section
         className={cn(

@@ -218,8 +218,19 @@ export const grupoqTenant: TenantConfig = {
     // Sofia CrediQ (Solicitudes) sale a dar seguimiento a las solicitudes de
     // credito. Es del mismo cliente, asi que entra en su frontera y se ve en
     // Agentes.
-    assistantIdsExtra: ["c447405e-c39f-4197-a2c7-f54236d7d2bd"],
-    // Y es LA que sale en las tandas del CSV, no la de ventas.
+    assistantIdsExtra: [
+      "c447405e-c39f-4197-a2c7-f54236d7d2bd",
+      // Sofia CrediQ (Reactivacion): llama a quien YA dejo su solicitud y no
+      // siguio. Es otro agente y no una variante del anterior porque el guion
+      // cambia entero: a este no se le presenta la empresa ni se le pregunta si
+      // le interesa un credito, se le pregunta que lo dejo parado.
+      "0fd3c665-3520-4e40-aec2-a0205bcee477",
+    ],
+    // La tanda de PRIMER CONTACTO sale con la de solicitudes, no con ventas.
     assistantIdCampanas: "c447405e-c39f-4197-a2c7-f54236d7d2bd",
+    // Y la de reactivacion con la suya. Sin este campo, una tanda de
+    // reactivacion no sale: preferimos no llamar antes que llamar con el guion
+    // equivocado a alguien que ya nos dejo su expediente.
+    assistantIdReactivacion: "0fd3c665-3520-4e40-aec2-a0205bcee477",
   },
 };

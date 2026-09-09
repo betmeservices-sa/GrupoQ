@@ -20,6 +20,7 @@ import { secretoVapiValido as secretoValido } from "./vapi-secreto";
 import { decidirPlantilla } from "./plantilla-tras-llamada";
 import { enviarPlantilla } from "./wa-send";
 import { addOutbound, mensajesAnteriores } from "./wa-store";
+import { normalizarDestinoSV } from "./phone";
 
 // Marca de las notas que escribió el agente. Sirve para saber cuáles puede
 // volver a pisar: lo que escribió una persona no se toca nunca.
@@ -157,15 +158,26 @@ async function mandarPlantillaTrasLlamada(
   telefono: string,
   extracto: ExtractoLlamada,
 ): Promise<string> {
+  // DOS FORMAS DEL MISMO NÚMERO, y confundirlas rompe cosas distintas.
+  //
+  // `telefono` viene de normalizarTelefono, que recorta a los ÚLTIMOS OCHO
+  // dígitos: es la llave de la memoria y de la ficha, y así están guardadas.
+  // Pero WhatsApp necesita el número completo con país. Mandando el de ocho
+  // dígitos, el hilo se abre bajo otra llave y queda una conversación paralela
+  // con la misma persona.
+  const e164 = normalizarDestinoSV(telefono);
+  if (!e164) return `no se mandó: el número ${telefono} no es marcable`;
+  const paraWhatsApp = e164.replace(/\D/g, "");
+
   // El nombre puede venir de la llamada o de la ficha que ya existía.
   const ficha = await getContacto(telefono).catch(() => null);
   const nombre =
     extracto.nombre ?? [ficha?.nombre, ficha?.apellido].filter(Boolean).join(" ").trim() ?? null;
 
-  const { mensajes } = await mensajesAnteriores(telefono, null, 50, tenant);
+  const { mensajes } = await mensajesAnteriores(paraWhatsApp, null, 50, tenant);
   const decision = decidirPlantilla({
     acepto: extracto.agendo === true,
-    telefono,
+    telefono: paraWhatsApp,
     nombre,
     hilo: mensajes.map((m) => ({ direction: m.direccion, texto: m.texto ?? "", ts: m.ts })),
     ahora: new Date(),
@@ -173,12 +185,18 @@ async function mandarPlantillaTrasLlamada(
 
   if (!decision.enviar) return `no se mandó: ${decision.motivo}`;
 
-  const env = await enviarPlantilla(telefono, decision.plantilla, decision.idioma, [decision.nombre], {
+  const env = await enviarPlantilla(paraWhatsApp, decision.plantilla, decision.idioma, [decision.nombre], {
     tenant,
   });
   if (!env.ok) return `falló: ${env.error ?? "sin detalle"}`;
   if (env.id) {
-    await addOutbound({ waId: env.id, to: telefono, texto: decision.texto, ts: new Date().toISOString(), tenant });
+    await addOutbound({
+      waId: env.id,
+      to: paraWhatsApp,
+      texto: decision.texto,
+      ts: new Date().toISOString(),
+      tenant,
+    });
   }
   return "enviada";
 }

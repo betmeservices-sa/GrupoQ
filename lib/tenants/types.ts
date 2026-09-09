@@ -115,6 +115,17 @@ export interface TenantVoz {
    * ventas a gente que dejo una solicitud de credito.
    */
   assistantIdCampanas?: string;
+  /**
+   * El agente para las tandas de REACTIVACION.
+   *
+   * No es el mismo guion: al de primer contacto se le presenta la empresa y se
+   * le pregunta si le interesa; al de reactivacion se le habla de una solicitud
+   * que YA hizo y quedo a medias, y arrancar esa llamada como si no nos
+   * conocieramos suena a que perdimos su expediente.
+   *
+   * Sin este campo, una tanda de reactivacion cae en el de primer contacto.
+   */
+  assistantIdReactivacion?: string;
 }
 
 // --- Simulación de bandeja en vivo (el interruptor "En vivo" del demo) ---

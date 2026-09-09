@@ -1,10 +1,21 @@
 import { after, NextResponse } from "next/server";
 import { tenantFromRequest } from "@/lib/tenants/server";
-import { assistantCampanasDeTenant, esAgencia, esDelTenant, veModuloVoz } from "@/lib/tenants/voz";
+import {
+  ETIQUETA_ORIGEN,
+  assistantDeTanda,
+  esAgencia,
+  esDelTenant,
+  esOrigenTanda,
+  veModuloVoz,
+  type OrigenTanda,
+} from "@/lib/tenants/voz";
 import { fetchVapiAgentes, hayLlaveVapi, lanzarLlamadaVapi } from "@/lib/vapi";
 import { normalizarDestinoSV } from "@/lib/phone";
 import { upsertContacto } from "@/lib/contacts-store";
 import { normalizarTelefono } from "@/lib/memoria-llamadas";
+import { vendedoresDe } from "@/lib/ventas-equipo";
+import { siguienteVendedor } from "@/lib/ventas-pipeline";
+import { asegurarSolicitud, asignarVendedor, listarSolicitudes, registrarEvento } from "@/lib/ventas-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,17 +38,21 @@ const TOPE = 25;
 
 // Cuanto se espera entre una llamada y la siguiente.
 //
-// Salio de mirar las llamadas reales del 2026-09-07, no de un numero al azar:
-// de 11 llamadas SUELTAS ese dia no fallo ninguna, y de 10 tandas disparadas
-// con 1 a 3 segundos de diferencia, 4 perdieron una con
+// Empezo en 10 s mirando las llamadas reales del 2026-09-07: de 11 llamadas
+// SUELTAS no fallo ninguna, y de 10 tandas disparadas con 1 a 3 segundos de
+// diferencia, 4 perdieron una con
 // "providerfault-outbound-sip-503-service-unavailable", con el trunk ocioso y
-// sin nada hablando. El carrier no aguanta la rafaga; separadas, entran.
+// sin nada hablando. O sea el carrier no aguanta la rafaga, pero no sabiamos
+// donde estaba el limite.
 //
-// Se puede mover sin desplegar (TANDA_ESPERA_SEGUNDOS) porque el numero bueno
-// depende del carrier y hoy no lo sabemos con precision.
+// Baja a 5 s por pedido del 2026-09-09: 10 hacia demasiado lenta una tanda de
+// 25 (mas de cuatro minutos solo esperando). 5 sigue estando muy por encima de
+// los 1 a 3 segundos que fallaban. SI VUELVEN LOS 503 EN TANDA, subirlo es lo
+// primero que hay que probar, y se puede sin desplegar con
+// TANDA_ESPERA_SEGUNDOS.
 const ESPERA_MS = (() => {
   const s = Number(process.env.TANDA_ESPERA_SEGUNDOS);
-  return Math.min(60, Math.max(1, Number.isFinite(s) && s > 0 ? s : 10)) * 1000;
+  return Math.min(60, Math.max(1, Number.isFinite(s) && s > 0 ? s : 5)) * 1000;
 })();
 
 /** Margen dentro del maxDuration para que la ultima llamada quepa entera. */
@@ -54,7 +69,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Este módulo no está habilitado." }, { status: 403 });
   }
 
-  let body: { destinos?: Destino[]; assistantId?: string; confirmado?: boolean };
+  let body: { destinos?: Destino[]; assistantId?: string; confirmado?: boolean; origen?: string };
   try {
     body = await req.json();
   } catch {
@@ -76,14 +91,28 @@ export async function POST(req: Request) {
     );
   }
 
+  // Con que guion se marca. Por defecto el de primer contacto, que es el que
+  // habia antes de que existiera esta eleccion.
+  const origen: OrigenTanda = esOrigenTanda(body.origen) ? body.origen : "primer_contacto";
+  const etiquetaOrigen = ETIQUETA_ORIGEN[origen];
+
   const pedido = body.assistantId?.trim();
   const assistantId = esAgencia(tenant)
-    ? pedido
+    ? (pedido ?? assistantDeTanda(tenant, origen))
     : esDelTenant(pedido, tenant)
       ? pedido
-      : assistantCampanasDeTenant(tenant);
+      : assistantDeTanda(tenant, origen);
   if (!assistantId) {
-    return NextResponse.json({ ok: false, error: "Este cliente no tiene agente." }, { status: 400 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          origen === "reactivacion"
+            ? "Este cliente no tiene agente de reactivación. No se marca con el de primer contacto: el guion no sirve para quien ya dejó su solicitud."
+            : "Este cliente no tiene agente.",
+      },
+      { status: 400 },
+    );
   }
 
   // La linea desde la que se marca: la del agente si tiene, y si no cualquiera
@@ -121,16 +150,40 @@ export async function POST(req: Request) {
     );
   }
 
+  const equipo = vendedoresDe(tenant);
+
   // Las fichas van TODAS primero, antes de marcarle a nadie: si algo se cae a
   // mitad de la tanda, los contactos ya quedaron y se puede repetir sin perder
   // a quien nunca llego a sonar.
+  //
+  // Y ENTRAN AL PIPELINE, que es lo que faltaba: se subia el CSV, la llamada
+  // salia y la nota se actualizaba, pero la persona no aparecia en ninguna
+  // etapa del embudo. Un lead al que ya le marcamos y que no esta en el
+  // tablero es un lead que nadie va a volver a tocar.
   for (const d of destinos) {
     const partes = d.nombre.split(/\s+/).filter(Boolean);
+    const clave = normalizarTelefono(d.e164);
     await upsertContacto({
-      from: normalizarTelefono(d.e164),
+      from: clave,
       tenant,
       ...(partes.length > 0 ? { nombre: partes[0], apellido: partes.slice(1).join(" ") } : {}),
     }).catch(() => undefined);
+    // Entra al embudo con el mismo reparto que usa el motor, igual que si
+    // hubiera escrito. Si ya estaba, `asegurarSolicitud` no lo duplica.
+    if (equipo.length > 0) {
+      try {
+        const solicitud = await asegurarSolicitud(tenant, clave, { nombre: d.nombre || undefined });
+        if (!solicitud.vendedor) {
+          const toca = siguienteVendedor(equipo, await listarSolicitudes(tenant));
+          if (toca) await asignarVendedor(tenant, clave, toca.id, "tanda", toca.nombre);
+        }
+        await registrarEvento(tenant, clave, "creado", "tanda", `entró por el CSV (${etiquetaOrigen})`);
+      } catch (err) {
+        // Que no entre al embudo no puede impedir la llamada: el CSV se subió
+        // para marcar, y la ficha ya quedó.
+        console.error(`[tanda] no entró al embudo ${clave}:`, err);
+      }
+    }
   }
 
   const marcar = (d: { e164: string; nombre: string }) =>

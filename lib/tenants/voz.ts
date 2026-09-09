@@ -32,6 +32,32 @@ export function assistantCampanasDeTenant(tenant: TenantId): string | null {
   return voz?.assistantIdCampanas ?? voz?.assistantId ?? null;
 }
 
+/** Los dos tipos de tanda. El guion cambia entero entre uno y otro. */
+export type OrigenTanda = "primer_contacto" | "reactivacion";
+
+export const ETIQUETA_ORIGEN: Record<OrigenTanda, string> = {
+  primer_contacto: "primer contacto",
+  reactivacion: "reactivación de crédito",
+};
+
+export function esOrigenTanda(v: unknown): v is OrigenTanda {
+  return v === "primer_contacto" || v === "reactivacion";
+}
+
+/**
+ * El agente que le toca a esta tanda.
+ *
+ * Si se pide reactivacion y el cliente no tiene ese agente, se devuelve null a
+ * proposito en vez de caer en el de primer contacto: llamar a alguien que ya
+ * dejo su solicitud y hablarle como si no lo conocieramos es peor que no
+ * llamarlo, y ademas nadie se entera del error.
+ */
+export function assistantDeTanda(tenant: TenantId, origen: OrigenTanda): string | null {
+  const voz = TENANTS[tenant].voz;
+  if (origen === "reactivacion") return voz?.assistantIdReactivacion ?? null;
+  return assistantCampanasDeTenant(tenant);
+}
+
 /** TODOS los agentes del tenant. Un cliente puede tener mas de uno. */
 export function assistantIdsDeTenant(tenant: TenantId): string[] {
   const voz = TENANTS[tenant].voz;
