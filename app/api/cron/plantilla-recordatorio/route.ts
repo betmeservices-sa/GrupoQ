@@ -42,12 +42,16 @@ export async function GET(req: Request) {
   const seco = new URL(req.url).searchParams.get("seco") === "1";
   const ahora = new Date();
 
-  const conversaciones = await ultimoPorConversacion(TENANT);
+  // OJO: devuelve { ultimos, cursor }, no la lista. Iterar el objeto en vez de
+  // `.ultimos` recorre el array entero como si fuera UN elemento y el cursor
+  // como si fuera otro, no encuentra `texto` en ninguno, y el barrido sale
+  // limpio sin haber mirado a nadie. Paso, y no lo vio ninguna prueba.
+  const { ultimos } = await ultimoPorConversacion(TENANT);
   const enviados: string[] = [];
   const saltados: Record<string, number> = {};
   let errores = 0;
 
-  for (const c of Object.values(conversaciones)) {
+  for (const c of ultimos) {
     const telefono = c.from;
     try {
       // Descarte barato antes de ir a buscar el hilo: si el último mensaje no
@@ -103,7 +107,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ok: true,
     seco,
-    revisadas: Object.keys(conversaciones).length,
+    revisadas: ultimos.length,
     enviados: enviados.length,
     detalle: enviados,
     // Por qué NO se le escribió al resto. Un barrido que no explica sus
