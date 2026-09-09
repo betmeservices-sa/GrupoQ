@@ -15,6 +15,10 @@ export const maxDuration = 30;
 const OPCIONES = {
   tenant: "solicitudes",
   tenantFicha: "grupoq",
+  // El guion cierra con "le escribo por WhatsApp para seguir con su solicitud".
+  // Esto es lo que cumple esa promesa: la plantilla aprobada
+  // `crediq_seguimiento_llamada` sale al colgar, y SOLO si dijo que sí.
+  plantillaAlColgar: true,
   extraer: (d: Record<string, unknown>, resumen?: string) => ({
     nombre: comoTexto(d.nombre),
     // `modelos` es la lista de vehículos del extracto compartido: acá es uno

@@ -17,6 +17,9 @@ import {
 import { diagnostico, guardarMemoria, leerMemoria } from "./memoria-store";
 import { getContacto, upsertContacto } from "./contacts-store";
 import { secretoVapiValido as secretoValido } from "./vapi-secreto";
+import { decidirPlantilla } from "./plantilla-tras-llamada";
+import { enviarPlantilla } from "./wa-send";
+import { addOutbound, mensajesAnteriores } from "./wa-store";
 
 // Marca de las notas que escribió el agente. Sirve para saber cuáles puede
 // volver a pisar: lo que escribió una persona no se toca nunca.
@@ -111,6 +114,18 @@ export interface OpcionesMemoria {
    * guardar donde nadie lo va a ver.
    */
   tenantFicha?: string;
+  /**
+   * Mandarle la plantilla de WhatsApp al colgar.
+   *
+   * Sofía cierra la llamada diciendo "le escribo por WhatsApp", y hasta ahora
+   * no le escribía nadie: el único que enviaba plantillas era el botón del
+   * chat. Solo lo activan los agentes cuyo guion hace esa promesa, y solo si la
+   * persona dijo que sí (eso llega en `agendo`).
+   *
+   * Las razones para NO mandar están en lib/plantilla-tras-llamada.ts, que es
+   * puro y probado, porque cada envío es un WhatsApp a una persona real.
+   */
+  plantillaAlColgar?: boolean;
 }
 
 function telefonoDe(msg: CuerpoVapi["message"]): string {
@@ -128,6 +143,44 @@ export function comoTexto(v: unknown): string | undefined {
 export function comoLista(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
   return v.map((x) => comoTexto(x)).filter((x): x is string => !!x);
+}
+
+/**
+ * Le manda la plantilla aprobada al que aceptó que le escribiéramos.
+ *
+ * Devuelve una frase corta para el log del webhook: sirve para ver por qué NO
+ * se mandó, que es lo que uno necesita saber cuando alguien reclama que no le
+ * llegó nada.
+ */
+async function mandarPlantillaTrasLlamada(
+  tenant: string,
+  telefono: string,
+  extracto: ExtractoLlamada,
+): Promise<string> {
+  // El nombre puede venir de la llamada o de la ficha que ya existía.
+  const ficha = await getContacto(telefono).catch(() => null);
+  const nombre =
+    extracto.nombre ?? [ficha?.nombre, ficha?.apellido].filter(Boolean).join(" ").trim() ?? null;
+
+  const { mensajes } = await mensajesAnteriores(telefono, null, 50, tenant);
+  const decision = decidirPlantilla({
+    acepto: extracto.agendo === true,
+    telefono,
+    nombre,
+    hilo: mensajes.map((m) => ({ direction: m.direccion, texto: m.texto ?? "", ts: m.ts })),
+    ahora: new Date(),
+  });
+
+  if (!decision.enviar) return `no se mandó: ${decision.motivo}`;
+
+  const env = await enviarPlantilla(telefono, decision.plantilla, decision.idioma, [decision.nombre], {
+    tenant,
+  });
+  if (!env.ok) return `falló: ${env.error ?? "sin detalle"}`;
+  if (env.id) {
+    await addOutbound({ waId: env.id, to: telefono, texto: decision.texto, ts: new Date().toISOString(), tenant });
+  }
+  return "enviada";
 }
 
 export async function diagnosticoMemoria(req: Request) {
@@ -177,16 +230,37 @@ export async function manejarMemoria(req: Request, op: OpcionesMemoria) {
     if (op.tenantFicha)
       await crearOActualizarFicha(op.tenantFicha, telefono, extracto, op.nota ?? notaDeLlamada);
 
+    // La plantilla va ANTES del corte por "nada que recordar" y en su propio
+    // try: una llamada donde solo se aceptó el WhatsApp no deja dato que
+    // guardar, y es justo la que hay que seguir por escrito.
+    let plantilla: string | undefined;
+    if (op.plantillaAlColgar && op.tenantFicha) {
+      try {
+        plantilla = await mandarPlantillaTrasLlamada(op.tenantFicha, telefono, extracto);
+      } catch (err) {
+        // Nunca se rompe el webhook por esto: un 5xx haría que Vapi reintentara
+        // y la persona recibiría el mismo mensaje dos veces.
+        console.error(`[plantilla ${op.tenant}] no se pudo mandar:`, err);
+        plantilla = "falló el envío";
+      }
+    }
+
     const vacio =
       !extracto.nombre && !extracto.modelos?.length && !extracto.uso && !extracto.pago && !extracto.resumen;
-    if (vacio) return NextResponse.json({ ok: true, ignorado: "sin nada que recordar" });
+    if (vacio) return NextResponse.json({ ok: true, ignorado: "sin nada que recordar", ...(plantilla ? { plantilla } : {}) });
 
     try {
       const previo = await leerMemoria(op.tenant, telefono);
       const r = await guardarMemoria(
         fundir(previo, extracto, { tenant: op.tenant, telefono, callId: msg.call?.id }),
       );
-      return NextResponse.json({ ok: true, guardado: r.ok, donde: r.donde, ...(r.error ? { error: r.error } : {}) });
+      return NextResponse.json({
+        ok: true,
+        guardado: r.ok,
+        donde: r.donde,
+        ...(plantilla ? { plantilla } : {}),
+        ...(r.error ? { error: r.error } : {}),
+      });
     } catch (err) {
       // Un 5xx haría que Vapi reintentara y contáramos la llamada dos veces.
       console.error(`[memoria ${op.tenant}] fallo al guardar:`, err);
