@@ -13,6 +13,7 @@ import type { TenantId } from "@/lib/tenants/types";
 import { cuentas } from "@/lib/usuarios";
 import { detalleConsumo } from "@/lib/tokens-store";
 import { listarTickets } from "@/lib/tickets-store";
+import { listarPreReservas } from "@/lib/yali-prereservas";
 import { actividadDeUsuarios, estaActivo, listarAccesos } from "@/lib/accesos";
 
 export const runtime = "nodejs";
@@ -43,9 +44,12 @@ export async function GET(req: Request) {
   const clientes = await Promise.all(
     ids.map(async (id) => {
       const t = TENANTS[id];
-      const [filas, tickets] = await Promise.all([
+      const [filas, tickets, prereservas] = await Promise.all([
         detalleConsumo(id, 5000).catch(() => []),
         listarTickets(id).catch(() => []),
+        // Solo Yali aparta estadías; para el resto sale vacío y el bloque
+        // queda en ceros, que es lo correcto.
+        listarPreReservas(id).catch(() => []),
       ]);
       const enPeriodo = filas.filter((f) => f.ts >= desde);
       const porDia = new Map<string, { costo: number; respuestas: number }>();
@@ -63,6 +67,28 @@ export async function GET(req: Request) {
         porDia.set(dia, d);
       }
       const ticketsPeriodo = tickets.filter((k) => k.creado >= desde);
+
+      // Cuánto tarda el cliente en cerrar lo que la IA no pudo. Sin esto, un
+      // equipo que va al día se lee igual que uno que no recibió nada: los dos
+      // muestran cero abiertos.
+      const cerrados = tickets.filter((k) => k.resuelto && k.resuelto >= desde);
+      const minutos = cerrados
+        .map((k) => (new Date(k.resuelto!).getTime() - new Date(k.creado).getTime()) / 60000)
+        .filter((m) => m >= 0)
+        .sort((a, b) => a - b);
+
+      // Lo que el agente APARTÓ, que es el resultado en dinero de todo esto.
+      // "esperando" junta lo que no tiene comprobante con lo que lo tiene sin
+      // verificar: las dos son plata que todavía no entró, y no requieren lo
+      // mismo, así que van sumadas y separadas.
+      const enPeriodoReservas = prereservas.filter((r) => r.creada >= desde);
+      const porEstado = (estado: string) => {
+        const f = enPeriodoReservas.filter((r) => r.estado === estado);
+        return { n: f.length, total: Math.round(f.reduce((x, r) => x + (r.total ?? 0), 0)) };
+      };
+      const confirmadas = porEstado("confirmada");
+      const pendientePago = porEstado("pendiente_pago");
+      const conComprobante = porEstado("comprobante_recibido");
       const usuarios = todasLasCuentas
         .filter((c) => (id === "miagentia" ? c.todos || c.tenant === "miagentia" : c.tenant === id && !c.todos))
         .map((c) => {
@@ -94,7 +120,13 @@ export async function GET(req: Request) {
           periodo: ticketsPeriodo.length,
           abiertos: tickets.filter((k) => k.estado !== "resuelto").length,
           resueltos: tickets.filter((k) => k.estado === "resuelto").length,
-          porSofia: tickets.filter((k) => k.creadoPor === "ia").length,
+          // El agente se guarda con su NOMBRE ("Sofía"), no con el id "ia".
+          // Con el id, este número era 0 mientras 51 de los 67 casos los había
+          // abierto ella: el tablero decía que la IA no generaba casos.
+          porSofia: tickets.filter((k) => /^sof[ií]a$/i.test(k.creadoPor.trim())).length,
+          medianaMinutos: minutos.length
+            ? Math.round(minutos[Math.floor((minutos.length - 1) / 2)])
+            : null,
           porTipo: Object.entries(
             ticketsPeriodo.reduce<Record<string, number>>((acc, k) => {
               acc[k.tipo] = (acc[k.tipo] ?? 0) + 1;
@@ -103,6 +135,16 @@ export async function GET(req: Request) {
           )
             .map(([tipo, n]) => ({ tipo, n }))
             .sort((a, b) => b.n - a.n),
+        },
+        reservas: {
+          confirmadas,
+          pendientePago,
+          conComprobante,
+          esperando: {
+            n: pendientePago.n + conComprobante.n,
+            total: pendientePago.total + conComprobante.total,
+          },
+          rechazadas: porEstado("rechazada").n,
         },
         usuarios,
         activosAhora: usuarios.filter((u) => u.activo).length,

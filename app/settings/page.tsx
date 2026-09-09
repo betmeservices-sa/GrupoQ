@@ -99,6 +99,9 @@ export default function SettingsPage() {
   const [metaPlist, setMetaPlist] = useState<string | null>(null);
   const [metaPerror, setMetaPerror] = useState<string | null>(null);
   const [metaNombres, setMetaNombres] = useState<string | null>(null);
+  // Páginas que se rechazaron por ser de otro cliente.
+  const [metaAjenas, setMetaAjenas] = useState<string | null>(null);
+  const [metaAjenasNombres, setMetaAjenasNombres] = useState<string | null>(null);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     setMetaEstado(p.get("meta"));
@@ -107,6 +110,8 @@ export default function SettingsPage() {
     setMetaPlist(p.get("plist"));
     setMetaPerror(p.get("perror"));
     setMetaNombres(p.get("nombres"));
+    setMetaAjenas(p.get("ajenas"));
+    setMetaAjenasNombres(p.get("ajenasnombres"));
   }, []);
 
   // Estado PERMANENTE de la conexión (qué páginas tiene conectadas el tenant),
@@ -327,6 +332,20 @@ export default function SettingsPage() {
               {metaNombres ? ` (${metaNombres})` : ""}
               {metaPermisos ? ` y ${metaPermisos} permiso(s) otorgado(s)` : ""}. Los
               tokens quedaron registrados en el servidor.
+            </p>
+          )}
+          {metaAjenas && (
+            <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800 ring-1 ring-amber-300/50">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                <span className="font-semibold">
+                  {metaAjenas} página(s) no se conectaron porque ya son de otro cliente
+                </span>
+                {metaAjenasNombres ? `: ${metaAjenasNombres}` : ""}. En el diálogo de
+                Meta aparecen todas las que administrás, no solo las de este cliente. Si
+                de verdad tienen que pasar a este, primero hay que desconectarlas del
+                otro.
+              </span>
             </p>
           )}
           {metaEstado === "conectado" && metaDetalle === "0" && (

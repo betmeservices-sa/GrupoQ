@@ -7,7 +7,8 @@ import {
   redirectUri,
   validarState,
 } from "@/lib/meta-oauth";
-import { guardarConexiones } from "@/lib/meta-store";
+import { guardarConexiones, tenantDePagina } from "@/lib/meta-store";
+import { repartirPaginas } from "@/lib/pagina-de-quien";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -150,6 +151,32 @@ export async function GET(req: Request) {
       .filter((p: { permission: string; status: string }) => p.status === "granted")
       .map((p: { permission: string }) => p.permission);
 
+    // UNA PÁGINA DE OTRO CLIENTE NO SE CONECTA.
+    //
+    // El diálogo de Meta muestra TODAS las páginas que administra quien entró y
+    // no dice a qué cliente van: el tenant lo decide la cookie del panel desde
+    // donde se apretó el botón. El 9 de septiembre de 2026 alguien lo abrió con
+    // la sesión en MiAgentIA y marcó las de Yali; quedaron colgadas de dos
+    // clientes y el agente del demo terminó escribiéndole a un huésped real.
+    //
+    // Acá se para. Las suyas se conectan igual: quien marcó de más casi siempre
+    // marcó también las propias, y hacerlo empezar de cero sería castigarlo por
+    // un error que la pantalla nunca le avisó que estaba cometiendo.
+    const duenos = new Map<string, string | null>(
+      await Promise.all(
+        paginas.map(async (p) => [p.id, await tenantDePagina(p.id)] as [string, string | null]),
+      ),
+    );
+    const { propias, ajenas } = repartirPaginas(paginas, v.tenant, (id) => duenos.get(id) ?? null);
+    if (ajenas.length > 0) {
+      console.error(
+        `[meta-oauth] tenant=${v.tenant} intentó conectar ${ajenas.length} página(s) de otro cliente:`,
+        ajenas.map((a) => `${a.pagina.name} (${a.pagina.id}) es de ${a.de}`),
+      );
+    }
+    // De acá en adelante solo se toca lo suyo: guardar y suscribir webhooks.
+    paginas = propias;
+
     // Persistencia por tenant: Supabase (tabla meta_connections) o memoria en
     // dev. Con esto la bandeja y las stats enrutan por page id → tenant, igual
     // que WhatsApp enruta por phone_number_id.
@@ -215,6 +242,12 @@ export async function GET(req: Request) {
     extra.set("guardado", guardado);
     if (paginas.length) {
       extra.set("nombres", paginas.map((p) => p.name).slice(0, 5).join(", "));
+    }
+    // Lo que se rechazó por ser de otro cliente. Va al banner: un rechazo mudo
+    // deja a la persona creyendo que conectó algo que no conectó.
+    if (ajenas.length) {
+      extra.set("ajenas", String(ajenas.length));
+      extra.set("ajenasnombres", ajenas.map((a) => a.pagina.name).slice(0, 5).join(", "));
     }
     if (pages.error) extra.set("perror", String(pages.error.code ?? pages.error.message ?? "err"));
     return volver(extra.toString());

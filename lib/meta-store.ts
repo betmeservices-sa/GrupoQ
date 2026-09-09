@@ -7,9 +7,12 @@
 // 20260826230000_meta_ig_login.sql para las columnas de Instagram directo).
 
 import { getSupabase, todosLosClientes } from "./supabase";
+import { dueno, enDisputa } from "./pagina-de-quien";
 
 export interface MetaConnection {
   tenant: string;
+  /** Cuándo se conectó. Decide de quién es la página si dos se la disputan. */
+  connectedAt?: string | null;
   pageId: string;
   pageName: string;
   pageToken: string;
@@ -45,7 +48,7 @@ const memoria: Map<string, MetaConnection[]> = (g.__metaConexiones ??= new Map()
 const g2 = globalThis as unknown as { __metaColumnasIg?: { hay: boolean } };
 const columnasIg = (g2.__metaColumnasIg ??= { hay: true });
 
-const COLUMNAS_BASE = "tenant,page_id,page_name,page_token,ig_id,user_token";
+const COLUMNAS_BASE = "tenant,page_id,page_name,page_token,ig_id,user_token,connected_at";
 const COLUMNAS_IG = `${COLUMNAS_BASE},ig_token,ig_token_vence,ig_username`;
 
 function columnas(): string {
@@ -66,6 +69,7 @@ interface Fila {
   ig_token?: string | null;
   ig_token_vence?: string | null;
   ig_username?: string | null;
+  connected_at?: string | null;
 }
 
 function deFila(r: Fila): MetaConnection {
@@ -79,6 +83,7 @@ function deFila(r: Fila): MetaConnection {
     igToken: r.ig_token ?? null,
     igTokenVence: r.ig_token_vence ?? null,
     igUsername: r.ig_username ?? null,
+    connectedAt: r.connected_at ?? null,
   };
 }
 
@@ -222,17 +227,39 @@ export async function actualizarTokenIg(cx: MetaConnection, igToken: string, igT
 // (igual que WhatsApp enruta por phone_number_id).
 export async function conexionPorActivo(id: string): Promise<MetaConnection | null> {
   if (!id) return null;
-  // Se busca en todos los esquemas: averiguar de que cliente es la pagina es
-  // justamente el motivo de esta consulta, asi que no se puede elegir uno.
+
+  // SE MIRAN TODOS LOS ESQUEMAS Y TODAS LAS FILAS, no la primera que salga.
+  //
+  // Antes esto cortaba en el primer acierto, con `.limit(1)` y sin orden. Con
+  // una pagina colgada de dos clientes, el mismo mensaje podia caer en uno o en
+  // otro segun lo que devolviera la base ese dia. Paso el 9 de septiembre de
+  // 2026 y el agente del demo termino escribiendole a un huesped de Yali.
+  //
+  // Ahora se juntan todas y decide `dueno`: manda quien la conecto primero.
+  const encontradas: MetaConnection[] = [];
   for (const sb of todosLosClientes()) {
-    const filas = await leer(sb, (q, cols) => q.select(cols).or(`page_id.eq.${id},ig_id.eq.${id}`).limit(1));
-    if (filas && filas.length) return deFila(filas[0]);
+    const filas = await leer(sb, (q, cols) => q.select(cols).or(`page_id.eq.${id},ig_id.eq.${id}`));
+    if (filas) encontradas.push(...filas.map(deFila));
   }
   for (const lista of memoria.values()) {
-    const hit = lista.find((c) => c.pageId === id || c.igId === id);
-    if (hit) return hit;
+    encontradas.push(...lista.filter((c) => c.pageId === id || c.igId === id));
   }
-  return null;
+
+  if (enDisputa(encontradas)) {
+    // No se calla: una pagina de dos clientes es una mala configuracion que
+    // alguien tiene que ir a arreglar, y mientras tanto hay que poder verla.
+    console.error(
+      `[meta-store] la pagina ${id} esta colgada de mas de un cliente: ` +
+        encontradas.map((c) => c.tenant).join(", ") +
+        ". Manda el primero que la conecto; sacala de los demas en meta_connections.",
+    );
+  }
+  return dueno(encontradas);
+}
+
+/** De qué cliente es esta página hoy, o null si está libre. */
+export async function tenantDePagina(id: string): Promise<string | null> {
+  return (await conexionPorActivo(id))?.tenant ?? null;
 }
 
 // SOLO PARA DEV: siembra una conexión en el store en MEMORIA (sin tocar la
