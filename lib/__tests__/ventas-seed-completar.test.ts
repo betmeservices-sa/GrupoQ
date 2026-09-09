@@ -92,6 +92,85 @@ describe("rellenar lo que quedó en nulo", () => {
     expect(s?.canal ?? null).toBeNull();
   });
 
+  it("le pone dueño a la ficha que no lo tenía, repartiendo entre el equipo", async () => {
+    // Sin dueño no hay barra: la primera etapa del embudo es "asignadas", y en
+    // el demo desplegado 14 de 23 fichas estaban sin vendedor.
+    const { sembrar, guardarSolicitud, leerSolicitud } = await limpio();
+    await guardarSolicitud({ ...base(DEL_DEMO), vendedor: null });
+    await sembrar(TENANT);
+    const s = await leerSolicitud(TENANT, DEL_DEMO);
+    expect(s?.vendedor).toBeTruthy();
+    // Y con dueño tiene que tener fecha de asignación, o no cae en ninguna
+    // ventana de tiempo y la gráfica lo pierde.
+    expect(s?.asignado).toBeTruthy();
+  });
+
+  it("no le cambia el vendedor al que ya tiene uno", async () => {
+    const { sembrar, guardarSolicitud, leerSolicitud } = await limpio();
+    await guardarSolicitud({ ...base(DEL_DEMO), vendedor: "s10" });
+    await sembrar(TENANT);
+    expect((await leerSolicitud(TENANT, DEL_DEMO))?.vendedor).toBe("s10");
+  });
+});
+
+describe("el demo no envejece", () => {
+  const DIA = 86_400_000;
+
+  it("corre las fechas al día cuando el demo quedó viejo", async () => {
+    // Es lo que rompía la gráfica: se siembra una vez, y a la semana la ventana
+    // de 7 días de "leads asignados por vendedor" ya no alcanza a nada.
+    const { sembrar, guardarSolicitud, leerSolicitud } = await limpio();
+    const hace10dias = new Date(Date.now() - 10 * DIA).toISOString();
+    await guardarSolicitud({
+      ...base(DEL_DEMO),
+      creado: hace10dias,
+      asignado: hace10dias,
+      actualizado: hace10dias,
+      vendedor: "s2",
+    });
+    await sembrar(TENANT);
+    const s = await leerSolicitud(TENANT, DEL_DEMO);
+    const edad = Date.now() - Date.parse(s!.asignado!);
+    expect(edad).toBeLessThan(DIA);
+  });
+
+  it("respeta las distancias entre fechas, que es de donde salen las alertas", async () => {
+    const { sembrar, guardarSolicitud, leerSolicitud } = await limpio();
+    const t = (dias: number) => new Date(Date.now() - dias * DIA).toISOString();
+    await guardarSolicitud({
+      ...base(DEL_DEMO),
+      creado: t(10),
+      contactado: t(9),
+      asignado: t(8),
+      actualizado: t(8),
+      vendedor: "s2",
+    });
+    await sembrar(TENANT);
+    const s = await leerSolicitud(TENANT, DEL_DEMO);
+    expect(Date.parse(s!.contactado!) - Date.parse(s!.creado)).toBe(DIA);
+    expect(Date.parse(s!.asignado!) - Date.parse(s!.contactado!)).toBe(DIA);
+  });
+
+  it("un demo recién sembrado no se toca", async () => {
+    const { sembrar, listarSolicitudes } = await limpio();
+    await sembrar(TENANT);
+    const antes = (await listarSolicitudes(TENANT)).map((s) => `${s.telefono}:${s.creado}`).sort();
+    await sembrar(TENANT);
+    const despues = (await listarSolicitudes(TENANT)).map((s) => `${s.telefono}:${s.creado}`).sort();
+    expect(despues).toEqual(antes);
+  });
+
+  it("una ficha real no se mueve aunque el demo esté viejo", async () => {
+    const { sembrar, guardarSolicitud, leerSolicitud } = await limpio();
+    const viejo = new Date(Date.now() - 10 * DIA).toISOString();
+    await guardarSolicitud({ ...base(DEL_DEMO), creado: viejo, actualizado: viejo });
+    await guardarSolicitud({ ...base("50378889999"), creado: viejo, actualizado: viejo });
+    await sembrar(TENANT);
+    expect((await leerSolicitud(TENANT, "50378889999"))?.creado).toBe(viejo);
+  });
+});
+
+describe("sembrar de cero", () => {
   it("con la tabla vacía siembra, y lo sembrado ya trae canal", async () => {
     const { sembrar, listarSolicitudes } = await limpio();
     expect(await sembrar(TENANT)).toBeGreaterThan(0);

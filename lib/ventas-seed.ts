@@ -352,15 +352,98 @@ function aSolicitud(tenant: string, c: Caso, ahora: number, vendedorPorDefecto?:
  * un canal a mano en la pantalla, ese gana. Es idempotente, corre en cada carga
  * del tablero y no cuesta nada cuando no hay nada que rellenar.
  */
-async function completarSembrado(existentes: Solicitud[]): Promise<number> {
+/** Cada cuánto se vuelve a poner al día el demo. */
+const FRESCURA = 20 * HORA;
+
+/** Corre una fecha ISO hacia adelante, o la deja nula si lo era. */
+function correr(iso: string | null | undefined, delta: number): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : new Date(t + delta).toISOString();
+}
+
+/**
+ * Le suma `delta` a TODAS las fechas de una ficha, incluidas las de cada
+ * documento del expediente.
+ *
+ * Se mueve todo por igual: las distancias entre fechas son lo que hace que las
+ * alertas de 48 y 72 horas signifiquen algo, y si se movieran distinto el
+ * tablero mostraría alertas que no corresponden.
+ */
+function correrFechas(s: Solicitud, delta: number): Solicitud {
+  const expediente: Solicitud["expediente"] = {};
+  for (const [id, d] of Object.entries(s.expediente ?? {})) {
+    expediente[id] = d.ts ? { ...d, ts: correr(d.ts, delta) } : d;
+  }
+  return {
+    ...s,
+    expediente,
+    creado: correr(s.creado, delta) ?? s.creado,
+    contactado: correr(s.contactado, delta),
+    pedidos: correr(s.pedidos, delta),
+    completado: correr(s.completado, delta),
+    asignado: correr(s.asignado, delta),
+    tomado: correr(s.tomado, delta),
+    cerrado: correr(s.cerrado, delta),
+    avisado: correr(s.avisado, delta),
+    escalado: correr(s.escalado, delta),
+    actualizado: correr(s.actualizado, delta) ?? s.actualizado,
+    contactos: s.contactos ? { ...s.contactos, ultimo: correr(s.contactos.ultimo, delta) } : s.contactos,
+  };
+}
+
+/**
+ * Rellena y pone al día las fichas ya sembradas.
+ *
+ * DOS COSAS SE PUDREN CON EL TIEMPO, y las dos se vieron en el demo desplegado:
+ *
+ * 1. LAS COLUMNAS NUEVAS. El sembrador solo corre con la tabla vacía, así que
+ *    una columna agregada después nunca llega a las fichas que ya estaban. Pasó
+ *    con `monto`, con `canal` y con `vendedor`: 14 de 23 fichas sin dueño, el
+ *    embudo en $0 y las barras todas grises, con el código correcto.
+ *
+ * 2. LAS FECHAS. Se siembran relativas al momento de sembrar ("hace 10 horas")
+ *    justamente para que el tablero se vea vivo el día que se enseña. Pero como
+ *    se siembra UNA sola vez, al día siguiente ya son de ayer, y a la semana la
+ *    gráfica de "leads asignados" sale vacía porque su ventana es de 7 días.
+ *    Acá se corren TODAS las fechas del demo el mismo tanto, así que el tablero
+ *    amanece al día sin perder ni el orden ni las distancias entre eventos.
+ *
+ * Solo toca los teléfonos del demo. Un lead de una persona real no se mueve ni
+ * se rellena nunca.
+ */
+async function completarSembrado(existentes: Solicitud[], equipo: string[]): Promise<number> {
+  const delDemo = existentes.filter((s) => EXTRA[s.telefono]);
+  if (delDemo.length === 0) return 0;
+
+  // La referencia es `creado`: es la única fecha que nadie mueve desde la
+  // pantalla, así que dice de verdad qué tan viejo está el demo. Si se usara
+  // `actualizado`, bastaría con que alguien tocara UNA ficha para que el resto
+  // se quedara viejo.
+  const masNuevo = Math.max(...delDemo.map((s) => Date.parse(s.creado) || 0));
+  const atraso = Date.now() - masNuevo;
+  const delta = atraso > FRESCURA ? atraso : 0;
+
   let tocadas = 0;
-  for (const s of existentes) {
-    const extra = EXTRA[s.telefono];
-    if (!extra) continue; // no es una ficha del demo: no se toca
+  for (const [i, s] of delDemo.entries()) {
+    const extra = EXTRA[s.telefono]!;
     const monto = s.monto ?? extra.monto ?? null;
     const canal = s.canal ?? extra.canal ?? null;
-    if (monto === (s.monto ?? null) && canal === (s.canal ?? null)) continue;
-    await guardarSolicitud({ ...s, monto, canal });
+    // Sin dueño no hay barra: la primera etapa del embudo es "asignadas".
+    const vendedor = s.vendedor ?? equipo[i % Math.max(1, equipo.length)] ?? null;
+    const igual =
+      delta === 0 &&
+      monto === (s.monto ?? null) &&
+      canal === (s.canal ?? null) &&
+      vendedor === (s.vendedor ?? null);
+    if (igual) continue;
+
+    let siguiente: Solicitud = { ...s, monto, canal, vendedor };
+    // Un lead con dueño y sin fecha de asignación no aparece en ninguna
+    // ventana de tiempo: se le pone la de su último movimiento.
+    if (vendedor && !siguiente.asignado) siguiente.asignado = siguiente.actualizado ?? siguiente.creado;
+    if (delta > 0) siguiente = correrFechas(siguiente, delta);
+    await guardarSolicitud(siguiente);
     tocadas++;
   }
   return tocadas;
@@ -370,7 +453,7 @@ export async function sembrarVentasSiVacio(tenant: string): Promise<number> {
   if (vendedoresDe(tenant).length === 0) return 0;
   const existentes = await listarSolicitudes(tenant);
   if (existentes.length > 0) {
-    await completarSembrado(existentes);
+    await completarSembrado(existentes, vendedoresDe(tenant).map((v) => v.id));
     return 0;
   }
   const ahora = Date.now();
