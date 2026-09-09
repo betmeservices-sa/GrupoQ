@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MessageSquareDashed } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { conFicha } from "@/lib/ficha-en-bandeja";
+import { useFichas } from "@/lib/fichas-bridge";
 import { useStore } from "@/lib/store";
 import { useRole } from "@/lib/roles";
 import { useYo } from "@/lib/yo";
@@ -80,9 +82,17 @@ export default function BandejaPage() {
   // 50 anteriores). `completo` = ya no queda nada mas viejo en la base.
   const [hilos, setHilos] = useState<Record<string, { completo: boolean; cargando: boolean }>>({});
 
+  const fichas = useFichas();
+
+  // El nombre y los datos de la ficha de Contactos, cruzados por telefono.
+  //
+  // La bandeja arma su contacto con lo que manda Meta, que muchas veces es solo
+  // el numero. Quien ya esta en Contactos tiene nombre, correo y notas, y no
+  // habia forma de que apareciera aca. El cruce va en lib/ficha-en-bandeja.ts,
+  // que es puro: el telefono no esta guardado igual en los dos lados.
   const contactoDe = useMemo(
-    () => new Map(state.contacts.map((c) => [c.id, c])),
-    [state.contacts],
+    () => new Map(state.contacts.map((c) => [c.id, conFicha(c, fichas)])),
+    [state.contacts, fichas],
   );
 
   // Ultimo mensaje por conversacion.

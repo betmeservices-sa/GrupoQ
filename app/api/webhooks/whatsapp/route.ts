@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { addInbound } from "@/lib/wa-store";
 import { addAdjunto } from "@/lib/contacts-store";
 import { programarRespuestaIA } from "@/lib/ai-reply";
+import { atenderPedidoDeLlamada } from "@/lib/llamar-por-pedido";
 import { getWaTenant } from "@/lib/wa-routing";
 import { conexionPorPhoneNumberId } from "@/lib/wa-conexiones-store";
 import { phoneNumberIdDe } from "@/lib/wa-webhook-numero";
@@ -104,7 +105,9 @@ export async function POST(req: Request) {
   // guarda y la atiende una persona, como siempre.
   const veImagenes = TENANTS[tenantActivo].ai.imagenes === true;
 
-  let entrantes: Array<{ from: string; wamid: string }> = [];
+  // El texto viaja junto al id porque el gatillo de llamada lo necesita, y
+  // volver a leerlo de la base sería ir a buscar lo que ya se tiene en mano.
+  let entrantes: Array<{ from: string; wamid: string; texto: string }> = [];
   try {
     const entries = (payload as { entry?: unknown[] })?.entry ?? [];
     for (const entry of entries) {
@@ -216,7 +219,7 @@ export async function POST(req: Request) {
           // cliente tiene la visión encendida. PDF, audios y stickers los sigue
           // atendiendo un humano (el agente no puede abrirlos ni escucharlos).
           if (m.type === "text" || (m.type === "image" && veImagenes)) {
-            entrantes.push({ from: m.from, wamid: m.id });
+            entrantes.push({ from: m.from, wamid: m.id, texto });
           }
         }
 
@@ -240,6 +243,27 @@ export async function POST(req: Request) {
   // Modo IA: respondemos automáticamente DESPUÉS de devolver 200 a Meta.
   if (entrantes.length > 0) {
     after(async () => {
+      // "Ya tengo tiempo, me puede llamar": si lo pide, el teléfono suena.
+      //
+      // Va ANTES de la respuesta escrita y en su propio try: quien pide una
+      // llamada no quiere que le contesten por escrito, y si esto se cayera
+      // no puede llevarse puesta la respuesta del agente.
+      //
+      // Las razones para NO llamar (que son más que las de llamar) están en
+      // lib/pedido-de-llamada.ts, que es puro y probado.
+      for (const t of entrantes) {
+        try {
+          const r = await atenderPedidoDeLlamada({
+            tenant: tenantActivo,
+            telefono: t.from,
+            texto: t.texto,
+          });
+          if (r !== "no lo pidió") console.log(`[pedido-llamada] ${t.from}: ${r}`);
+        } catch (e) {
+          console.error("[pedido-llamada] falló:", e);
+        }
+      }
+
       await Promise.all(
         entrantes.map((t) =>
           programarRespuestaIA({ from: t.from, triggerWamid: t.wamid, tenant: tenantActivo }),
