@@ -11,8 +11,10 @@ import { rangoDePeriodo } from "@/lib/periodos";
 import {
   alertasDe,
   detalleDocumentacion,
+  esCanal,
   estancados,
   etapaDe,
+  porCanal,
   expedienteCompleto,
   nivelDeAlerta,
   reporteVentas,
@@ -171,6 +173,55 @@ describe("plazos", () => {
     const viejo = solicitud({ telefono: "1", pedidos: "x", actualizado: new Date(AHORA.getTime() - 5 * 86_400_000).toISOString() });
     const fresco = solicitud({ telefono: "2", pedidos: "x", actualizado: new Date(AHORA.getTime() - 3_600_000).toISOString() });
     expect(estancados([viejo, fresco], AHORA.getTime()).map((s) => s.telefono)).toEqual(["1"]);
+  });
+});
+
+describe("leads por canal", () => {
+  it("cuenta y suma la plata de cada canal, en el orden de la marca", () => {
+    const r = porCanal([
+      solicitud({ telefono: "1", canal: "whatsapp", monto: 10000 }),
+      solicitud({ telefono: "2", canal: "whatsapp", monto: 5000 }),
+      solicitud({ telefono: "3", canal: "facebook", monto: 8000 }),
+    ]);
+    expect(r.map((g) => [g.canal, g.n, g.monto])).toEqual([
+      ["whatsapp", 2, 15000],
+      ["facebook", 1, 8000],
+    ]);
+  });
+
+  it("los que no tienen canal no se reparten: quedan aparte", () => {
+    const r = porCanal([
+      solicitud({ telefono: "1", canal: "instagram" }),
+      solicitud({ telefono: "2" }),
+      solicitud({ telefono: "3" }),
+    ]);
+    expect(r.map((g) => [g.canal, g.n])).toEqual([
+      ["instagram", 1],
+      [null, 2],
+    ]);
+    expect(r.find((g) => g.canal === null)?.nombre).toBe("Sin marcar");
+  });
+
+  it("un canal sin nadie no ocupa lugar en la barra", () => {
+    const r = porCanal([solicitud({ telefono: "1", canal: "organico" })]);
+    expect(r).toHaveLength(1);
+  });
+
+  it("sin monto suma cero, no rompe", () => {
+    const r = porCanal([solicitud({ telefono: "1", canal: "facebook" })]);
+    expect(r[0].monto).toBe(0);
+  });
+
+  it("solo entran los cuatro canales: la API no guarda lo que le manden", () => {
+    // Es la puerta de /api/ventas/solicitudes. Sin esto, un canal escrito mal
+    // se guarda igual y después no aparece en ninguna barra ni en "sin marcar":
+    // el lead se vuelve invisible en la reportería.
+    for (const bueno of ["whatsapp", "instagram", "facebook", "organico"]) {
+      expect(esCanal(bueno), bueno).toBe(true);
+    }
+    for (const malo of ["WhatsApp", "tiktok", "", " whatsapp", null, undefined, 3, {}]) {
+      expect(esCanal(malo), JSON.stringify(malo)).toBe(false);
+    }
   });
 });
 

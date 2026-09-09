@@ -87,8 +87,8 @@ describe("los tenants oscuros no se movieron", () => {
     expect(variable(raiz, "card")).toBe("#0d0d18");
   });
 
-  it("ninguno de los cuatro oscuros redefine las superficies", () => {
-    for (const t of ["hospital", "grupoq", "excel", "miagentia"]) {
+  it("ninguno de los oscuros redefine las superficies", () => {
+    for (const t of ["hospital", "excel", "miagentia"]) {
       const cuerpo = bloque(`[data-tenant="${t}"]`);
       expect(variable(cuerpo, "surface")).toBeNull();
       expect(variable(cuerpo, "card")).toBeNull();

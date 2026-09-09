@@ -1,5 +1,6 @@
-// El hotel es el ÚNICO tenant en tema claro. Estos tests leen globals.css para
-// que nadie rompa esa frontera sin enterarse: si alguien mueve los colores
+// Quién va en claro y quién en oscuro. Hoy en claro están el hotel y Grupo Q;
+// el resto sigue en el tema oscuro compartido. Estos tests leen globals.css
+// para que nadie mueva esa frontera sin enterarse: si alguien toca los colores
 // compartidos o le pone tema claro a otro cliente, aquí se cae.
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
@@ -89,11 +90,26 @@ describe("los demás clientes siguen oscuros", () => {
   });
 
   it("ningún otro tenant redefine las superficies", () => {
-    for (const t of ["hospital", "grupoq", "excel", "miagentia"]) {
+    for (const t of ["hospital", "excel", "miagentia"]) {
       const cuerpo = bloque(`[data-tenant="${t}"]`);
       expect(variable(cuerpo, "surface")).toBeNull();
       expect(variable(cuerpo, "card")).toBeNull();
       expect(variable(cuerpo, "text")).toBeNull();
+    }
+  });
+
+  it("Grupo Q va en claro, y su texto se lee sobre el fondo y sobre la tarjeta", () => {
+    const q = bloque('[data-tenant="grupoq"]');
+    const surface = variable(q, "surface");
+    const card = variable(q, "card");
+    expect(surface).toBe("#f4f6f9");
+    expect(card).toBe("#ffffff");
+    for (const tinta of ["text", "text-2", "text-3"]) {
+      const color = variable(q, tinta);
+      expect(color).not.toBeNull();
+      // 4.5:1 es lo que pide WCAG AA para texto normal, igual que en el hotel.
+      expect(contraste(color as string, surface as string)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(color as string, card as string)).toBeGreaterThanOrEqual(4.5);
     }
   });
 

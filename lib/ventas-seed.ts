@@ -269,31 +269,37 @@ const CASOS: Caso[] = [
 // salen de las llamadas de Vapi y del hilo de WhatsApp, no de aquí.
 const EXTRA: Record<
   string,
-  { monto?: number; llamadas: number; mensajes: number; ultimoContacto?: number }
+  {
+    monto?: number;
+    canal?: "whatsapp" | "instagram" | "facebook" | "organico";
+    llamadas: number;
+    mensajes: number;
+    ultimoContacto?: number;
+  }
 > = {
-  "50370020001": { monto: 18500, llamadas: 1, mensajes: 0, ultimoContacto: 1 },
-  "50370020002": { monto: 26000, llamadas: 1, mensajes: 0, ultimoContacto: 3 },
-  "50370020003": { monto: 32000, llamadas: 1, mensajes: 0, ultimoContacto: 6 },
-  "50370020004": { monto: 14500, llamadas: 2, mensajes: 1, ultimoContacto: 19 },
-  "50370020005": { monto: 21000, llamadas: 2, mensajes: 3, ultimoContacto: 24 },
-  "50370020006": { monto: 27500, llamadas: 3, mensajes: 2, ultimoContacto: 96 },
-  "50370020007": { monto: 19800, llamadas: 2, mensajes: 4, ultimoContacto: 120 },
-  "50370020008": { monto: 35000, llamadas: 3, mensajes: 5, ultimoContacto: 120 },
-  "50370020009": { monto: 12800, llamadas: 2, mensajes: 2, ultimoContacto: 200 },
-  "50370020010": { monto: 23400, llamadas: 4, mensajes: 6, ultimoContacto: 190 },
-  "50370020011": { monto: 16900, llamadas: 2, mensajes: 1, ultimoContacto: 240 },
-  "50370020012": { monto: 29000, llamadas: 1, mensajes: 1, ultimoContacto: 100 },
+  "50370020001": { canal: "instagram", monto: 18500, llamadas: 1, mensajes: 0, ultimoContacto: 1 },
+  "50370020002": { canal: "facebook", monto: 26000, llamadas: 1, mensajes: 0, ultimoContacto: 3 },
+  "50370020003": { canal: "organico", monto: 32000, llamadas: 1, mensajes: 0, ultimoContacto: 6 },
+  "50370020004": { canal: "whatsapp", monto: 14500, llamadas: 2, mensajes: 1, ultimoContacto: 19 },
+  "50370020005": { canal: "instagram", monto: 21000, llamadas: 2, mensajes: 3, ultimoContacto: 24 },
+  "50370020006": { canal: "facebook", monto: 27500, llamadas: 3, mensajes: 2, ultimoContacto: 96 },
+  "50370020007": { canal: "organico", monto: 19800, llamadas: 2, mensajes: 4, ultimoContacto: 120 },
+  "50370020008": { canal: "whatsapp", monto: 35000, llamadas: 3, mensajes: 5, ultimoContacto: 120 },
+  "50370020009": { canal: "instagram", monto: 12800, llamadas: 2, mensajes: 2, ultimoContacto: 200 },
+  "50370020010": { canal: "facebook", monto: 23400, llamadas: 4, mensajes: 6, ultimoContacto: 190 },
+  "50370020011": { canal: "organico", monto: 16900, llamadas: 2, mensajes: 1, ultimoContacto: 240 },
+  "50370020012": { canal: "whatsapp", monto: 29000, llamadas: 1, mensajes: 1, ultimoContacto: 100 },
   "50370020013": { llamadas: 2, mensajes: 0, ultimoContacto: 60 },
-  "50370020014": { monto: 41000, llamadas: 3, mensajes: 4, ultimoContacto: 30 },
-  "50370020015": { monto: 15500, llamadas: 2, mensajes: 2, ultimoContacto: 48 },
-  "50370020016": { monto: 22000, llamadas: 3, mensajes: 3, ultimoContacto: 72 },
-  "50370020017": { monto: 33500, llamadas: 4, mensajes: 7, ultimoContacto: 12 },
-  "50370020018": { monto: 9800, llamadas: 1, mensajes: 2, ultimoContacto: 36 },
-  "50370020019": { monto: 28700, llamadas: 3, mensajes: 5, ultimoContacto: 18 },
-  "50370020020": { monto: 17200, llamadas: 2, mensajes: 3, ultimoContacto: 8 },
-  "50370020021": { monto: 24900, llamadas: 3, mensajes: 6, ultimoContacto: 5 },
+  "50370020014": { canal: "facebook", monto: 41000, llamadas: 3, mensajes: 4, ultimoContacto: 30 },
+  "50370020015": { canal: "organico", monto: 15500, llamadas: 2, mensajes: 2, ultimoContacto: 48 },
+  "50370020016": { canal: "whatsapp", monto: 22000, llamadas: 3, mensajes: 3, ultimoContacto: 72 },
+  "50370020017": { canal: "instagram", monto: 33500, llamadas: 4, mensajes: 7, ultimoContacto: 12 },
+  "50370020018": { canal: "facebook", monto: 9800, llamadas: 1, mensajes: 2, ultimoContacto: 36 },
+  "50370020019": { canal: "organico", monto: 28700, llamadas: 3, mensajes: 5, ultimoContacto: 18 },
+  "50370020020": { canal: "whatsapp", monto: 17200, llamadas: 2, mensajes: 3, ultimoContacto: 8 },
+  "50370020021": { canal: "instagram", monto: 24900, llamadas: 3, mensajes: 6, ultimoContacto: 5 },
   "50370020022": { llamadas: 1, mensajes: 0, ultimoContacto: 15 },
-  "50370020023": { monto: 31000, llamadas: 4, mensajes: 8, ultimoContacto: 2 },
+  "50370020023": { canal: "organico", monto: 31000, llamadas: 4, mensajes: 8, ultimoContacto: 2 },
 };
 
 function aSolicitud(tenant: string, c: Caso, ahora: number, vendedorPorDefecto?: string): Solicitud {
@@ -305,6 +311,7 @@ function aSolicitud(tenant: string, c: Caso, ahora: number, vendedorPorDefecto?:
     nombre: c.nombre,
     vehiculo: c.vehiculo,
     monto: EXTRA[c.telefono]?.monto ?? null,
+    canal: EXTRA[c.telefono]?.canal ?? null,
     contactos: {
       llamadas: EXTRA[c.telefono]?.llamadas ?? 0,
       mensajes: EXTRA[c.telefono]?.mensajes ?? 0,
@@ -333,10 +340,39 @@ function aSolicitud(tenant: string, c: Caso, ahora: number, vendedorPorDefecto?:
  * Llena el tablero la primera vez. Devuelve cuántos casos sembró; 0 si el
  * cliente ya tenía los suyos (nunca pisa datos reales).
  */
+/**
+ * Rellena lo que le falta a las fichas ya sembradas.
+ *
+ * POR QUE EXISTE. El sembrador solo corre con la tabla vacia, asi que una
+ * columna nueva nunca llega a las fichas que ya estaban: se agrego `monto`, se
+ * agrego `canal`, y en el demo desplegado los dos salian en nulo. El embudo
+ * mostraba cero plata y las barras salian todas grises, con el codigo correcto.
+ *
+ * Toca SOLO los telefonos del demo y SOLO los campos en nulo: si alguien marco
+ * un canal a mano en la pantalla, ese gana. Es idempotente, corre en cada carga
+ * del tablero y no cuesta nada cuando no hay nada que rellenar.
+ */
+async function completarSembrado(existentes: Solicitud[]): Promise<number> {
+  let tocadas = 0;
+  for (const s of existentes) {
+    const extra = EXTRA[s.telefono];
+    if (!extra) continue; // no es una ficha del demo: no se toca
+    const monto = s.monto ?? extra.monto ?? null;
+    const canal = s.canal ?? extra.canal ?? null;
+    if (monto === (s.monto ?? null) && canal === (s.canal ?? null)) continue;
+    await guardarSolicitud({ ...s, monto, canal });
+    tocadas++;
+  }
+  return tocadas;
+}
+
 export async function sembrarVentasSiVacio(tenant: string): Promise<number> {
   if (vendedoresDe(tenant).length === 0) return 0;
   const existentes = await listarSolicitudes(tenant);
-  if (existentes.length > 0) return 0;
+  if (existentes.length > 0) {
+    await completarSembrado(existentes);
+    return 0;
+  }
   const ahora = Date.now();
   const equipo = vendedoresDe(tenant);
   for (const [i, c] of CASOS.entries()) {

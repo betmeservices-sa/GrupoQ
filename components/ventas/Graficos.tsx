@@ -12,14 +12,10 @@ export interface Rebanada {
   color: string;
   valor: number;
 }
-export interface PuntoDia {
-  dia: string; // YYYY-MM-DD
-  cantidad: number;
-}
 
-// Los tres gráficos del resumen de CrediQ, en SVG a mano.
+// Los gráficos del resumen de CrediQ, en SVG a mano.
 //
-// Sin librería de gráficos a propósito: son tres formas simples, y una librería
+// Sin librería de gráficos a propósito: son formas simples, y una librería
 // traería su propio sistema de color y de tipografía peleando con el del panel.
 //
 // NOTA DE COLOR. La paleta de la dona se validó con el script de la guía en los
@@ -182,73 +178,6 @@ export function Dona({ datos }: { datos: Rebanada[] }) {
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-// --- Línea de actividad ---
-export function LineaActividad({ puntos }: { puntos: PuntoDia[] }) {
-  const [encima, setEncima] = useState<number | null>(null);
-  const W = 520;
-  const H = 120;
-  const tope = Math.max(1, ...puntos.map((p) => p.cantidad));
-  const x = (i: number) => (i / Math.max(1, puntos.length - 1)) * W;
-  const y = (v: number) => H - (v / tope) * (H - 12) - 6;
-
-  const linea = puntos.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.cantidad)}`).join(" ");
-  const area = `${linea} L${W},${H} L0,${H} Z`;
-  const fmtDia = (d: string) => {
-    const [, m, dd] = d.split("-");
-    const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-    return `${Number(dd)} ${MESES[Number(m) - 1] ?? ""}`;
-  };
-
-  return (
-    <div className="relative">
-      {encima !== null && puntos[encima] && (
-        <div className="pointer-events-none absolute -top-1 left-0 right-0 flex justify-center">
-          <span className="rounded-lg border border-line bg-card px-2 py-1 text-[11px] font-semibold text-[var(--text)] shadow-sm">
-            {fmtDia(puntos[encima].dia)}: {fmt(puntos[encima].cantidad)}{" "}
-            {puntos[encima].cantidad === 1 ? "ficha" : "fichas"}
-          </span>
-        </div>
-      )}
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="h-[120px] w-full"
-        preserveAspectRatio="none"
-        onMouseLeave={() => setEncima(null)}
-        role="img"
-      >
-        <defs>
-          <linearGradient id="degradadoActividad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#degradadoActividad)" />
-        <path d={linea} fill="none" stroke="#3B82F6" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        {encima !== null && (
-          <circle cx={x(encima)} cy={y(puntos[encima].cantidad)} r="4" fill="#3B82F6" />
-        )}
-        {/* Zonas de contacto anchas: el punto es chico para apuntarle. */}
-        {puntos.map((p, i) => (
-          <rect
-            key={p.dia}
-            x={x(i) - W / puntos.length / 2}
-            y={0}
-            width={W / puntos.length}
-            height={H}
-            fill="transparent"
-            onMouseEnter={() => setEncima(i)}
-          />
-        ))}
-      </svg>
-      <div className="flex justify-between text-[10px] text-[var(--text-3)]">
-        <span>{puntos[0] ? fmtDia(puntos[0].dia) : ""}</span>
-        <span>pico {fmt(tope)}</span>
-        <span>{puntos.length > 0 ? fmtDia(puntos[puntos.length - 1].dia) : ""}</span>
-      </div>
     </div>
   );
 }

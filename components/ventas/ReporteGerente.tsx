@@ -14,7 +14,7 @@ import { telefonoBonito } from "@/lib/phone";
 import { HORAS_AVISO, HORAS_VENCIDO } from "@/lib/ventas-pipeline";
 import type { Vendedor } from "@/lib/ventas-pipeline";
 import type { Caso, RespuestaReporte } from "./tipos";
-import { Dona, LineaActividad } from "./Graficos";
+import { Dona } from "./Graficos";
 import { Embudo } from "./Embudo";
 import { BarrasVendedor } from "./BarrasVendedor";
 import { Enfriandose } from "./Enfriandose";
@@ -42,26 +42,6 @@ function nombreCorto(vendedores: Vendedor[], id: string | null): string {
 }
 
 export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?: Caso[] }) {
-  // Leads nuevos por dia. Sale de la fecha de creacion de cada caso, no de un
-  // agregado del servidor: asi la linea y el tablero no pueden discrepar.
-  const porDia = useMemo(() => {
-    const clave = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const cuenta = new Map<string, number>();
-    for (const c of casos) {
-      const d = new Date(c.creado);
-      if (Number.isNaN(d.getTime())) continue;
-      d.setHours(0, 0, 0, 0);
-      cuenta.set(clave(d), (cuenta.get(clave(d)) ?? 0) + 1);
-    }
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    return Array.from({ length: 30 }, (_, i) => {
-      const d = new Date(hoy.getTime() - (29 - i) * 86400000);
-      return { dia: clave(d), cantidad: cuenta.get(clave(d)) ?? 0 };
-    });
-  }, [casos]);
-
   const vendedores = r.vendedores.map((v) => ({ id: v.id, nombre: v.nombre, iniciales: v.iniciales }));
   // Lo que sigue vivo: ni aprobado ni rechazado.
   const enEmbudo = r.embudo
@@ -215,11 +195,7 @@ export function ReporteGerente({ r, casos = [] }: { r: RespuestaReporte; casos?:
         </section>
 
         <section className="rounded-2xl border border-line bg-card p-4 lg:col-span-2">
-          <h3 className="text-[14px] font-bold text-[var(--text)]">Leads nuevos por día</h3>
-          <p className="mb-2 text-[12px] text-[var(--text-3)]">Últimos 30 días.</p>
-          <LineaActividad puntos={porDia} />
-
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <h4 className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-2)]">
                 <Clock size={12} /> Cuánto tarda el proceso

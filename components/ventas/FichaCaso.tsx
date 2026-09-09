@@ -12,7 +12,7 @@ import { useState } from "react";
 import { Check, Clock, RotateCcw, Trophy, UserCheck, UserPlus, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { telefonoBonito } from "@/lib/phone";
-import { ETAPA, MOTIVOS_RECHAZO, nombreDeMotivo, type EstadoDoc, type MotivoRechazo, type Vendedor } from "@/lib/ventas-pipeline";
+import { CANALES, ETAPA, MOTIVOS_RECHAZO, nombreDeMotivo, type EstadoDoc, type MotivoRechazo, type Vendedor } from "@/lib/ventas-pipeline";
 import type { Caso, EventoCaso } from "./tipos";
 
 const NOMBRE_EVENTO: Record<string, string> = {
@@ -25,6 +25,7 @@ const NOMBRE_EVENTO: Record<string, string> = {
   completado: "Expediente completo",
   asignado: "Asignado",
   reasignado: "Reasignado",
+  canal: "Se marcó de dónde vino",
   tomado: "El vendedor lo tomó",
   cerrado: "Cerrado",
   aviso_gerente: "Aviso al gerente",
@@ -202,6 +203,28 @@ export function FichaCaso({
               >
                 {v.id === caso.vendedor ? <UserCheck size={12} /> : <UserPlus size={12} />}
                 {v.nombre.split(" ")[0]}
+              </Boton>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+            De dónde vino
+          </h3>
+          {/* El sistema sabe por dónde ENTRÓ el mensaje, pero no de dónde venía
+              la persona: un WhatsApp puede nacer de un anuncio de Instagram y
+              eso solo lo sabe quien habló con ella. Por eso se marca a mano, y
+              se puede desmarcar: marcar mal sin poder corregir es peor. */}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {CANALES.map((c) => (
+              <Boton
+                key={c.id}
+                activo={c.id === caso.canal}
+                onClick={() => onAccion({ accion: "canal", canal: c.id === caso.canal ? null : c.id })}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
+                {c.nombre}
               </Boton>
             ))}
           </div>

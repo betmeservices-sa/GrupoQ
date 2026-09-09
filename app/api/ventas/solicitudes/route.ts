@@ -16,14 +16,17 @@ import { sembrarVentasSiVacio } from "@/lib/ventas-seed";
 import {
   alertasDe,
   detalleDocumentacion,
+  esCanal,
   etapaDe,
   expedienteDe,
+  type CanalLead,
   type EstadoDoc,
   type MotivoRechazo,
   type Solicitud,
 } from "@/lib/ventas-pipeline";
 import {
   asegurarSolicitud,
+  fijarCanal,
   asignarVendedor,
   cerrarSolicitud,
   eventosDe,
@@ -101,6 +104,7 @@ export async function POST(req: Request) {
     motivo?: MotivoRechazo;
     nota?: string;
     vendedor?: string;
+    canal?: string | null;
     resultado?: "venta" | "perdido";
     motivoCierre?: string;
   };
@@ -141,6 +145,16 @@ export async function POST(req: Request) {
           actor,
           vendedores: vendedoresDe(tenant),
         });
+        break;
+      }
+      case "canal": {
+        // Se acepta vacío a propósito: marcar mal y no poder desmarcar es peor
+        // que no haber marcado.
+        const canal: CanalLead | null = esCanal(body.canal) ? body.canal : null;
+        if (body.canal != null && body.canal !== "" && canal === null) {
+          return NextResponse.json({ ok: false, error: "Ese canal no existe." }, { status: 400 });
+        }
+        caso = await fijarCanal(tenant, telefono, canal, actor);
         break;
       }
       case "asignar": {

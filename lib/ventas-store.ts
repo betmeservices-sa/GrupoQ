@@ -25,7 +25,7 @@ import {
 const TABLA = "ventas_solicitudes";
 const TABLA_EVENTOS = "ventas_eventos";
 const COLS =
-  "tenant, wa_from, nombre, vehiculo, monto, expediente, vendedor, creado, contactado, pedidos, completado, asignado, tomado, cerrado, resultado, motivo_cierre, avisado, escalado, actualizado";
+  "tenant, wa_from, nombre, vehiculo, monto, canal, expediente, vendedor, creado, contactado, pedidos, completado, asignado, tomado, cerrado, resultado, motivo_cierre, avisado, escalado, actualizado";
 
 export type TipoEvento =
   | "creado"
@@ -37,6 +37,7 @@ export type TipoEvento =
   | "completado"
   | "asignado"
   | "reasignado"
+  | "canal"
   | "tomado"
   | "cerrado"
   | "aviso_gerente"
@@ -66,6 +67,7 @@ function aSolicitud(f: Fila): Solicitud {
     // numeric de Postgres llega como texto por REST; sin el Number() el embudo
     // sumaria concatenando.
     monto: f.monto == null ? null : Number(f.monto),
+    canal: (f.canal as Solicitud["canal"]) ?? null,
     expediente: ((f.expediente as Expediente | null) ?? {}) as Expediente,
     vendedor: (f.vendedor as string | null) ?? null,
     creado: iso(f.creado) ?? new Date().toISOString(),
@@ -90,6 +92,7 @@ function aFila(s: Solicitud): Fila {
     nombre: s.nombre,
     vehiculo: s.vehiculo ?? null,
     monto: s.monto ?? null,
+    canal: s.canal ?? null,
     expediente: s.expediente,
     vendedor: s.vendedor,
     creado: s.creado,
@@ -303,6 +306,19 @@ export async function moverDocumento(opciones: {
     siguiente = { ...siguiente, completado: null };
   }
   return guardar(siguiente);
+}
+
+/** El vendedor marca de dónde vino el lead. */
+export async function fijarCanal(
+  tenant: string,
+  telefono: string,
+  canal: Solicitud["canal"],
+  actor: string,
+): Promise<Solicitud | null> {
+  const s = await leerSolicitud(tenant, telefono);
+  if (!s) return null;
+  await registrarEvento(tenant, telefono, "canal", actor, canal ?? "sin marcar");
+  return guardar({ ...s, canal: canal ?? null });
 }
 
 export async function asignarVendedor(

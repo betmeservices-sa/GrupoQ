@@ -1,10 +1,16 @@
 "use client";
 
-// Cuántos leads le tocaron a cada vendedor, y cuánta plata representan.
+// Cuántos leads le tocaron a cada vendedor, y de dónde salieron.
 //
 // Es una barra por vendedor y no una tabla de ocho columnas: la pregunta del
 // gerente acá es "¿a quién le estoy cargando la mano?", y eso se contesta
 // comparando largos, no leyendo números en fila.
+//
+// Cada barra va partida por canal, porque la segunda pregunta llega sola: si
+// un vendedor cierra el doble que otro, importa saber si le están entrando por
+// Instagram o si son los que llegan solos a la sala. El canal lo marca el
+// vendedor a mano en la ficha; lo que nadie marcó sale gris y aparte, nunca
+// repartido a ojo.
 //
 // El filtro de periodo se resuelve en el navegador con los casos que ya están
 // cargados: cambiar de "hoy" a "30 días" no vuelve a pegarle al servidor.
@@ -12,7 +18,7 @@
 import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { Vendedor } from "@/lib/ventas-pipeline";
+import { CANAL, porCanal, type Vendedor } from "@/lib/ventas-pipeline";
 import type { Caso } from "./tipos";
 
 const DIA = 86_400_000;
@@ -27,11 +33,12 @@ type RangoId = (typeof RANGOS)[number]["id"];
 
 const usd = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
+const GRIS_SIN_MARCAR = "#cbd5e1";
+
 interface Fila {
   id: string;
   nombre: string;
-  iniciales: string;
-  leads: { telefono: string; nombre: string; monto: number | null }[];
+  casos: Caso[];
   monto: number;
 }
 
@@ -53,17 +60,18 @@ export function BarrasVendedor({ casos, vendedores }: { casos: Caso[]; vendedore
         return {
           id: v.id,
           nombre: v.nombre,
-          iniciales: v.iniciales,
-          leads: suyos.map((c) => ({ telefono: c.telefono, nombre: c.nombre, monto: c.monto ?? null })),
+          casos: suyos,
           monto: suyos.reduce((s, c) => s + (c.monto ?? 0), 0),
         };
       })
-      .sort((a, b) => b.leads.length - a.leads.length || b.monto - a.monto);
+      .sort((a, b) => b.casos.length - a.casos.length || b.monto - a.monto);
   }, [casos, vendedores, rango]);
 
-  const tope = Math.max(1, ...filas.map((f) => f.leads.length));
-  const totalLeads = filas.reduce((s, f) => s + f.leads.length, 0);
+  const tope = Math.max(1, ...filas.map((f) => f.casos.length));
+  const totalLeads = filas.reduce((s, f) => s + f.casos.length, 0);
   const totalMonto = filas.reduce((s, f) => s + f.monto, 0);
+  // La leyenda solo lista los canales que de verdad aparecen en el periodo.
+  const leyenda = porCanal(filas.flatMap((f) => f.casos));
 
   return (
     <section className="rounded-2xl border border-line bg-card p-4">
@@ -87,14 +95,26 @@ export function BarrasVendedor({ casos, vendedores }: { casos: Caso[]; vendedore
           ))}
         </div>
       </div>
-      <p className="mt-0.5 text-[12px] text-[var(--text-3)]">
-        {totalLeads} {totalLeads === 1 ? "lead" : "leads"}
-        {totalMonto > 0 ? ` · ${usd(totalMonto)}` : ""}
-      </p>
+
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="text-[12px] text-[var(--text-3)]">
+          {totalLeads} {totalLeads === 1 ? "lead" : "leads"}
+          {totalMonto > 0 ? ` · ${usd(totalMonto)}` : ""}
+        </span>
+        {leyenda.map((c) => (
+          <span key={c.nombre} className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-2)]">
+            <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
+            {c.nombre}
+            <span className="font-semibold tabular-nums text-[var(--text)]">{c.n}</span>
+          </span>
+        ))}
+      </div>
 
       <div className="mt-3 space-y-2">
         {filas.map((f) => {
           const activo = abierto === f.id;
+          const tramos = porCanal(f.casos);
+          const suyos = f.casos.length;
           return (
             <div key={f.id}>
               <button
@@ -108,15 +128,26 @@ export function BarrasVendedor({ casos, vendedores }: { casos: Caso[]; vendedore
                     {f.nombre}
                   </span>
                   <span className="relative h-7 flex-1 overflow-hidden rounded-lg bg-surface">
+                    {/* Un solo bloque de ancho proporcional al vendedor con más
+                        leads, partido por dentro según el canal. */}
                     <span
                       className={cn(
-                        "absolute inset-y-0 left-0 rounded-lg bg-brand transition-all duration-500 ease-out",
+                        "absolute inset-y-0 left-0 flex overflow-hidden rounded-lg transition-all duration-500 ease-out",
                         activo ? "brightness-110" : "group-hover:brightness-110",
                       )}
-                      style={{ width: `${Math.max(4, (f.leads.length / tope) * 100)}%` }}
-                    />
-                    <span className="absolute inset-y-0 left-2 flex items-center text-[11.5px] font-bold text-white mix-blend-luminosity">
-                      {f.leads.length}
+                      style={{ width: `${Math.max(4, (suyos / tope) * 100)}%` }}
+                    >
+                      {tramos.map((t) => (
+                        <span
+                          key={t.nombre}
+                          title={`${t.nombre}: ${t.n}${t.monto > 0 ? ` · ${usd(t.monto)}` : ""}`}
+                          className="h-full"
+                          style={{ background: t.color, width: `${(t.n / suyos) * 100}%` }}
+                        />
+                      ))}
+                    </span>
+                    <span className="absolute inset-y-0 left-2 flex items-center text-[11.5px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]">
+                      {suyos}
                     </span>
                   </span>
                   <span className="w-[74px] shrink-0 text-right text-[12px] font-semibold tabular-nums text-[var(--text-2)]">
@@ -135,25 +166,32 @@ export function BarrasVendedor({ casos, vendedores }: { casos: Caso[]; vendedore
               <div className="ccg-desplegar" data-abierto={activo ? "true" : "false"}>
                 <div>
                   <ul className="mt-1.5 ml-[34%] rounded-xl border border-line bg-surface/50 px-3 py-1.5">
-                    {f.leads.length === 0 ? (
+                    {f.casos.length === 0 ? (
                       <li className="py-1.5 text-[12px] text-[var(--text-3)]">
                         No se le asignó ninguno en este periodo.
                       </li>
                     ) : (
-                      f.leads.map((l, i) => (
+                      f.casos.map((c, i) => (
                         <li
-                          key={l.telefono}
-                          className="ccg-pop flex items-baseline justify-between gap-3 border-b border-line/60 py-1.5 last:border-0"
+                          key={c.telefono}
+                          className="ccg-pop flex items-center justify-between gap-3 border-b border-line/60 py-1.5 last:border-0"
                           style={{ animationDelay: `${Math.min(i, 12) * 22}ms` }}
                         >
-                          <span className="min-w-0 truncate text-[12.5px] text-[var(--text)]">{l.nombre}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{ background: c.canal ? CANAL[c.canal].color : GRIS_SIN_MARCAR }}
+                              title={c.canal ? CANAL[c.canal].nombre : "Sin marcar"}
+                            />
+                            <span className="truncate text-[12.5px] text-[var(--text)]">{c.nombre}</span>
+                          </span>
                           <span
                             className={cn(
                               "shrink-0 text-[12px] font-bold tabular-nums",
-                              l.monto ? "text-[var(--text)]" : "text-[var(--text-3)]",
+                              c.monto ? "text-[var(--text)]" : "text-[var(--text-3)]",
                             )}
                           >
-                            {l.monto ? usd(l.monto) : "sin monto"}
+                            {c.monto ? usd(c.monto) : "sin monto"}
                           </span>
                         </li>
                       ))

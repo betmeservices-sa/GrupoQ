@@ -177,6 +177,60 @@ export function detalleDocumentacion(exp: Expediente | null | undefined): Detall
 
 export type Resultado = "venta" | "perdido";
 
+/**
+ * De dónde salió el lead.
+ *
+ * Lo marca el vendedor a mano: el sistema sabe por dónde ENTRÓ el mensaje,
+ * pero no de dónde venía la persona (un WhatsApp puede nacer de un anuncio de
+ * Instagram, y quien lo sabe es quien habló con ella). "organico" es el que
+ * llega solo: recomendado, de paso por la sala, o buscando la marca.
+ */
+export type CanalLead = "whatsapp" | "instagram" | "facebook" | "organico";
+
+export const CANALES: { id: CanalLead; nombre: string; color: string }[] = [
+  { id: "whatsapp", nombre: "WhatsApp", color: "#25D366" },
+  { id: "instagram", nombre: "Instagram", color: "#E1306C" },
+  { id: "facebook", nombre: "Facebook", color: "#1877F2" },
+  { id: "organico", nombre: "Orgánico", color: "#64748b" },
+];
+
+export const CANAL: Record<CanalLead, { id: CanalLead; nombre: string; color: string }> =
+  Object.fromEntries(CANALES.map((c) => [c.id, c])) as Record<
+    CanalLead,
+    { id: CanalLead; nombre: string; color: string }
+  >;
+
+export function esCanal(v: unknown): v is CanalLead {
+  return typeof v === "string" && CANALES.some((c) => c.id === v);
+}
+
+/**
+ * Los leads de un vendedor, partidos por canal.
+ *
+ * Puro y aparte de la pantalla para poder probarlo: una barra apilada que
+ * cuenta mal es de las cosas que nadie nota hasta que alguien suma a mano.
+ * Los que no tienen canal marcado NO se reparten ni se adivinan: van en su
+ * propio grupo, que es la señal de que hay fichas sin llenar.
+ */
+export function porCanal(solicitudes: Solicitud[]): {
+  canal: CanalLead | null;
+  nombre: string;
+  color: string;
+  n: number;
+  monto: number;
+}[] {
+  const grupos: { canal: CanalLead | null; nombre: string; color: string }[] = [
+    ...CANALES.map((c) => ({ canal: c.id as CanalLead | null, nombre: c.nombre, color: c.color })),
+    { canal: null, nombre: "Sin marcar", color: "#cbd5e1" },
+  ];
+  return grupos
+    .map((g) => {
+      const suyos = solicitudes.filter((s) => (s.canal ?? null) === g.canal);
+      return { ...g, n: suyos.length, monto: suyos.reduce((m, s) => m + (s.monto ?? 0), 0) };
+    })
+    .filter((g) => g.n > 0);
+}
+
 export interface Solicitud {
   tenant: string;
   /** wa_from del contacto: la misma llave que la ficha y la conversación. */
@@ -208,6 +262,8 @@ export interface Solicitud {
    * lead vale cero en el embudo, no se inventa un promedio.
    */
   monto?: number | null;
+  /** De dónde vino, marcado a mano por el vendedor. */
+  canal?: CanalLead | null;
   /**
    * Cuántas veces se le ha buscado. No sale del expediente sino de las
    * llamadas y del chat, por eso es opcional: quien arma la lista decide si
@@ -323,6 +379,7 @@ export function friosDe(solicitudes: Solicitud[], etapa: EtapaId, ahora = Date.n
     nombre: s.nombre,
     vendedor: s.vendedor,
     monto: s.monto ?? null,
+    canal: s.canal ?? null,
     resumen: detalleDocumentacion(s.expediente).resumen,
     diasSinContacto: Math.floor((ahora - Date.parse(s.contactos?.ultimo ?? s.actualizado)) / DIA),
     diasDesdeInfo: Math.floor((ahora - Date.parse(s.creado)) / DIA),
@@ -397,6 +454,7 @@ export interface LeadEnEtapa {
   vendedor: string | null;
   /** Cuánto quiere financiar. null si nunca lo dijo. */
   monto: number | null;
+  canal: CanalLead | null;
 }
 
 /** Un lead que se está enfriando, con todo lo que hace falta para decidir. */
@@ -494,6 +552,7 @@ export function reporteVentas(
     nombre: s.nombre,
     vendedor: s.vendedor,
     monto: s.monto ?? null,
+    canal: s.canal ?? null,
   });
 
   const embudo = ETAPAS.map((e) => {
