@@ -132,6 +132,18 @@ export async function programarRespuestaIAMeta(t: TurnoMeta): Promise<void> {
     const cx = await conexionDe(t.tenant, t.pageId);
     if (!cx) return;
 
+    // LA PÁGINA TIENE QUE ESTAR ENCENDIDA, y una recién conectada no lo está.
+    //
+    // El interruptor general (`ai_config`) es uno solo para todo el panel. El 9
+    // de septiembre de 2026 se conectaron por error las páginas de Yali al
+    // cliente de la agencia, heredaron ese switch encendido, y el agente de la
+    // agencia le escribió a una persona real de Sunzal Beach Club ofreciéndole
+    // agentes de IA. Traerse las conversaciones no hace daño; contestarlas sí.
+    if (cx.iaActiva === false) {
+      console.warn(`[meta-ai] ${clave}: la página ${t.pageId} tiene la IA apagada, no se contesta.`);
+      return;
+    }
+
     // Tramo 1: silencio. Si la persona manda otro mensaje, este turno se
     // retira y el de ese mensaje contesta todo junto. Lo que NO importa es
     // quién habló último: si Sofía acaba de responder y la persona escribió

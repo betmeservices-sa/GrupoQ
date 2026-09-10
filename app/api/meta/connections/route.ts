@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { tenantFromRequest } from "@/lib/tenants/server";
 import { CAMPOS_WEBHOOK } from "@/lib/meta-oauth";
-import { conexionesDe, guardarConexiones } from "@/lib/meta-store";
+import { conexionesDe, guardarConexiones, setIaActivaPagina, tenantDePagina } from "@/lib/meta-store";
+import { repartirPaginas } from "@/lib/pagina-de-quien";
 import type { MetaConnection } from "@/lib/meta-store";
 
 export const runtime = "nodejs";
@@ -19,6 +20,8 @@ export async function GET(req: Request) {
       instagram: Boolean(c.igId),
       igDirecto: Boolean(c.igToken),
       igUsername: c.igUsername ?? null,
+      // Una página recién conectada llega apagada y hay que encenderla acá.
+      iaActiva: c.iaActiva !== false,
     })),
   });
 }
@@ -134,17 +137,44 @@ async function conectarTodas(tenant: string, userToken: string) {
     })),
   );
 
-  const suscritas = await Promise.all(conexiones.map((c) => suscribir(c.pageId, c.pageToken)));
-  const donde = await guardarConexiones(tenant, conexiones);
+  // La misma baranda que el OAuth: un token de usuario trae TODAS las páginas
+  // que administra esa persona, incluidas las de otros clientes. Lo que ya es
+  // de otro no se conecta ni se suscribe.
+  const duenos = new Map(
+    await Promise.all(
+      conexiones.map(async (c) => [c.pageId, await tenantDePagina(c.pageId)] as [string, string | null]),
+    ),
+  );
+  const reparto = repartirPaginas(
+    conexiones.map((c) => ({ ...c, id: c.pageId, name: c.pageName })),
+    tenant,
+    (id) => duenos.get(id) ?? null,
+  );
+  if (reparto.ajenas.length > 0) {
+    console.error(
+      `[meta manual] tenant=${tenant} intentó conectar ${reparto.ajenas.length} página(s) de otro cliente:`,
+      reparto.ajenas.map((a) => `${a.pagina.name} (${a.pagina.id}) es de ${a.de}`),
+    );
+  }
+  const propias: MetaConnection[] = reparto.propias;
+  if (propias.length === 0) {
+    throw new Error(
+      "Todas las páginas de ese token ya son de otro cliente. Si de verdad tienen que pasar a este, primero hay que desconectarlas del otro.",
+    );
+  }
+
+  const suscritas = await Promise.all(propias.map((c) => suscribir(c.pageId, c.pageToken)));
+  const donde = await guardarConexiones(tenant, propias);
 
   return {
     donde,
-    paginas: conexiones.map((c, i) => ({
+    paginas: propias.map((c, i) => ({
       pageId: c.pageId,
       pageName: c.pageName,
       instagram: Boolean(c.igId),
       suscrita: suscritas[i],
     })),
+    ajenas: reparto.ajenas.map((a) => ({ pageName: a.pagina.name, de: a.de })),
   };
 }
 
@@ -218,3 +248,25 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true, pageId, pageName, igId, suscrita, donde });
 }
 
+
+// PATCH /api/meta/connections: enciende o apaga el agente en UNA página.
+//
+// Es la contraparte de que una página recién conectada nazca callada: alguien
+// mira las conversaciones que entraron, confirma que son las que esperaba, y
+// recién ahí la enciende.
+export async function PATCH(req: Request) {
+  const tenant = tenantFromRequest(req);
+  const body = (await req.json().catch(() => ({}))) as { pageId?: string; iaActiva?: boolean };
+  const pageId = String(body.pageId ?? "").trim();
+  if (!pageId || typeof body.iaActiva !== "boolean") {
+    return NextResponse.json({ ok: false, error: "Falta la página o el estado." }, { status: 400 });
+  }
+  // Solo sobre las PROPIAS: sin esto, cualquiera podría apagarle el agente a
+  // otro cliente sabiendo el id de su página, que es público.
+  const mias = await conexionesDe(tenant);
+  if (!mias.some((c) => c.pageId === pageId)) {
+    return NextResponse.json({ ok: false, error: "Esa página no es de este cliente." }, { status: 403 });
+  }
+  const ok = await setIaActivaPagina(tenant, pageId, body.iaActiva);
+  return NextResponse.json({ ok, pageId, iaActiva: body.iaActiva });
+}

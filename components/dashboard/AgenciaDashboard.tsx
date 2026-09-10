@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  BedDouble,
   Bot,
   CircleDollarSign,
   Coins,
@@ -39,12 +40,24 @@ interface Usuario {
   logins: number;
 }
 
+interface Monto {
+  n: number;
+  total: number;
+}
+
 interface Cliente {
   id: string;
   nombre: string;
   oficial: boolean;
   tokens: { respuestas: number; costo: number; costoTotalHistorico: number };
-  tickets: { total: number; periodo: number; abiertos: number; resueltos: number; porSofia: number; porTipo: { tipo: string; n: number }[] };
+  tickets: { total: number; periodo: number; abiertos: number; resueltos: number; porSofia: number; medianaMinutos: number | null; porTipo: { tipo: string; n: number }[] };
+  reservas: {
+    confirmadas: Monto;
+    pendientePago: Monto;
+    conComprobante: Monto;
+    esperando: Monto;
+    rechazadas: number;
+  };
   usuarios: Usuario[];
   activosAhora: number;
 }
@@ -89,6 +102,14 @@ const CANAL: Record<Canal, string> = {
 const TZ = "America/El_Salvador";
 const DIAS_RESUMEN = 30;
 const CLIENTE_INICIAL = "yaly";
+
+/** "45 min", "2 h 53", "1 d 3 h": el tiempo como lo diría una persona. */
+function duracion(min: number): string {
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h ${String(min % 60).padStart(2, "0")}`;
+  return `${Math.floor(h / 24)} d ${h % 24} h`;
+}
 
 function dinero(n: number): string {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -299,6 +320,7 @@ export function AgenciaDashboard() {
 
         {reporte && reporte.cliente.id === cliente && <Consumo r={reporte} metrica={metrica} setMetrica={setMetrica} />}
 
+        {seleccionado && <Reservas c={seleccionado} />}
         {seleccionado && <TicketsYGente c={seleccionado} />}
 
         {resumen && (
@@ -516,6 +538,50 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
   );
 }
 
+/**
+ * Lo que el agente APARTÓ, en dinero. Es el resultado de todo lo demás y no
+ * estaba en ningún lado del tablero: había respuestas, costo y tickets, pero
+ * no cuántas estadías se cerraron ni cuánta plata está esperando comprobante.
+ */
+function Reservas({ c }: { c: Cliente }) {
+  const r = c.reservas;
+  if (r.confirmadas.n + r.esperando.n + r.rechazadas === 0) return null;
+  return (
+    <section className="rounded-2xl border border-line bg-card p-5">
+      <p className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+        <BedDouble size={12} /> Estadías apartadas por el agente · {DIAS_RESUMEN} días
+      </p>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+        <div>
+          <p className="text-[24px] font-extrabold leading-none tracking-tight text-[#2f9e2f]">
+            {dinero(r.confirmadas.total)}
+          </p>
+          <p className="mt-1 text-[12px] text-[var(--text-2)]">
+            {r.confirmadas.n} confirmada{r.confirmadas.n === 1 ? "" : "s"}
+          </p>
+        </div>
+        <div>
+          <p className="text-[24px] font-extrabold leading-none tracking-tight text-[var(--brand-accent)]">
+            {dinero(r.esperando.total)}
+          </p>
+          <p className="mt-1 text-[12px] text-[var(--text-2)]">
+            {r.esperando.n} esperando pago
+          </p>
+          <p className="text-[11.5px] text-[var(--text-3)]">
+            {r.pendientePago.n} sin comprobante · {r.conComprobante.n} por verificar
+          </p>
+        </div>
+        <div>
+          <p className="text-[24px] font-extrabold leading-none tracking-tight text-[var(--text-3)]">
+            {r.rechazadas}
+          </p>
+          <p className="mt-1 text-[12px] text-[var(--text-2)]">rechazadas</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function TicketsYGente({ c }: { c: Cliente }) {
   return (
     <section className="rounded-2xl border border-line bg-card p-5">
@@ -530,6 +596,11 @@ function TicketsYGente({ c }: { c: Cliente }) {
           <p className="text-[12px] text-[var(--text-2)]">
             {c.tickets.periodo} nuevos · {c.tickets.resueltos} resueltos · {c.tickets.porSofia} abiertos por la IA
           </p>
+          {c.tickets.medianaMinutos !== null && (
+            <p className="text-[12px] text-[var(--text-3)]">
+              {duracion(c.tickets.medianaMinutos)} en resolverse
+            </p>
+          )}
           {c.tickets.porTipo.length > 0 && (
             <ul className="mt-2 space-y-0.5 text-[11.5px] text-[var(--text-3)]">
               {c.tickets.porTipo.slice(0, 4).map((t) => (

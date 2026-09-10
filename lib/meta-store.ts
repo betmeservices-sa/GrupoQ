@@ -13,6 +13,16 @@ export interface MetaConnection {
   tenant: string;
   /** Cuándo se conectó. Decide de quién es la página si dos se la disputan. */
   connectedAt?: string | null;
+  /**
+   * Si el agente puede CONTESTAR en esta página.
+   *
+   * Nace apagado. Traerse las conversaciones de una página recién conectada no
+   * hace daño; contestarlas sí, y si la página se conectó al cliente
+   * equivocado el daño le llega a una persona real. Lo enciende alguien a mano
+   * desde Configuración, cuando ya vio que las conversaciones son las que
+   * esperaba.
+   */
+  iaActiva?: boolean;
   pageId: string;
   pageName: string;
   pageToken: string;
@@ -48,7 +58,7 @@ const memoria: Map<string, MetaConnection[]> = (g.__metaConexiones ??= new Map()
 const g2 = globalThis as unknown as { __metaColumnasIg?: { hay: boolean } };
 const columnasIg = (g2.__metaColumnasIg ??= { hay: true });
 
-const COLUMNAS_BASE = "tenant,page_id,page_name,page_token,ig_id,user_token,connected_at";
+const COLUMNAS_BASE = "tenant,page_id,page_name,page_token,ig_id,user_token,connected_at,ia_activa";
 const COLUMNAS_IG = `${COLUMNAS_BASE},ig_token,ig_token_vence,ig_username`;
 
 function columnas(): string {
@@ -70,6 +80,7 @@ interface Fila {
   ig_token_vence?: string | null;
   ig_username?: string | null;
   connected_at?: string | null;
+  ia_activa?: boolean | null;
 }
 
 function deFila(r: Fila): MetaConnection {
@@ -84,6 +95,9 @@ function deFila(r: Fila): MetaConnection {
     igTokenVence: r.ig_token_vence ?? null,
     igUsername: r.ig_username ?? null,
     connectedAt: r.connected_at ?? null,
+    // Sin la columna (base vieja) se asume ENCENDIDA: apagar por accidente a
+    // un cliente que hoy funciona es peor que el riesgo que esto cubre.
+    iaActiva: r.ia_activa ?? true,
   };
 }
 
@@ -255,6 +269,36 @@ export async function conexionPorActivo(id: string): Promise<MetaConnection | nu
     );
   }
   return dueno(encontradas);
+}
+
+/**
+ * Enciende o apaga el agente en UNA página.
+ *
+ * Se toca solo esta columna: un upsert con el resto de los campos pisaría el
+ * token de página con lo que tuviera el que llama, y dejaría la conexión muda
+ * sin que nadie entienda por qué.
+ */
+export async function setIaActivaPagina(
+  tenant: string,
+  pageId: string,
+  activa: boolean,
+): Promise<boolean> {
+  const lista = memoria.get(tenant);
+  const enMemoria = lista?.find((c) => c.pageId === pageId);
+  if (enMemoria) enMemoria.iaActiva = activa;
+
+  const sb = getSupabase(tenant);
+  if (!sb) return Boolean(enMemoria);
+  const { error } = await sb
+    .from("meta_connections")
+    .update({ ia_activa: activa })
+    .eq("tenant", tenant)
+    .eq("page_id", pageId);
+  if (error) {
+    console.error("[meta-store] no se pudo cambiar ia_activa:", error.message);
+    return false;
+  }
+  return true;
 }
 
 /** De qué cliente es esta página hoy, o null si está libre. */

@@ -119,7 +119,14 @@ export default function SettingsPage() {
   // null = todavía no sabemos (cargando). Así el botón no parpadea a "Conectar"
   // cuando en realidad la cuenta ya está conectada.
   const [conexiones, setConexiones] = useState<
-    { pageId: string; nombre: string; instagram: boolean; igDirecto?: boolean; igUsername?: string | null }[] | null
+    {
+      pageId: string;
+      nombre: string;
+      instagram: boolean;
+      igDirecto?: boolean;
+      igUsername?: string | null;
+      iaActiva?: boolean;
+    }[] | null
   >(null);
   useEffect(() => {
     const tenant = window.localStorage.getItem("ccg.tenant") || "x";
@@ -306,7 +313,12 @@ export default function SettingsPage() {
               {conexiones.map((c) => (
                 <span
                   key={c.pageId}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-[#2f9e2f] ring-1 ring-[#00c040]/30"
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold ring-1",
+                    c.iaActiva === false
+                      ? "bg-amber-50 text-amber-800 ring-amber-300/50"
+                      : "bg-emerald-50 text-[#2f9e2f] ring-[#00c040]/30",
+                  )}
                 >
                   <CheckCircle2 size={13} />
                   {c.nombre}
@@ -315,6 +327,34 @@ export default function SettingsPage() {
                       · <Instagram size={11} /> {c.igDirecto ? `@${c.igUsername ?? "directo"}` : "vinculado"}
                     </span>
                   )}
+                  {/* Una pagina recien conectada nace CALLADA: recibe los
+                      mensajes pero no contesta hasta que alguien la enciende
+                      aca, despues de mirar que las conversaciones son las que
+                      esperaba. */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const activa = c.iaActiva === false;
+                      const r = await fetch("/api/meta/connections", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pageId: c.pageId, iaActiva: activa }),
+                      });
+                      if ((await r.json().catch(() => ({}))).ok) {
+                        setConexiones((prev) =>
+                          (prev ?? []).map((x) => (x.pageId === c.pageId ? { ...x, iaActiva: activa } : x)),
+                        );
+                      }
+                    }}
+                    className="ml-0.5 rounded-full bg-white/70 px-1.5 py-0.5 text-[11px] font-bold ring-1 ring-current/20 transition hover:brightness-95"
+                    title={
+                      c.iaActiva === false
+                        ? "El agente NO contesta en esta página. Tocá para encenderlo."
+                        : "El agente contesta en esta página. Tocá para callarlo."
+                    }
+                  >
+                    {c.iaActiva === false ? "IA apagada" : "IA activa"}
+                  </button>
                 </span>
               ))}
             </div>
