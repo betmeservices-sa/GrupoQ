@@ -31,6 +31,11 @@ const PUBLICAS = [
   // Lo llama el sitio de miagentia.com, que no tiene sesion. Se defiende solo:
   // lista cerrada de clientes, tope de tamano y freno por IP.
   "/api/onboarding",
+  // El consultorio: lo que llama el PACIENTE desde su telefono al escanear un
+  // QR (registrarse, tomar turno, mirar su lugar en la fila) y el PNG del QR.
+  // Quien escanea no tiene cuenta. Todo lo demas del modulo pide sesion, y por
+  // eso lo publico vive bajo su propio prefijo en vez de ir suelto.
+  "/api/consultorio/publico/",
 ];
 
 function esPublica(pathname: string): boolean {

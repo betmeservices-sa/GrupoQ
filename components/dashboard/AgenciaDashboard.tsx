@@ -311,6 +311,16 @@ export function AgenciaDashboard() {
           )}
         </div>
 
+        {/* LA PLATA VA PRIMERO.
+            Estaba debajo del gráfico de consumo, o sea que para ver cuánto
+            dinero apartó el agente había que pasar por encima de cuánto costó.
+            Es la única cifra que contesta si esto vale la pena.
+
+            Y va antes del error y del "cargando" a propósito: sale del resumen,
+            que se pide aparte del reporte de consumo, así que aparece de una
+            aunque el gráfico todavía esté cargando o haya fallado. */}
+        {seleccionado && <Reservas c={seleccionado} />}
+
         {error && <p className="rounded-xl border border-[var(--brand-red)]/40 bg-[var(--brand-red)]/10 px-3.5 py-2.5 text-[12.5px]">{error}</p>}
         {cargando && !reporte && (
           <p className="flex items-center gap-2 text-[13px] text-[var(--text-3)]">
@@ -320,7 +330,6 @@ export function AgenciaDashboard() {
 
         {reporte && reporte.cliente.id === cliente && <Consumo r={reporte} metrica={metrica} setMetrica={setMetrica} />}
 
-        {seleccionado && <Reservas c={seleccionado} />}
         {seleccionado && <TicketsYGente c={seleccionado} />}
 
         {resumen && (

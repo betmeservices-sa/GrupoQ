@@ -30,6 +30,8 @@ export type DepartmentId =
   | "laboratorio"
   | "imagenes"
   | "recepcion"
+  // Centro Médico San Benito: la consulta médica, aparte del laboratorio.
+  | "consulta"
   // MiAgentIA (agencia de agentes IA)
   | "soporte"
   | "onboarding"

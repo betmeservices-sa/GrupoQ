@@ -254,6 +254,39 @@
   background: #a8b4c0;
 }
 
+/* Centro Médico San Benito va en CLARO: el verde quirúrgico de su módulo de
+   consultorio sobre papel. Va DESPUÉS del bloque de marca unificada para
+   ganarle con la misma especificidad, igual que los otros temas claros.
+
+   Contraste medido sobre el fondo #EEF2F1: tinta #10202A 15.6:1, secundario
+   #40525C 7.6:1, terciario #5B6C76 5.1:1, verde #0A6152 6.3:1 y rojo #A3302A
+   6.2:1. Sobre la tarjeta blanca todos suben, y todos pasan el 4.5:1 de WCAG AA
+   para texto normal. */
+[data-tenant="consultorio"] {
+  --brand-blue: #0a6152;
+  --brand-blue-dark: #084a3f;
+  --brand-green: #0a6152;
+  --brand-red: #a3302a;
+  --brand-accent: #0e7c6b;
+  --brand-accent-soft: #e4f2ee;
+
+  --surface: #eef2f1;
+  --surface-2: #e2e9e7;
+  --card: #ffffff;
+  --border: #dde5e3;
+  --border-2: #c6d3cf;
+  --text: #10202a;
+  --text-2: #40525c;
+  --text-3: #5b6c76;
+
+  --font-app: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* La barra de scroll clara del consultorio. */
+[data-tenant="consultorio"] ::-webkit-scrollbar-thumb:hover {
+  background: #a7b8b3;
+}
+
 @theme inline {
   --font-sans: var(--font-app);
   --color-brand: var(--brand-blue);
@@ -360,4 +393,283 @@ select:-webkit-autofill {
 }
 .ccg-desplegar > * {
   overflow: hidden;
+}
+
+/* ── Módulo consultorio (tenant "consultorio") ──
+   Todo lo de abajo vive dentro de ".cons" y no se escapa: son los tokens y las
+   clases del consultorio, que es una herramienta aparte dentro de la app. Los
+   DOCUMENTOS (receta y orden) se ven como papel porque se imprimen y se firman;
+   el resto es interfaz. */
+.cons {
+  /* Barra lateral */
+  --barra: #0d1a22;
+  --barra-2: #162b37;
+  --barra-3: #22475a;
+  --barra-texto: #cddadf;
+
+  /* Superficies */
+  --fondo: #eef2f1;
+  --panel: #ffffff;
+  --panel-2: #f5f8f7;
+  --linea: #e2e9e7;
+  --linea-2: #cbd6d3;
+
+  /* Texto */
+  --texto: #10202a;
+  --texto-2: #536872;
+  --texto-3: #8397a0;
+
+  /* Verde quirúrgico: el de las batas y los campos de cirugía. */
+  --verde: #0e7c6b;
+  --verde-hondo: #0a5d50;
+  --verde-claro: #e4f2ee;
+  --ambar: #9a6207;
+  --ambar-claro: #fdf3e3;
+  --alerta: #b3261e;
+  --alerta-clara: #fdecea;
+
+  --r: 12px;
+  --r2: 8px;
+  --sombra:
+    0 1px 2px rgba(16, 32, 42, 0.06),
+    0 6px 16px -6px rgba(16, 32, 42, 0.12);
+  --sombra-2:
+    0 1px 2px rgba(16, 32, 42, 0.08),
+    0 12px 28px -10px rgba(16, 32, 42, 0.2);
+
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* El módulo trae su propia tinta y su propia tipografía: adentro no se
+     hereda ni el color ni la fuente del tenant. */
+  color: var(--texto);
+  font-family: var(--sans);
+}
+
+/* Las dos páginas que abre el paciente van fuera del shell, así que el fondo
+   lo pinta el módulo. */
+.cons-pagina {
+  min-height: 100dvh;
+  background: var(--fondo);
+}
+
+/* Tarjeta: lo que agrupa información en la herramienta. */
+.cons .tarjeta {
+  background: var(--panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--r);
+  box-shadow: var(--sombra);
+}
+
+/* Fila de la cola del laboratorio: toda la fila abre el récord. */
+.cons .fila-cola:hover {
+  border-color: var(--texto-3);
+}
+/* Y cuando ya lleva demasiado esperando. Sin rótulo: en una fila, el rojo dice
+   lo único que hay que decir. */
+.cons .fila-cola.tarde,
+.cons .fila-cola.tarde:hover {
+  border-color: var(--alerta);
+  background: var(--alerta-clara);
+}
+
+/* El récord abierto: mientras dura, es lo único que importa en la pantalla. */
+.cons .tarjeta.abierta {
+  border-color: var(--verde);
+  box-shadow:
+    0 0 0 3px var(--verde-claro),
+    var(--sombra);
+}
+
+/* Documento: la receta y la orden. Se ven como papel porque se imprimen y se
+   firman. Canto superior de tinta y esquinas casi rectas: el papel no tiene
+   esquinas redondeadas de doce píxeles. */
+.cons .documento {
+  background: var(--panel);
+  border: 1px solid var(--linea);
+  border-top: 3px solid var(--barra);
+  border-radius: 3px;
+  box-shadow: var(--sombra);
+}
+
+.cons .membrete {
+  font-family: var(--serif);
+  border-bottom: 1.5px solid var(--barra);
+}
+
+/* Fila de tabla: el objetivo es que se lea de corrido, no que cada fila sea
+   una tarjeta. Por eso separador fino y realce solo al pasar por encima. */
+.cons .fila:hover {
+  background: var(--panel-2);
+}
+
+.cons .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.cons .chip-verde {
+  background: var(--verde-claro);
+  color: var(--verde-hondo);
+}
+.cons .chip-ambar {
+  background: var(--ambar-claro);
+  color: var(--ambar);
+}
+.cons .chip-gris {
+  background: var(--panel-2);
+  color: var(--texto-2);
+}
+.cons .chip-rojo {
+  background: var(--alerta-clara);
+  color: var(--alerta);
+}
+
+/* Casilla de examen. Toda la fila es el objetivo táctil, no solo el cuadrito:
+   apuntarle a dieciséis píxeles en un teléfono es como no poder marcarlo. */
+.cons .casilla {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--r2);
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.cons .casilla:hover {
+  background: var(--panel-2);
+}
+.cons .casilla:has(input:checked) {
+  background: var(--verde-claro);
+  box-shadow: inset 2px 0 0 var(--verde);
+}
+.cons .casilla input {
+  margin-top: 0.15rem;
+  accent-color: var(--verde);
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: none;
+}
+
+.cons .campo {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--linea-2);
+  border-radius: var(--r2);
+  padding: 0.55rem 0.7rem;
+  font-size: 14px;
+  color: var(--texto);
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.cons .campo:focus {
+  border-color: var(--verde);
+  box-shadow: 0 0 0 3px rgba(14, 124, 107, 0.13);
+}
+/* Campo con icono adentro: el hueco lo reserva esta clase y no una utilidad,
+   porque .campo se declara después y le ganaría. */
+.cons .campo-icono {
+  padding-left: 2.15rem;
+}
+
+.cons .campo::placeholder {
+  color: var(--texto-3);
+}
+
+/* En el teléfono los campos van a 16 px: abajo de eso iOS hace zoom al
+   enfocar y descoloca la pantalla. */
+@media (max-width: 640px) {
+  .cons .campo {
+    font-size: 16px;
+    padding: 0.75rem 0.8rem;
+  }
+}
+
+.cons .boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: var(--verde);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 0.6rem 1.05rem;
+  border: 1px solid var(--verde);
+  border-radius: var(--r2);
+  box-shadow: 0 1px 2px rgba(10, 93, 80, 0.25);
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.cons .boton:hover:not(:disabled) {
+  background: var(--verde-hondo);
+  box-shadow: 0 2px 8px rgba(10, 93, 80, 0.28);
+}
+.cons .boton:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.cons .boton-2 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: var(--panel);
+  color: var(--texto);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 0.6rem 1.05rem;
+  border: 1px solid var(--linea-2);
+  border-radius: var(--r2);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.cons .boton-2:hover:not(:disabled) {
+  border-color: var(--texto-3);
+  background: var(--panel-2);
+}
+.cons .boton-2:disabled {
+  opacity: 0.45;
+}
+
+.cons :where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  /* Imprimir es parte del flujo: mientras el correo no esté conectado, el
+     paciente se lleva la orden en la mano. */
+  body {
+    background: #fff;
+  }
+  .cons .no-imprimir {
+    display: none !important;
+  }
+  .cons .documento,
+  .cons .tarjeta {
+    border: 0;
+    box-shadow: none;
+  }
 }

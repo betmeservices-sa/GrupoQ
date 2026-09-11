@@ -15,6 +15,16 @@ import { LoginPage } from "./LoginPage";
 // Rutas públicas que NO llevan el chrome del dashboard (sidebar, store, etc.).
 const PUBLIC_ROUTES = ["/privacy"];
 
+// Lo mismo, pero por prefijo: las dos páginas que abre el PACIENTE al escanear
+// un QR del consultorio (`/r/<código>` la del doctor, `/s/<código>` la del
+// laboratorio). Quien las abre no tiene cuenta, así que no puede caer en la
+// pantalla de login ni ver la barra lateral de la clínica.
+const PUBLIC_PREFIXES = ["/r/", "/s/"];
+
+function esPublica(pathname: string): boolean {
+  return PUBLIC_ROUTES.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -31,6 +41,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!permitido) router.replace(MODULO_RUTA[primerModulo(def)]);
   }, [permitido, def, router]);
 
+  // La clinica solo tiene sus dos pantallas: entrar cae en el consultorio y no
+  // en la bandeja, que para este cliente no existe.
+  useEffect(() => {
+    // Las páginas del paciente NO son del menú: se abren en el teléfono de otra
+    // persona y se ven enteras. Sin esta salida, el efecto corría igual (los
+    // hooks van antes del return de las públicas) y la vista del paciente se
+    // abría y se devolvía sola al consultorio.
+    if (esPublica(pathname)) return;
+    if (!sesion || activeTenantId() !== "consultorio") return;
+    if (modulo !== "consultorio" && modulo !== "laboratorio" && modulo !== "jefatura") {
+      router.replace("/consultorio");
+    }
+  }, [sesion, modulo, pathname, router]);
+
   // Aplica el tema del cliente activo en <html data-tenant>. Sin sesión se quita
   // (la pantalla de login usa el tema neutro de :root).
   useEffect(() => {
@@ -39,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     else if (sesion === false) delete el.dataset.tenant;
   }, [sesion]);
 
-  if (PUBLIC_ROUTES.includes(pathname)) {
+  if (esPublica(pathname)) {
     return <>{children}</>;
   }
 

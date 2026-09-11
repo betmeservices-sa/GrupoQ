@@ -27,6 +27,14 @@ export type ModuleId =
   | "publicacion"
   | "cobros"
   | "campanas"
+  // El consultorio: los pacientes del doctor con su QR, sus recetas y sus
+  // ordenes. Y el mostrador del laboratorio, que es la otra punta del mismo
+  // flujo: quien llega a hacerse los examenes.
+  | "consultorio"
+  | "laboratorio"
+  // Lo que mira el jefe del laboratorio: cuanta gente paso, cuanto espero,
+  // cuanto se facturo y que quedo sin hacerse.
+  | "jefatura"
   | "interno"
   | "redes"
   | "comentarios"
@@ -70,9 +78,11 @@ export interface RoleDef {
 // marketing no gestiona casos, asi que no lo ve.
 // "mis-chats" lo ve todo el mundo: es donde caen los chats que el agente pasa a
 // una persona, y quien atiende tiene que verlos sin depender de su rol.
-const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "qa", "agentes", "settings"];
+const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "consultorio", "laboratorio", "jefatura", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "qa", "agentes", "settings"];
 export const VE: Record<RoleId, ModuleId[]> = {
-  recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "interno", "comentarios"],
+  // Recepcion del consultorio es quien recibe al paciente y quien mueve la
+  // fila del laboratorio: los dos modulos del modulo clinico son suyos.
+  recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "consultorio", "laboratorio", "interno", "comentarios"],
   // Atencion es quien da la cara: contesta lo privado y lo publico, trabaja
   // los casos que el agente no resuelve (los de pago van a Veronica desde el
   // kickoff), habla con el equipo, y VE COMO VA EL HOTEL: Veronica y Olga son
@@ -82,8 +92,10 @@ export const VE: Record<RoleId, ModuleId[]> = {
   atencion: ["bandeja", "mis-chats", "tickets", "interno", "comentarios", "redes", "sofia", "dashboard"],
   marketing: ["bandeja", "mis-chats", "contactos", "cartera", "publicacion", "cobros", "redes", "comentarios", "promociones"],
   gerente_marketing: TODO,
-  medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "interno"],
-  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard"],
+  // El medico ve su consultorio (sus pacientes, sus recetas), pero no el
+  // mostrador del laboratorio: esa fila no es suya.
+  medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "consultorio", "interno"],
+  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "consultorio", "laboratorio", "jefatura", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard"],
   admin: TODO,
 };
 
@@ -104,6 +116,9 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   publicacion: "/publicacion",
   cobros: "/cobros",
   campanas: "/campanas",
+  consultorio: "/consultorio",
+  laboratorio: "/laboratorio",
+  jefatura: "/laboratorio/jefatura",
   interno: "/interno",
   redes: "/redes",
   comentarios: "/comentarios",
@@ -132,6 +147,9 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname.startsWith("/publicacion")) return "publicacion";
   if (pathname.startsWith("/cobros")) return "cobros";
   if (pathname.startsWith("/campanas")) return "campanas";
+  if (pathname.startsWith("/consultorio")) return "consultorio";
+  if (pathname.startsWith("/laboratorio/jefatura")) return "jefatura";
+  if (pathname.startsWith("/laboratorio")) return "laboratorio";
   if (pathname.startsWith("/interno")) return "interno";
   if (pathname.startsWith("/redes")) return "redes";
   if (pathname.startsWith("/comentarios")) return "comentarios";

@@ -1,12 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { HeartPulse, CarFront, Bot, Hotel, Building2 } from "lucide-react";
+import { HeartPulse, CarFront, Bot, Hotel, Building2, Stethoscope } from "lucide-react";
 import { activeTenant } from "@/lib/tenants/active";
 import { PromericaLogo } from "@/components/ui/PromericaLogo";
 import { YaliLogo } from "@/components/ui/YaliLogo";
 
-const WORDMARK_ICONS = { HeartPulse, CarFront, Bot, Hotel, Building2 } as const;
+const WORDMARK_ICONS = { HeartPulse, CarFront, Bot, Hotel, Building2, Stethoscope } as const;
 
 // Marca del tenant ACTIVO. Si el tenant trae logoSrc, pinta el logo real; si no,
 // pinta un wordmark (ícono + nombre + lema). Se usa dentro del shell, cuando ya

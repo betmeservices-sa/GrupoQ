@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, GitBranch, HandCoins, Headphones, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, X, type LucideIcon } from "lucide-react";
+import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, FlaskConical, GitBranch, HandCoins, Headphones, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, Smartphone, Stethoscope, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { useStore } from "@/lib/store";
@@ -41,6 +41,9 @@ const NAV: NavItem[] = [
   { id: "publicacion", href: "/publicacion", label: "Publicación", Icon: Share2 },
   { id: "cobros", href: "/cobros", label: "Cartera de mora", Icon: HandCoins },
   { id: "campanas", href: "/campanas", label: "Campañas", Icon: PhoneOutgoing },
+  { id: "consultorio", href: "/consultorio", label: "Consultorio", Icon: Stethoscope },
+  { id: "laboratorio", href: "/laboratorio", label: "Laboratorio", Icon: FlaskConical },
+  { id: "jefatura", href: "/laboratorio/jefatura", label: "Jefatura", Icon: BarChart3 },
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
   { id: "comentarios", href: "/comentarios", label: "Comentarios", Icon: MsgSq },
@@ -94,6 +97,10 @@ export function Sidebar({
   // sin esa pantalla el traspaso existe pero nadie lo ve.
   const veCrediq = tenant === "grupoq";
   const veCobros = tenant === "promerica";
+  // El consultorio y el mostrador del laboratorio: los pacientes que se
+  // registran escaneando el QR del doctor y la fila de quien llega a hacerse
+  // los examenes. Solo la clinica.
+  const veClinica = tenant === "consultorio";
   // "promociones" y "perfil" son el tablero con el que Yali maneja a su agente:
   // lo que enciende en Promociones es lo único que el agente puede ofrecer, y
   // Perfil le muestra en cuatro tarjetas cómo está configurado.
@@ -108,7 +115,17 @@ export function Sidebar({
   // pero Grupo Q no los trabaja desde aca: su mercadeo lleva las redes por su
   // cuenta y la pestana solo metia ruido en un panel de credito.
   const veComentarios = veRedes && tenant !== "grupoq";
-  const visibles = NAV.filter(
+  // La clinica NO es un centro de comunicacion: son tres vistas y nada mas
+  // (el doctor, el laboratorio y lo que ve el paciente). Bandeja, contactos,
+  // redes, comentarios y dashboard son de los otros clientes y aca solo hacen
+  // ruido, asi que su menu se arma aparte en vez de filtrarse.
+  const visibles = veClinica
+    ? NAV.filter(
+        (item) =>
+          (item.id === "consultorio" || item.id === "laboratorio" || item.id === "jefatura") &&
+          def.ve.includes(item.id),
+      )
+    : NAV.filter(
     (item) =>
       def.ve.includes(item.id) &&
       (item.id !== "llamadas" || veLlamadas) &&
@@ -123,6 +140,8 @@ export function Sidebar({
       (item.id !== "cartera" || veInmobiliaria) &&
       (item.id !== "publicacion" || veInmobiliaria) &&
       (item.id !== "cobros" || veCobros) &&
+      (item.id !== "consultorio" || veClinica) &&
+      (item.id !== "laboratorio" || veClinica) &&
       (item.id !== "campanas" || veCobros) &&
       (item.id !== "redes" || veRedes) &&
       (item.id !== "comentarios" || veComentarios) &&
@@ -131,7 +150,7 @@ export function Sidebar({
       (item.id !== "promociones" || veYali) &&
       (item.id !== "perfil" || veYali) &&
       (item.id !== "sofia" || veYali),
-  );
+      );
 
   // Los avisos del menu: lo que espera respuesta en cada modulo.
   //
@@ -175,7 +194,14 @@ export function Sidebar({
           se queda clavado. */}
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {visibles.map(({ id, href, label, Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const mejor = visibles.reduce(
+            (largo, it) =>
+              it.href !== "/" && pathname.startsWith(it.href) && it.href.length > largo.length
+                ? it.href
+                : largo,
+            "",
+          );
+          const active = href === "/" ? pathname === "/" : href === mejor;
           // El tablero de Grupo Q no resume comunicacion: mide al agente.
           const etiqueta = id === "dashboard" && tenant === "grupoq" ? "IA Performance" : label;
           return (
@@ -205,12 +231,25 @@ export function Sidebar({
             </Link>
           );
         })}
+
+        {veClinica && (
+          <a
+            href="/paciente"
+            target="_blank"
+            rel="noreferrer"
+            onClick={onClose}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--text-2)] transition hover:bg-surface hover:text-[var(--text)]"
+          >
+            <Smartphone size={18} strokeWidth={2.1} />
+            <span className="min-w-0 flex-1 truncate">Vista del paciente</span>
+          </a>
+        )}
       </nav>
 
       <div className="space-y-3 border-t border-line p-3">
         <CambiarClave />
         <ClienteSwitcher />
-        <RoleSwitcher />
+        {!veClinica && <RoleSwitcher />}
         <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
           <Avatar iniciales={yo.iniciales} size={34} />
           <div className="min-w-0 flex-1 leading-tight">

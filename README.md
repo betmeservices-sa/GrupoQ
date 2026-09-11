@@ -124,6 +124,45 @@ Toma una transcripcion real de la cartera semilla, la manda a Claude por el
 mismo camino que usa el webhook, e imprime el JSON que devolvio y como queda la
 ficha. No marca telefonos ni escribe en el almacen del demo.
 
+### Cliente "consultorio" — la clínica con laboratorio
+
+Centro Médico San Benito entra con `demoagentia` / `demol`. Es el primer tenant
+donde el CONTACTO se registra solo: el doctor comparte un QR y quien lo escanea
+llena sus datos desde el teléfono, sin pasar por recepción.
+
+- **Consultorio** (`/consultorio`): los pacientes del doctor, que van apareciendo
+  solos mientras la gente escanea en la sala de espera; sus recetas y sus órdenes
+  de laboratorio; y su código QR para imprimir o compartir. Cada doctor ve SOLO a
+  los suyos: de quién es un paciente lo decide el código del QR, nunca un campo
+  del formulario. En el expediente se escribe la receta y se marca la orden de
+  exámenes, con el catálogo en columnas por área.
+- **Laboratorio** (`/laboratorio`): el mostrador. La sucursal tiene su propio QR
+  pegado en la entrada; quien llega se registra, marca sus exámenes y se queda
+  con un turno que le dice cuántas personas tiene delante, actualizándose solo.
+  En la consola, la cola se pone roja a los diez minutos de espera, y al abrir el
+  récord de alguien arranca un cronómetro que se para al darle continuar (le
+  quedaron exámenes pendientes) o finalizar.
+- **Lo que ve el paciente**: `/r/<código>` (registro con el doctor) y
+  `/s/<código>` (fila del laboratorio). Son públicas y van sin el shell de la
+  app: quien las abre no tiene cuenta ni la va a tener. Lo público del módulo
+  vive bajo `/api/consultorio/publico/`, y todo lo demás pide sesión.
+
+**Los datos** viven en `consultorio_pacientes`, `consultorio_documentos` y
+`consultorio_turnos` (`supabase/consultorio.sql`). Sin esas tablas el módulo no
+se cae: cae a memoria del proceso y lo avisa una vez en el log, pero en Vercel
+eso rompe justo lo que el demo enseña, porque el paciente que escanea y el
+doctor que mira pueden caer en instancias distintas.
+
+**Lo que falta conectar** es el correo: "Guardar y enviar" funciona de punta a
+punta, pero mientras no haya proveedor la respuesta dice con todas sus letras
+que el correo NO salió. Es `RESEND_API_KEY` y el cuerpo de un `if` en
+`app/api/consultorio/documentos/[id]/enviar/route.ts`.
+
+**El código de la receta de laboratorio** es `ABCDE-123456` para todos, y está en
+un solo lugar (`CODIGO_RECETA`, en `lib/consultorio/tipos.ts`), hasta saber de
+dónde sale el de verdad: si lo trae el paciente en la orden del doctor o si lo
+asigna el laboratorio al recibirlo.
+
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · lucide-react ·

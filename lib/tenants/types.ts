@@ -28,7 +28,8 @@ export type TenantId =
   | "hotel"
   | "inmobiliaria"
   | "promerica"
-  | "yaly";
+  | "yaly"
+  | "consultorio";
 
 // Datos semilla (mock) de un tenant. Misma forma que el antiguo lib/data/seed.
 export interface TenantSeed {
@@ -61,7 +62,7 @@ export interface TenantBrand {
   // necesitan la tipografía de la app. Gana sobre logoSrc y wordmark.
   logoComponent?: "promerica" | "yali";
   wordmark?: {
-    icon: "HeartPulse" | "CarFront" | "Bot" | "Hotel" | "Building2";
+    icon: "HeartPulse" | "CarFront" | "Bot" | "Hotel" | "Building2" | "Stethoscope";
     titulo: string;
     subtitulo: string;
   };
