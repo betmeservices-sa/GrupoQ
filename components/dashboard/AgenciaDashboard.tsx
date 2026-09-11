@@ -18,6 +18,7 @@ import {
   CircleDollarSign,
   Coins,
   Database,
+  Handshake,
   KeyRound,
   Loader2,
   MessageSquareText,
@@ -29,6 +30,41 @@ import {
 import { cn } from "@/lib/cn";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { PERIODOS, type Canal, type Periodo, type ReporteConsumo } from "@/lib/agencia-consumo";
+
+interface Cierre {
+  inicio: string | null;
+  pasoAPersona: string | null;
+  persona: string | null;
+  cerro: "sofia" | "persona";
+  mensajesAgente: number;
+  mensajesPersona: number;
+  minutosTotales: number | null;
+  minutosHastaPersona: number | null;
+}
+
+interface ReservaCerrada {
+  id: string;
+  huesped: string;
+  sede: string;
+  habitacion: string;
+  total: number;
+  noches: number;
+  confirmadaTs: string | null;
+  confirmadaPor: string | null;
+  comprobanteTs: string | null;
+  cierre: Cierre;
+}
+
+interface Cierres {
+  resumen: {
+    total: number;
+    sofia: { n: number; total: number };
+    persona: { n: number; total: number };
+    porPersona: { nombre: string; n: number; total: number }[];
+    medianaMinutos: number | null;
+  };
+  cierres: ReservaCerrada[];
+}
 
 interface Usuario {
   usuario: string;
@@ -176,6 +212,9 @@ function hoySV(corrimientoDias = 0): string {
 export function AgenciaDashboard() {
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [cliente, setCliente] = useState(CLIENTE_INICIAL);
+  // Como se cerro cada reserva. Va aparte del resumen porque lee el hilo de
+  // cada una: meterlo ahi haria lento el panel entero.
+  const [cierres, setCierres] = useState<Cierres | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("7d");
   const [desde, setDesde] = useState(() => hoySV(-6));
   const [hasta, setHasta] = useState(() => hoySV());
@@ -228,6 +267,20 @@ export function AgenciaDashboard() {
     const t = setInterval(() => void cargarReporte(), 60_000);
     return () => clearInterval(t);
   }, [cargarReporte]);
+
+  useEffect(() => {
+    let vivo = true;
+    setCierres(null);
+    fetch(`/api/agencia/cierres?cliente=${encodeURIComponent(cliente)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (vivo && d.ok) setCierres({ resumen: d.resumen, cierres: d.cierres });
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [cliente]);
 
   // La agencia no se reporta a sí misma. Yali va primero; luego los que tienen algo.
   const clientes = (resumen?.clientes ?? []).filter((c) => c.id !== "miagentia");
@@ -320,6 +373,7 @@ export function AgenciaDashboard() {
             que se pide aparte del reporte de consumo, así que aparece de una
             aunque el gráfico todavía esté cargando o haya fallado. */}
         {seleccionado && <Reservas c={seleccionado} />}
+        {cierres && cierres.resumen.total > 0 && <ComoSeCerraron d={cierres} />}
 
         {error && <p className="rounded-xl border border-[var(--brand-red)]/40 bg-[var(--brand-red)]/10 px-3.5 py-2.5 text-[12.5px]">{error}</p>}
         {cargando && !reporte && (
@@ -587,6 +641,137 @@ function Reservas({ c }: { c: Cliente }) {
           <p className="mt-1 text-[12px] text-[var(--text-2)]">rechazadas</p>
         </div>
       </div>
+    </section>
+  );
+}
+
+/**
+ * Quién cerró cada reserva, con la hora de cada paso.
+ *
+ * POR QUÉ ESTO Y NO "Sofía contestó el 85% de los chats". Ese número se ve
+ * bien y no dice nada: si al final siempre tiene que entrar una persona a
+ * cerrar, el agente está atendiendo, no vendiendo. Acá se ve la plata partida
+ * entre los dos, y cuánto tarda cada trato en cerrarse.
+ */
+function ComoSeCerraron({ d }: { d: Cierres }) {
+  const { resumen, cierres } = d;
+  const sinHilo = cierres.filter((c) => !c.cierre.inicio).length;
+
+  return (
+    <section className="rounded-2xl border border-line bg-card p-5">
+      <p className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+        <Handshake size={12} /> Quién cerró · {resumen.total} confirmada{resumen.total === 1 ? "" : "s"}
+      </p>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div>
+          <p className="text-[24px] font-extrabold leading-none tracking-tight text-brand">
+            {dinero(resumen.sofia.total)}
+          </p>
+          <p className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-2)]">
+            <Bot size={12} className="text-brand" />
+            {resumen.sofia.n} cerró el agente solo
+          </p>
+        </div>
+        <div>
+          <p className="text-[24px] font-extrabold leading-none tracking-tight text-[var(--text)]">
+            {dinero(resumen.persona.total)}
+          </p>
+          <p className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-2)]">
+            <Users size={12} />
+            {resumen.persona.n} las cerró una persona
+          </p>
+        </div>
+        <div>
+          <p className="text-[24px] font-extrabold leading-none tracking-tight text-[var(--text)]">
+            {resumen.medianaMinutos === null ? "·" : duracion(resumen.medianaMinutos)}
+          </p>
+          <p className="mt-1 text-[12px] text-[var(--text-2)]">tarda un trato, mediana</p>
+        </div>
+        <div>
+          <p className="text-[12px] font-semibold text-[var(--text-2)]">Cerraron</p>
+          {resumen.porPersona.length === 0 ? (
+            <p className="text-[12px] text-[var(--text-3)]">nadie tuvo que entrar</p>
+          ) : (
+            <ul className="mt-0.5 space-y-0.5">
+              {resumen.porPersona.map((p) => (
+                <li key={p.nombre} className="text-[12px] text-[var(--text-2)]">
+                  <span className="font-semibold text-[var(--text)]">{p.nombre}</span> · {p.n} ·{" "}
+                  {dinero(p.total)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-[12.5px]">
+          <thead className="text-[11px] uppercase tracking-wide text-[var(--text-3)]">
+            <tr className="text-left">
+              <th className="py-1.5 pr-3 font-semibold">Huésped</th>
+              <th className="py-1.5 pr-3 font-semibold">Monto</th>
+              <th className="py-1.5 pr-3 font-semibold">Empezó</th>
+              <th className="py-1.5 pr-3 font-semibold">Pasó a una persona</th>
+              <th className="py-1.5 pr-3 font-semibold">Se cerró</th>
+              <th className="py-1.5 pr-3 font-semibold">Tardó</th>
+              <th className="py-1.5 font-semibold">Mensajes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cierres.map((c) => (
+              <tr key={c.id} className="border-t border-line/60 align-top">
+                <td className="py-2 pr-3">
+                  <span className="font-semibold text-[var(--text)]">{c.huesped || "Sin nombre"}</span>
+                  <span className="block text-[11.5px] text-[var(--text-3)]">
+                    {c.sede}
+                    {c.habitacion ? ` · ${c.habitacion}` : ""}
+                  </span>
+                </td>
+                <td className="py-2 pr-3 font-bold tabular-nums text-[var(--text)]">{dinero(c.total)}</td>
+                <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
+                  {c.cierre.inicio ? fechaHora(c.cierre.inicio) : "sin chat"}
+                </td>
+                <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
+                  {c.cierre.pasoAPersona ? (
+                    <>
+                      {fechaHora(c.cierre.pasoAPersona)}
+                      <span className="block text-[11.5px] text-[var(--text-3)]">
+                        {c.cierre.persona ?? "el equipo"}
+                        {c.cierre.minutosHastaPersona !== null &&
+                          ` · a los ${duracion(c.cierre.minutosHastaPersona)}`}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 font-semibold text-brand">
+                      <Bot size={12} /> nunca
+                    </span>
+                  )}
+                </td>
+                <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
+                  {c.confirmadaTs ? fechaHora(c.confirmadaTs) : "·"}
+                  {c.confirmadaPor && (
+                    <span className="block text-[11.5px] text-[var(--text-3)]">{c.confirmadaPor}</span>
+                  )}
+                </td>
+                <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
+                  {c.cierre.minutosTotales === null ? "·" : duracion(c.cierre.minutosTotales)}
+                </td>
+                <td className="py-2 tabular-nums text-[var(--text-3)]">
+                  <span className="text-brand">{c.cierre.mensajesAgente}</span> / {c.cierre.mensajesPersona}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-2 text-[11.5px] text-[var(--text-3)]">
+        Mensajes: <span className="text-brand">del agente</span> / de una persona. &quot;Empezó&quot; es
+        el arranque de la última tanda de la conversación, no el primer mensaje de siempre: quien
+        escribió hace meses y volvió ayer cerró en un día, no en cinco meses.
+        {sinHilo > 0 && ` ${sinHilo} sin chat que mirar (entró por otra vía).`}
+      </p>
     </section>
   );
 }
