@@ -49,6 +49,14 @@ export interface Receta {
   pacienteId: string;
   doctorId: string;
   fecha: string;
+  /**
+   * El código con el que se reclama.
+   *
+   * Es lo que amarra al doctor con el laboratorio: el paciente llega con este
+   * código, recepción lo escribe y le salen los exámenes que le dejaron, sin
+   * volver a marcarlos a mano ni adivinar la letra del doctor.
+   */
+  codigo: string;
   medicamentos: Medicamento[];
   indicaciones: string;
   enviado: Envio | null;
@@ -56,12 +64,24 @@ export interface Receta {
 
 export interface Orden {
   id: string;
-  tipo: "orden";
+  /**
+   * Qué se le está mandando a hacer: exámenes de laboratorio, un estudio de
+   * imágenes o un procedimiento. Comparten forma porque comparten todo lo
+   * demás (de quién es, para quién, cuándo, con qué código y si ya se envió);
+   * lo único que cambia es de cuál catálogo salen los ítems.
+   */
+  tipo: "orden" | "imagen" | "proceso";
   pacienteId: string;
   doctorId: string;
   fecha: string;
+  codigo: string;
   /** Ids del catálogo de exámenes. */
   examenes: string[];
+  /**
+   * De qué lado va cada estudio que lo pide (los que en la orden impresa
+   * llevan "Der Izq"). Solo aparecen los que lo necesitan.
+   */
+  lados?: Record<string, "der" | "izq" | "ambos">;
   diagnostico: string;
   indicaciones: string;
   enviado: Envio | null;
@@ -107,8 +127,19 @@ export function idNuevo(prefijo: string): string {
 
 // ── La sucursal donde se hacen los exámenes ─────────────────────────────────
 
+/**
+ * Qué se hace en esta unidad.
+ *
+ * De esto cuelga TODO lo demás: con cuál catálogo se marca, qué órdenes del
+ * doctor acepta y en qué mostrador aparece la fila. Un paciente que llega con
+ * una orden de laboratorio a la unidad de imagenología no tiene nada que hacer
+ * ahí, y la pantalla tiene que poder decírselo.
+ */
+export type TipoUnidad = "laboratorio" | "imagenologia" | "procesos";
+
 export interface Sucursal {
   id: string;
+  tipo: TipoUnidad;
   nombre: string;
   direccion: string;
   horario: string;

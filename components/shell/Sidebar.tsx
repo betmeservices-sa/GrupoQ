@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, FlaskConical, GitBranch, HandCoins, Headphones, IdCard, Inbox, LogOut, Megaphone, MessagesSquare, PhoneCall, PhoneOutgoing, Settings, Share2, Smartphone, Stethoscope, X, type LucideIcon } from "lucide-react";
+import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, FlaskConical, GitBranch, HandCoins, Headphones, IdCard, Inbox, LogOut, Megaphone, MessageCircle, MessagesSquare, PhoneCall, PhoneOutgoing, Scan, Settings, Share2, Smartphone, Stethoscope, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
+import { MODULOS_CLINICA } from "@/lib/modulos";
 import { useStore } from "@/lib/store";
 import { sinLeerPorCanal, useInterno } from "@/lib/interno-bridge";
 import { activeTenantId } from "@/lib/tenants/active";
@@ -43,7 +44,9 @@ const NAV: NavItem[] = [
   { id: "campanas", href: "/campanas", label: "Campañas", Icon: PhoneOutgoing },
   { id: "consultorio", href: "/consultorio", label: "Consultorio", Icon: Stethoscope },
   { id: "laboratorio", href: "/laboratorio", label: "Laboratorio", Icon: FlaskConical },
+  { id: "imagenologia", href: "/imagenologia", label: "Imagenología", Icon: Scan },
   { id: "jefatura", href: "/laboratorio/jefatura", label: "Jefatura", Icon: BarChart3 },
+  { id: "mensajes", href: "/mensajes", label: "Bandeja", Icon: MessageCircle },
   { id: "interno", href: "/interno", label: "Chat interno", Icon: MessagesSquare },
   { id: "redes", href: "/redes", label: "Redes sociales", Icon: Megaphone },
   { id: "comentarios", href: "/comentarios", label: "Comentarios", Icon: MsgSq },
@@ -120,11 +123,7 @@ export function Sidebar({
   // redes, comentarios y dashboard son de los otros clientes y aca solo hacen
   // ruido, asi que su menu se arma aparte en vez de filtrarse.
   const visibles = veClinica
-    ? NAV.filter(
-        (item) =>
-          (item.id === "consultorio" || item.id === "laboratorio" || item.id === "jefatura") &&
-          def.ve.includes(item.id),
-      )
+    ? NAV.filter((item) => MODULOS_CLINICA.includes(item.id) && def.ve.includes(item.id))
     : NAV.filter(
     (item) =>
       def.ve.includes(item.id) &&
@@ -140,8 +139,7 @@ export function Sidebar({
       (item.id !== "cartera" || veInmobiliaria) &&
       (item.id !== "publicacion" || veInmobiliaria) &&
       (item.id !== "cobros" || veCobros) &&
-      (item.id !== "consultorio" || veClinica) &&
-      (item.id !== "laboratorio" || veClinica) &&
+      (!MODULOS_CLINICA.includes(item.id) || veClinica) &&
       (item.id !== "campanas" || veCobros) &&
       (item.id !== "redes" || veRedes) &&
       (item.id !== "comentarios" || veComentarios) &&

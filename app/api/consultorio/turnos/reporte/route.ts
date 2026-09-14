@@ -1,5 +1,5 @@
 import { sucursalActual } from "@/lib/consultorio/actual";
-import { turnosDe } from "@/lib/consultorio/almacen";
+import { sucursalPorId, turnosDe } from "@/lib/consultorio/almacen";
 import { EXAMENES } from "@/lib/consultorio/examenes";
 import { tenantFromRequest } from "@/lib/tenants/server";
 
@@ -38,7 +38,8 @@ export async function GET(req: Request) {
   if (tenantFromRequest(req) !== "consultorio") {
     return new Response("No existe", { status: 404 });
   }
-  const sucursal = await sucursalActual();
+  const pedida = new URL(req.url).searchParams.get("unidad");
+  const sucursal = (pedida ? sucursalPorId(pedida) : null) ?? (await sucursalActual());
   const turnos = await turnosDe(sucursal.id);
   const hoy = fecha.format(new Date());
 

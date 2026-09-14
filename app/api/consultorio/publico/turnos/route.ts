@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import { crearTurno, cuantosDelante, sucursalPorCodigo } from "@/lib/consultorio/almacen";
-import { esExamen } from "@/lib/consultorio/examenes";
+import {
+  crearTurno,
+  cuantosDelante,
+  sucursalPorCodigo,
+  tipoDeOrdenDe,
+} from "@/lib/consultorio/almacen";
+import { esDe } from "@/lib/consultorio/catalogos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,11 +31,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "El teléfono no está completo." }, { status: 400 });
   }
 
-  // Solo ids del catálogo: lo que no está en la lista no entra, para que la
-  // hoja que le llega al laboratorio no pueda pedir un examen que no existe.
-  const examenes = [...new Set((b.examenes as string[]) ?? [])].filter(esExamen);
+  // Solo ids del catálogo DE ESTA UNIDAD: en la entrada de imagenología no se
+  // toma una muestra de sangre, y dejar pasar el id equivocado pondría a
+  // alguien en la fila por algo que ahí nadie le va a hacer.
+  const tipo = tipoDeOrdenDe(sucursal.tipo);
+  const examenes = [...new Set((b.examenes as string[]) ?? [])].filter((e) => esDe(tipo, e));
   if (examenes.length === 0) {
-    return NextResponse.json({ ok: false, error: "Marcá al menos un examen." }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "Marcá al menos uno de los que se hacen acá." },
+      { status: 400 },
+    );
   }
 
   const turno = await crearTurno({

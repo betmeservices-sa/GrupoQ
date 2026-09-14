@@ -11,10 +11,23 @@
 // que nadie toque nada.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Printer, Receipt, Search, Timer } from "lucide-react";
-import { agrupar } from "@/lib/consultorio/examenes";
-import { valorDe } from "@/lib/consultorio/estadisticas";
+import { ClipboardList, Download, Printer, Receipt, Search, Timer } from "lucide-react";
+import { TODOS, agruparDe, conLado, valorTotal, type TipoOrden } from "@/lib/consultorio/catalogos";
 import type { Sucursal, Turno } from "@/lib/consultorio/tipos";
+
+/** Lo que devuelve el mostrador al buscar el código que trae el paciente. */
+interface Orden {
+  orden: { codigo: string; tipo: string; fecha: string; examenes: string[]; indicaciones: string };
+  paciente: { nombre: string; telefono: string } | null;
+  doctor: string;
+  turnoId: string | null;
+  /** Si lo que trae la orden se hace en esta unidad. */
+  suya: boolean;
+  unidad: string;
+}
+
+const fechaCorta = (iso: string) =>
+  new Date(iso).toLocaleDateString("es-SV", { day: "numeric", month: "long" });
 
 /** A los diez minutos esperando, la fila deja de ser un detalle. */
 const TARDE = 10 * 60 * 1000;
@@ -22,7 +35,7 @@ const TARDE = 10 * 60 * 1000;
 const reloj = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 const dinero = (n: number) =>
-  `${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** Al registrarse el teléfono se guarda sin espacios, y ocho dígitos seguidos
     no se leen de un vistazo cuando hay que marcarlos. */
@@ -35,13 +48,13 @@ function corridos(t: Turno, ahora: number | null): number {
 }
 
 export function Mostrador({
-  sucursal,
+  unidad,
   iniciales,
   escritorio,
 }: {
-  sucursal: Sucursal;
+  unidad: Sucursal;
   iniciales: Turno[];
-  /** El selector de con cuál sucursal se está mirando. Lo arma la página. */
+  /** El selector de con cuál unidad se está mirando. Lo arma la página. */
   escritorio?: React.ReactNode;
 }) {
   const [turnos, setTurnos] = useState<Turno[]>(iniciales);
@@ -54,17 +67,26 @@ export function Mostrador({
   // fila que ya está en pantalla, sin ir al servidor: son los turnos del día y
   // ya vienen todos.
   const [busca, setBusca] = useState("");
+  const q = busca.trim().toUpperCase().replace(/\s+/g, "");
+  // La orden que trae el paciente del doctor. Esa sí se busca en el servidor,
+  // y solo cuando lo escrito tiene forma de código: mientras se teclea un
+  // nombre no hay nada que preguntar.
+  const [orden, setOrden] = useState<Orden | null>(null);
+  // Con cuál catálogo se lee esta fila: el laboratorio marca exámenes, la
+  // unidad de imagenología estudios y la sala de procedimientos, procedimientos.
+  const tipoOrden: TipoOrden =
+    unidad.tipo === "imagenologia" ? "imagen" : unidad.tipo === "procesos" ? "proceso" : "orden";
 
   const traer = useCallback(async () => {
     try {
-      const r = await fetch("/api/consultorio/turnos", { cache: "no-store" });
+      const r = await fetch(`/api/consultorio/turnos?unidad=${unidad.id}`, { cache: "no-store" });
       const d = await r.json();
       if (d.ok) setTurnos(d.turnos);
     } catch {
       // La siguiente vuelta corrige. Un error en pantalla por un parpadeo de
       // red, en un mostrador con gente esperando, es peor que el parpadeo.
     }
-  }, []);
+  }, [unidad.id]);
 
   useEffect(() => {
     const id = setInterval(traer, 5000);
@@ -75,6 +97,29 @@ export function Mostrador({
     const id = setInterval(() => setAhora(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!/^[A-Z]{5}-?\d{6}$/.test(q)) {
+      setOrden(null);
+      return;
+    }
+    let vivo = true;
+    const codigo = q.includes("-") ? q : `${q.slice(0, 5)}-${q.slice(5)}`;
+    fetch(`/api/consultorio/ordenes/${encodeURIComponent(codigo)}?unidad=${unidad.id}`, {
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (vivo) setOrden(d.ok ? d : null);
+      })
+      .catch(() => {
+        // Si falla la consulta queda la búsqueda normal sobre la fila, que es
+        // lo que había antes de que existieran las órdenes.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [q, unidad.id]);
 
   const mandar = useCallback(
     async (id: string, cuerpo: Record<string, unknown>) => {
@@ -103,7 +148,6 @@ export function Mostrador({
   const listos = useMemo(() => turnos.filter((t) => t.estado === "atendido"), [turnos]);
   const facturado = listos.reduce((n, t) => n + (t.monto ?? 0), 0);
 
-  const q = busca.trim().toUpperCase().replace(/\s+/g, "");
   const hallados = useMemo(
     () =>
       q.length === 0
@@ -124,7 +168,7 @@ export function Mostrador({
       <header className="no-imprimir bg-[var(--barra)] text-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-4">
           <span className="min-w-0">
-            <span className="block font-serif text-[19px] leading-tight">{sucursal.nombre}</span>
+            <span className="block font-serif text-[19px] leading-tight">{unidad.nombre}</span>
             <span className="block text-[12.5px] text-white/60">
               {esperando.length} esperando · {listos.length} atendidos · {dinero(facturado)}{" "}
               facturado hoy
@@ -132,14 +176,14 @@ export function Mostrador({
           </span>
           <span className="ml-auto flex flex-wrap items-center gap-4">
             <a
-              href="/api/consultorio/turnos/reporte"
+              href={`/api/consultorio/turnos/reporte?unidad=${unidad.id}`}
               className="flex items-center gap-1.5 text-[13.5px] text-white/70 underline underline-offset-4 transition hover:text-white"
             >
               <Download size={14} /> Corte del día
             </a>
             <a
-              href={`/api/consultorio/publico/qr/${sucursal.codigo}`}
-              download={`qr-${sucursal.codigo}.png`}
+              href={`/api/consultorio/publico/qr/${unidad.codigo}`}
+              download={`qr-${unidad.codigo}.png`}
               className="text-[13.5px] text-white/70 underline underline-offset-4 transition hover:text-white"
             >
               QR de la entrada
@@ -156,6 +200,7 @@ export function Mostrador({
               <Record
                 key={abierto.id}
                 turno={abierto}
+                tipoOrden={tipoOrden}
                 segundos={corridos(abierto, ahora)}
                 ocupado={ocupado}
                 cerrar={(hechos, final, monto) =>
@@ -196,11 +241,98 @@ export function Mostrador({
               />
             </label>
 
+            {orden && (
+              <section className="tarjeta abierta mt-5 px-5 py-5">
+                <p className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--texto-3)]">
+                  <ClipboardList size={15} /> Orden de {orden.doctor}
+                </p>
+                <p className="mt-1 font-serif text-[22px] leading-tight text-[var(--texto)]">
+                  {orden.paciente?.nombre ?? "Paciente"}
+                </p>
+                <p className="mt-0.5 font-mono text-[13px] text-[var(--texto-2)]">
+                  {orden.orden.codigo} · {fechaCorta(orden.orden.fecha)}
+                </p>
+
+                <ul className="mt-4 space-y-1.5">
+                  {orden.orden.examenes.map((e) => (
+                    <li key={e} className="flex items-baseline justify-between gap-3 text-[14px]">
+                      <span className="min-w-0 text-[var(--texto)]">
+                        {conLado(e)}
+                        <span className="ml-2 font-mono text-[11.5px] text-[var(--texto-3)]">
+                          {TODOS[e]?.codigo}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-mono text-[13px] text-[var(--texto-2)]">
+                        {TODOS[e]?.estimado ? "~" : ""}
+                        {dinero(TODOS[e]?.precio ?? 0)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 flex items-baseline justify-between gap-3 border-t border-[var(--linea)] pt-3">
+                  <span className="text-[13.5px] text-[var(--texto-2)]">
+                    {orden.orden.examenes.length} exámenes
+                  </span>
+                  <span className="font-serif text-[22px] text-[var(--texto)]">
+                    {dinero(valorTotal(orden.orden.examenes))}
+                  </span>
+                </p>
+
+                {orden.orden.indicaciones && (
+                  <p className="mt-3 text-[13.5px] leading-relaxed text-[var(--texto-2)]">
+                    {orden.orden.indicaciones}
+                  </p>
+                )}
+
+                {orden.suya === false && (
+                  <p className="mt-3 border-l-2 border-[var(--ambar)] bg-[var(--ambar-claro)] px-4 py-2.5 text-[13.5px] leading-relaxed text-[var(--texto)]">
+                    Esa orden no es de {orden.unidad}: hay que atenderla en el departamento que
+                    corresponde.
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  disabled={ocupado || orden.suya === false}
+                  onClick={async () => {
+                    if (orden.turnoId) {
+                      await mandar(orden.turnoId, { accion: "abrir" });
+                      setBusca("");
+                      return;
+                    }
+                    setOcupado(true);
+                    try {
+                      const r = await fetch(
+                        `/api/consultorio/ordenes/${encodeURIComponent(orden.orden.codigo)}?unidad=${unidad.id}`,
+                        { method: "POST" },
+                      );
+                      const d = await r.json();
+                      setOcupado(false);
+                      if (!d.ok) {
+                        setAviso(d.error ?? "No se pudo registrar.");
+                        return;
+                      }
+                      setBusca("");
+                      await mandar(d.turno.id, { accion: "abrir" });
+                    } catch {
+                      setOcupado(false);
+                      setAviso("No se pudo registrar: falló la conexión.");
+                    }
+                  }}
+                  className="boton mt-5"
+                >
+                  {orden.turnoId ? "Ya está en la fila, abrir su récord" : "Registrar y atender"}
+                </button>
+              </section>
+            )}
+
             {q.length > 0 ? (
               <>
                 <h2 className="mt-5 font-serif text-[19px] text-[var(--texto)]">
                   {hallados.length === 0
-                    ? "Nadie con ese dato hoy"
+                    ? orden
+                      ? "Todavía no ha tomado turno"
+                      : "Nadie con ese dato hoy"
                     : `${hallados.length} ${hallados.length === 1 ? "resultado" : "resultados"}`}
                 </h2>
                 <ul className="mt-3 space-y-2">
@@ -373,20 +505,20 @@ export function Mostrador({
           </div>
 
           <aside className="documento self-start px-6 py-6 text-center">
-            <p className="font-serif text-[14px] text-[var(--texto-2)]">{sucursal.nombre}</p>
+            <p className="font-serif text-[14px] text-[var(--texto-2)]">{unidad.nombre}</p>
             <h2 className="mt-2 font-serif text-[21px] leading-snug text-[var(--texto)]">
               Escaneá para tomar turno
             </h2>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`/api/consultorio/publico/qr/${sucursal.codigo}`}
-              alt={`Código QR de ${sucursal.nombre}`}
+              src={`/api/consultorio/publico/qr/${unidad.codigo}`}
+              alt={`Código QR de ${unidad.nombre}`}
               width={240}
               height={240}
               className="mx-auto mt-3 w-full max-w-[240px]"
             />
             <p className="mt-2 font-mono text-[17px] font-semibold tracking-[0.3em] text-[var(--texto)]">
-              {sucursal.codigo}
+              {unidad.codigo}
             </p>
             <button
               type="button"
@@ -413,11 +545,14 @@ export function Mostrador({
  */
 function Record({
   turno,
+  tipoOrden,
   segundos,
   ocupado,
   cerrar,
 }: {
   turno: Turno;
+  /** De cuál catálogo salen los ítems de este turno. */
+  tipoOrden: TipoOrden;
   segundos: number;
   ocupado: boolean;
   cerrar: (hechos: string[], final: boolean, monto: string) => void;
@@ -431,19 +566,22 @@ function Record({
   // paquetes y descuentos que el catálogo no sabe. En cuanto lo toca, deja de
   // moverse solo, aunque después cambie un check.
   const [monto, setMonto] = useState<string>(
-    turno.monto !== null ? String(turno.monto) : String(valorDe(turno.cerrado ? turno.hechos : turno.examenes)),
+    turno.monto !== null
+      ? String(turno.monto)
+      : String(valorTotal(turno.cerrado ? turno.hechos : turno.examenes)),
   );
   const [tocado, setTocado] = useState(turno.monto !== null);
 
-  const grupos = useMemo(() => agrupar(turno.examenes), [turno.examenes]);
-  const sugerido = valorDe(marcados);
+  const grupos = useMemo(() => agruparDe(tipoOrden, turno.examenes), [tipoOrden, turno.examenes]);
+  const sugerido = valorTotal(marcados);
+  const hayEstimados = grupos.some((g) => g.examenes.some((e) => e.estimado));
   const cobrado = Number(monto);
   const sePuedeFinalizar = monto.trim() !== "" && Number.isFinite(cobrado) && cobrado > 0;
 
   function marcar(id: string) {
     setMarcados((m) => {
       const nuevo = m.includes(id) ? m.filter((x) => x !== id) : [...m, id];
-      if (!tocado) setMonto(String(valorDe(nuevo)));
+      if (!tocado) setMonto(String(valorTotal(nuevo)));
       return nuevo;
     });
   }
@@ -477,7 +615,9 @@ function Record({
       </div>
 
       <div className="px-6 py-5">
-        <p className="text-[13.5px] text-[var(--texto-2)]">Desmarcá lo que no se va a hacer hoy.</p>
+        <p className="text-[13.5px] text-[var(--texto-2)]">
+          Desmarcá lo que no se va a hacer hoy. El total se arma con lo marcado.
+        </p>
         <div className="mt-3 sm:columns-2">
           {grupos.map((g) => (
             <div key={g.area} className="mb-4 break-inside-avoid">
@@ -489,12 +629,39 @@ function Record({
                     checked={marcados.includes(e.id)}
                     onChange={() => marcar(e.id)}
                   />
-                  <span className="text-[14.5px] leading-snug text-[var(--texto)]">{e.nombre}</span>
+                  <span className="min-w-0 flex-1 text-[14.5px] leading-snug text-[var(--texto)]">
+                    {e.nombre}
+                    <span className="block font-mono text-[11.5px] text-[var(--texto-3)]">
+                      {e.codigo}
+                    </span>
+                  </span>
+                  <span
+                    className="shrink-0 font-mono text-[13px] text-[var(--texto-2)]"
+                    title={e.estimado ? "Precio estimado: no viene en la lista del laboratorio" : undefined}
+                  >
+                    {e.estimado ? "~" : ""}
+                    {dinero(e.precio)}
+                  </span>
                 </label>
               ))}
             </div>
           ))}
         </div>
+
+        <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-[var(--linea)] pt-3">
+          <span className="text-[13.5px] text-[var(--texto-2)]">
+            {marcados.length} de {turno.examenes.length} exámenes
+          </span>
+          <span className="font-serif text-[26px] leading-none text-[var(--texto)]">
+            {dinero(sugerido)}
+          </span>
+        </div>
+        {hayEstimados && (
+          <p className="mt-2 text-[12px] leading-relaxed text-[var(--texto-3)]">
+            Los precios con ~ son estimados: no vienen en la lista del laboratorio. El monto que se
+            factura es el de abajo, que manda sobre esta suma.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-end gap-x-5 gap-y-4 border-t border-[var(--linea)] px-6 py-4">
@@ -515,7 +682,7 @@ function Record({
             />
           </span>
           <span className="mt-1 block text-[12px] text-[var(--texto-3)]">
-            {marcados.length} de {turno.examenes.length} exámenes · catálogo: {dinero(sugerido)}
+            Según la lista: {dinero(sugerido)}
           </span>
         </label>
 

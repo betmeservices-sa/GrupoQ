@@ -9,12 +9,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, FlaskConical, QrCode, Users } from "lucide-react";
+import { FileText, FlaskConical, QrCode, Scan, Stethoscope, Users } from "lucide-react";
 
 const SECCIONES = [
   { href: "/consultorio", nombre: "Pacientes", Icono: Users },
   { href: "/consultorio/recetas", nombre: "Recetas", Icono: FileText },
   { href: "/consultorio/examenes", nombre: "Exámenes", Icono: FlaskConical },
+  { href: "/consultorio/imagenes", nombre: "Imagenología", Icono: Scan },
+  { href: "/consultorio/procesos", nombre: "Procesos", Icono: Stethoscope },
   { href: "/consultorio/codigo", nombre: "Mi código", Icono: QrCode },
 ];
 

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { sucursalActual } from "@/lib/consultorio/actual";
-import { abrirTurno, cerrarTurno, turnoPorId } from "@/lib/consultorio/almacen";
+import { abrirTurno, cerrarTurno, sucursalPorId, turnoPorId } from "@/lib/consultorio/almacen";
 import { tenantFromRequest } from "@/lib/tenants/server";
 
 export const runtime = "nodejs";
@@ -15,7 +14,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (tenantFromRequest(req) !== "consultorio") {
     return NextResponse.json({ ok: false, error: "No existe." }, { status: 404 });
   }
-  const sucursalId = (await sucursalActual()).id;
   const { accion, hechos, monto } = (await req.json().catch(() => ({}))) as {
     accion?: string;
     hechos?: string[];
@@ -24,8 +22,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
 
   const previo = await turnoPorId(id);
-  // Un turno de otra sucursal se trata igual que uno inexistente.
-  if (!previo || previo.sucursalId !== sucursalId) {
+  // Tiene que ser de una unidad de la clínica. Cuál, lo dice el propio turno:
+  // el mostrador que lo abre ya sabe en qué departamento está parado.
+  if (!previo || !sucursalPorId(previo.sucursalId)) {
     return NextResponse.json({ ok: false, error: "Ese turno no existe." }, { status: 404 });
   }
 

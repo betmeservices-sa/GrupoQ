@@ -16,75 +16,8 @@
 // un laboratorio chico de San Salvador. Un demo con números imposibles se cae
 // solo en la primera pregunta del cliente.
 
-import { EXAMENES } from "./examenes";
+import { EXAMENES, precioDe, valorDe } from "./examenes";
 import type { Turno } from "./tipos";
-
-// Precios de lista, en dólares. Son los del guion del agente para los comunes y
-// un estimado por área para el resto: alcanzan para que el jefe vea de qué
-// tamaño es el día, que es lo que mira.
-const PRECIOS: Record<string, number> = {
-  hemograma: 12,
-  hb_hto: 8,
-  plaquetas: 8,
-  ves: 6,
-  tp_inr: 10,
-  tpt: 10,
-  tipeo: 8,
-  glucosa: 6,
-  hba1c: 22,
-  creatinina: 7,
-  bun: 7,
-  acido_urico: 7,
-  perfil_lipidico: 18,
-  tgo: 8,
-  tgp: 8,
-  fosfatasa: 9,
-  bilirrubinas: 9,
-  amilasa: 12,
-  electrolitos: 15,
-  calcio: 8,
-  proteinas: 9,
-  ego: 7,
-  urocultivo: 18,
-  egh: 7,
-  sangre_oculta: 9,
-  coprocultivo: 18,
-  tsh: 16,
-  t4l: 16,
-  t3: 16,
-  prolactina: 20,
-  testosterona: 24,
-  estradiol: 24,
-  fsh_lh: 28,
-  psa: 26,
-  bhcg: 20,
-  insulina: 22,
-  vit_d: 38,
-  vit_b12: 28,
-  ferritina: 22,
-  vih: 18,
-  vdrl: 10,
-  hbsag: 18,
-  hep_c: 22,
-  dengue: 25,
-  pcr: 12,
-  factor_reumatoideo: 12,
-  aso: 12,
-  h_pylori: 22,
-  rx_torax: 25,
-  us_abdominal: 40,
-  us_pelvico: 40,
-  us_tiroides: 40,
-  mamografia: 55,
-  ekg: 20,
-  densitometria: 60,
-};
-
-const PRECIO_POR_DEFECTO = 12;
-
-export function precioDe(examen: string): number {
-  return PRECIOS[examen] ?? PRECIO_POR_DEFECTO;
-}
 
 export interface Resumen {
   atendidos: number;
@@ -153,10 +86,7 @@ const FORMA_HORA = [0.55, 1, 0.95, 0.7, 0.45, 0.3, 0.2, 0.25, 0.3, 0.22, 0.15];
 
 const DIAS_CORTOS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 
-/** Lo que se cobró por una lista de exámenes. */
-export function valorDe(examenes: string[]): number {
-  return examenes.reduce((n, e) => n + precioDe(e), 0);
-}
+export { valorDe, precioDe } from "./examenes";
 
 const promedio = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
 
@@ -264,14 +194,14 @@ export function estadisticas(turnosDeHoy: Turno[], sucursalNombre: string): Esta
   // El ranking sale de lo que de verdad piden en un laboratorio: hemograma,
   // glucosa y orina se llevan la mitad del volumen.
   const TOP = [
-    "hemograma",
-    "glucosa",
-    "ego",
-    "perfil_lipidico",
-    "creatinina",
-    "hba1c",
-    "tsh",
-    "acido_urico",
+    "e01001",
+    "e03001",
+    "e12001",
+    "e03013",
+    "e03010",
+    "e03007",
+    "e06006",
+    "e03018",
   ];
   const pedidosHoy = new Map<string, number>();
   for (const t of turnosDeHoy) for (const e of t.examenes) pedidosHoy.set(e, (pedidosHoy.get(e) ?? 0) + 1);

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { COOKIE_DOCTOR, COOKIE_SUCURSAL } from "@/lib/consultorio/actual";
+import { COOKIE_DOCTOR, cookieDeUnidad } from "@/lib/consultorio/actual";
 import { doctorPorId, sucursalPorId } from "@/lib/consultorio/almacen";
 import { tenantFromRequest } from "@/lib/tenants/server";
+import type { TipoUnidad } from "@/lib/consultorio/tipos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,7 +33,9 @@ export async function GET(req: Request) {
   }
 
   const res = NextResponse.redirect(new URL(seguro, url.origin), { status: 302 });
-  res.cookies.set(que === "doctor" ? COOKIE_DOCTOR : COOKIE_SUCURSAL, id, {
+  const galleta =
+    que === "doctor" ? COOKIE_DOCTOR : cookieDeUnidad((existe as { tipo: TipoUnidad }).tipo);
+  res.cookies.set(galleta, id, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

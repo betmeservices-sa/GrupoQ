@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { sucursalActual } from "@/lib/consultorio/actual";
+import { unidadActual } from "@/lib/consultorio/actual";
 import { esDeLaClinica } from "@/lib/consultorio/guardia";
 import { listarSucursales, turnosDe } from "@/lib/consultorio/almacen";
 import { estadisticas } from "@/lib/consultorio/estadisticas";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // se facturó y qué se quedó sin hacer.
 export default async function PaginaJefatura() {
   if (!(await esDeLaClinica())) notFound();
-  const sucursal = await sucursalActual();
+  const sucursal = await unidadActual("laboratorio");
   const datos = estadisticas(await turnosDe(sucursal.id), sucursal.nombre);
 
   return (
@@ -25,7 +25,7 @@ export default async function PaginaJefatura() {
             que="sucursal"
             actual={sucursal.id}
             volverA="/laboratorio/jefatura"
-            opciones={listarSucursales().map((s) => ({
+            opciones={listarSucursales("laboratorio").map((s) => ({
               id: s.id,
               nombre: s.nombre,
               detalle: s.horario.split("·")[0].trim(),

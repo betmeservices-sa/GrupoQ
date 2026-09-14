@@ -1,0 +1,102 @@
+{
+  "name": "Consultorio - Correo al paciente",
+  "nodes": [
+    {
+      "id": "nota-consultorio-correo",
+      "name": "Notas",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        -60
+      ],
+      "parameters": {
+        "content": "## Correo del consultorio\n\nRecibe la receta o la orden YA REDACTADA desde el demo del consultorio (tenant \"consultorio\", demo.miagentia.com) y la manda por correo.\n\n**No arma nada**: el asunto, el HTML y la versión en texto vienen hechos desde la app, así que este flujo no tiene que saber nada de recetas. El día que cambie el formato, cambia allá.\n\n### Qué llega en el body\n- `a`: correo del paciente\n- `asunto`\n- `html`: el correo completo, con estilos en línea\n- `texto`: lo mismo en texto plano\n- `codigo`, `tipo`, `fecha`, `paciente`, `doctor`, `clinica`\n\n### Lo único que falta\n1. En **Enviar correo**, elegir la credencial de Gmail (o crear una y darle \"Connect\").\n2. **Activar** el workflow, arriba a la derecha.\n\nSi prefieren SMTP en vez de Gmail, se cambia el nodo por \"Send Email\" y se le pone la credencial SMTP: el resto queda igual.\n\nLa app NO da por enviado lo que este flujo no confirme: si no contesta 200, la pantalla dice que el correo no salió.",
+        "height": 520,
+        "width": 420
+      }
+    },
+    {
+      "id": "webhook-consultorio-correo",
+      "name": "Webhook Correo",
+      "webhookId": "consultorio-correo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        300,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "consultorio-correo",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "enviar-correo-consultorio",
+      "name": "Enviar correo",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        540,
+        0
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.body.a }}",
+        "subject": "={{ $json.body.asunto }}",
+        "message": "={{ $json.body.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "393969df-59c2-42c3-a749-f8784a73558e"
+    },
+    {
+      "id": "responder-consultorio-correo",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, a: $('Webhook Correo').item.json.body.a, codigo: $('Webhook Correo').item.json.body.codigo }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Correo": {
+      "main": [
+        [
+          {
+            "node": "Enviar correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar correo": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

@@ -35,6 +35,12 @@ export type ModuleId =
   // Lo que mira el jefe del laboratorio: cuanta gente paso, cuanto espero,
   // cuanto se facturo y que quedo sin hacerse.
   | "jefatura"
+  // La Unidad de Imagenologia y la sala de procedimientos: su propia fila, su
+  // propio codigo de entrada y su propio catalogo.
+  | "imagenologia"
+  // La bandeja simulada de la clinica: conversaciones de muestra, de solo
+  // lectura. No es la bandeja real de los otros clientes.
+  | "mensajes"
   | "interno"
   | "redes"
   | "comentarios"
@@ -49,6 +55,18 @@ export type ModuleId =
   | "qa"
   | "agentes"
   | "settings";
+
+// Los modulos que solo existen en la clinica (tenant "consultorio"). Es UNA
+// lista para el menu de la clinica y para esconderlos en los demas clientes:
+// antes eran dos listas a mano, y jefatura, imagenologia y la bandeja de
+// muestra entraron a una sola, asi que aparecian en el menu de todos.
+export const MODULOS_CLINICA: readonly ModuleId[] = [
+  "consultorio",
+  "laboratorio",
+  "imagenologia",
+  "jefatura",
+  "mensajes",
+];
 
 export interface RoleDef {
   id: RoleId;
@@ -78,11 +96,11 @@ export interface RoleDef {
 // marketing no gestiona casos, asi que no lo ve.
 // "mis-chats" lo ve todo el mundo: es donde caen los chats que el agente pasa a
 // una persona, y quien atiende tiene que verlos sin depender de su rol.
-const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "consultorio", "laboratorio", "jefatura", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "qa", "agentes", "settings"];
+const TODO: ModuleId[] = ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "consultorio", "laboratorio", "jefatura", "imagenologia", "mensajes", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard", "llamadas", "qa", "agentes", "settings"];
 export const VE: Record<RoleId, ModuleId[]> = {
   // Recepcion del consultorio es quien recibe al paciente y quien mueve la
   // fila del laboratorio: los dos modulos del modulo clinico son suyos.
-  recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "consultorio", "laboratorio", "interno", "comentarios"],
+  recepcion: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "consultorio", "laboratorio", "imagenologia", "mensajes", "interno", "comentarios"],
   // Atencion es quien da la cara: contesta lo privado y lo publico, trabaja
   // los casos que el agente no resuelve (los de pago van a Veronica desde el
   // kickoff), habla con el equipo, y VE COMO VA EL HOTEL: Veronica y Olga son
@@ -94,8 +112,8 @@ export const VE: Record<RoleId, ModuleId[]> = {
   gerente_marketing: TODO,
   // El medico ve su consultorio (sus pacientes, sus recetas), pero no el
   // mostrador del laboratorio: esa fila no es suya.
-  medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "consultorio", "interno"],
-  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "consultorio", "laboratorio", "jefatura", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard"],
+  medico: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "campanas", "consultorio", "imagenologia", "mensajes", "interno"],
+  jefe: ["bandeja", "mis-chats", "tickets", "hoy", "contactos", "habitaciones", "calendario", "pipeline", "crediq", "visitas", "cartera", "publicacion", "cobros", "consultorio", "laboratorio", "jefatura", "imagenologia", "mensajes", "interno", "redes", "comentarios", "promociones", "perfil", "sofia", "dashboard"],
   admin: TODO,
 };
 
@@ -119,6 +137,8 @@ export const MODULO_RUTA: Record<ModuleId, string> = {
   consultorio: "/consultorio",
   laboratorio: "/laboratorio",
   jefatura: "/laboratorio/jefatura",
+  imagenologia: "/imagenologia",
+  mensajes: "/mensajes",
   interno: "/interno",
   redes: "/redes",
   comentarios: "/comentarios",
@@ -148,6 +168,8 @@ export function moduloDeRuta(pathname: string): ModuleId | null {
   if (pathname.startsWith("/cobros")) return "cobros";
   if (pathname.startsWith("/campanas")) return "campanas";
   if (pathname.startsWith("/consultorio")) return "consultorio";
+  if (pathname.startsWith("/imagenologia")) return "imagenologia";
+  if (pathname.startsWith("/mensajes")) return "mensajes";
   if (pathname.startsWith("/laboratorio/jefatura")) return "jefatura";
   if (pathname.startsWith("/laboratorio")) return "laboratorio";
   if (pathname.startsWith("/interno")) return "interno";

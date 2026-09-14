@@ -9,12 +9,23 @@
 // Se abre la que interesa y se marca ahí.
 
 import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
-import { AREAS, preparacion } from "@/lib/consultorio/examenes";
+import { ChevronDown, ClipboardList } from "lucide-react";
+import {
+  areasDe,
+  conLado,
+  preparacionDe as preparacion,
+  valorTotal,
+  type TipoOrden,
+} from "@/lib/consultorio/catalogos";
 import type { Sucursal } from "@/lib/consultorio/tipos";
 import { Turno } from "@/components/consultorio/Turno";
 
 export function FilaSucursal({ sucursal }: { sucursal: Sucursal }) {
+  // De qué es esta entrada: exámenes de laboratorio, estudios de imagenología o
+  // procedimientos. De eso depende TODO lo que se ve abajo.
+  const tipoOrden: TipoOrden =
+    sucursal.tipo === "imagenologia" ? "imagen" : sucursal.tipo === "procesos" ? "proceso" : "orden";
+  const AREAS = areasDe(tipoOrden);
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
@@ -23,6 +34,50 @@ export function FilaSucursal({ sucursal }: { sucursal: Sucursal }) {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [turnoId, setTurnoId] = useState<string | null>(null);
+
+  // Quien viene referido trae el código de su orden. Con eso no hay que marcar
+  // nada a mano: se traen los exámenes que le dejó el doctor y solo confirma.
+  const [codigo, setCodigo] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [orden, setOrden] = useState<{ doctor: string; examenes: string[] } | null>(null);
+  const [errorOrden, setErrorOrden] = useState<string | null>(null);
+
+  async function traerOrden() {
+    const c = codigo.trim().toUpperCase();
+    if (!c) return;
+    setBuscando(true);
+    setErrorOrden(null);
+    try {
+      const r = await fetch(`/api/consultorio/publico/orden/${encodeURIComponent(c)}`, {
+        cache: "no-store",
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        setErrorOrden(d.error ?? "No encontramos esa orden.");
+        setOrden(null);
+      } else if (d.examenes.length === 0) {
+        setErrorOrden("Esa orden no trae nada que se haga acá.");
+        setOrden(null);
+      } else {
+        if (d.tipo !== tipoOrden) {
+          setErrorOrden("Esa orden no es de acá: es de otro departamento de la clínica.");
+          setOrden(null);
+          setBuscando(false);
+          return;
+        }
+        setOrden({ doctor: d.doctor, examenes: d.examenes });
+        setMarcados(d.examenes);
+        if (!nombre && d.nombre) setNombre(d.nombre);
+        // Se abre el área del primer examen para que se vea que quedó marcado
+        // y no parezca que no pasó nada.
+        const area = AREAS.find((a) => a.examenes.some((e) => e.id === d.examenes[0]));
+        if (area) setAbierta(area.id);
+      }
+    } catch {
+      setErrorOrden("No se pudo buscar: revisá tu conexión.");
+    }
+    setBuscando(false);
+  }
 
   const avisos = useMemo(() => preparacion(marcados), [marcados]);
 
@@ -57,6 +112,55 @@ export function FilaSucursal({ sucursal }: { sucursal: Sucursal }) {
 
   return (
     <form onSubmit={enviar} className="space-y-6">
+      <section className="tarjeta px-5 py-5">
+        <h2 className="font-serif text-[18px] text-[var(--texto)]">
+          ¿Traés orden de tu doctor?
+        </h2>
+        <p className="mt-0.5 text-[13.5px] leading-relaxed text-[var(--texto-2)]">
+          Escribí el código que aparece en ella y te marcamos los exámenes.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void traerOrden();
+              }
+            }}
+            placeholder="ABCDE-123456"
+            className="campo w-[190px] font-mono tracking-[0.08em]"
+          />
+          <button
+            type="button"
+            onClick={() => void traerOrden()}
+            disabled={buscando || codigo.trim().length < 6}
+            className="boton-2"
+          >
+            {buscando ? "Buscando" : "Confirmar"}
+          </button>
+        </div>
+        {errorOrden && (
+          <p className="mt-2 text-[13.5px] text-[var(--alerta)]">{errorOrden}</p>
+        )}
+        {orden && (
+          <div className="mt-3 border-l-2 border-[var(--verde)] bg-[var(--verde-claro)] px-4 py-3">
+            <p className="flex items-center gap-2 text-[14px] font-semibold text-[var(--verde-hondo)]">
+              <ClipboardList size={16} />
+              {orden.examenes.length} {orden.examenes.length === 1 ? "examen" : "exámenes"} de{" "}
+              {orden.doctor}
+            </p>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-[var(--texto-2)]">
+              {orden.examenes.map((e) => conLado(e)).join(", ")}
+            </p>
+            <p className="mt-1.5 text-[12.5px] text-[var(--texto-3)]">
+              Ya quedaron marcados abajo. Si querés agregar algo más, marcalo ahí.
+            </p>
+          </div>
+        )}
+      </section>
+
       <section className="tarjeta px-5 py-5">
         <h2 className="font-serif text-[18px] text-[var(--texto)]">Tus datos</h2>
         <div className="mt-4 space-y-4">
@@ -106,7 +210,13 @@ export function FilaSucursal({ sucursal }: { sucursal: Sucursal }) {
 
       <section className="tarjeta overflow-hidden">
         <div className="border-b border-[var(--linea)] px-5 py-4">
-          <h2 className="font-serif text-[18px] text-[var(--texto)]">¿Qué exámenes te vas a hacer?</h2>
+          <h2 className="font-serif text-[18px] text-[var(--texto)]">
+            {tipoOrden === "imagen"
+              ? "¿Qué estudio te vas a hacer?"
+              : tipoOrden === "proceso"
+                ? "¿Qué te van a hacer?"
+                : "¿Qué exámenes te vas a hacer?"}
+          </h2>
           <p className="mt-0.5 text-[13.5px] text-[var(--texto-2)]">
             Si traés una orden del doctor, marcá lo que dice ahí.
           </p>
@@ -144,13 +254,16 @@ export function FilaSucursal({ sucursal }: { sucursal: Sucursal }) {
                           checked={marcados.includes(e.id)}
                           onChange={() => marcar(e.id)}
                         />
-                        <span className="text-[14.5px] leading-snug text-[var(--texto)]">
+                        <span className="min-w-0 flex-1 text-[14.5px] leading-snug text-[var(--texto)]">
                           {e.nombre}
                           {e.nota && (
                             <span className="block text-[12.5px] text-[var(--texto-3)]">
                               {e.nota}
                             </span>
                           )}
+                        </span>
+                        <span className="shrink-0 font-mono text-[12.5px] text-[var(--texto-3)]">
+                          {e.estimado ? "~" : ""}${e.precio}
                         </span>
                       </label>
                     ))}
@@ -181,8 +294,8 @@ export function FilaSucursal({ sucursal }: { sucursal: Sucursal }) {
         <div className="flex items-center justify-between gap-3">
           <span className="text-[13.5px] text-[var(--texto-2)]">
             {marcados.length === 0
-              ? "Marcá tus exámenes"
-              : `${marcados.length} ${marcados.length === 1 ? "examen" : "exámenes"}`}
+              ? "Marcá lo que te vas a hacer"
+              : `${marcados.length} ${marcados.length === 1 ? "estudio" : "estudios"} · $${valorTotal(marcados)}`}
           </span>
           <button
             type="submit"

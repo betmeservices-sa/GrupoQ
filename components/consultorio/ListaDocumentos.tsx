@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Search } from "lucide-react";
 import { Encabezado } from "@/components/consultorio/Encabezado";
-import { agrupar } from "@/lib/consultorio/examenes";
+import { NOMBRE_TIPO, agruparDe, type TipoOrden } from "@/lib/consultorio/catalogos";
 import type { Documento } from "@/lib/consultorio/tipos";
 
 type ConNombre = Documento & { pacienteNombre: string };
@@ -25,7 +25,7 @@ export function ListaDocumentos({
   titulo,
   vacio,
 }: {
-  tipo: "receta" | "orden";
+  tipo: "receta" | TipoOrden;
   titulo: string;
   vacio: string;
 }) {
@@ -97,7 +97,7 @@ export function ListaDocumentos({
               <thead>
                 <tr className="border-b border-[var(--linea)] bg-[var(--panel-2)] text-left text-[12px] font-semibold uppercase tracking-wide text-[var(--texto-3)]">
                   <th className="w-[280px] px-5 py-3">Paciente</th>
-                  <th className="px-3 py-3">{tipo === "receta" ? "Medicamentos" : "Exámenes"}</th>
+                  <th className="px-3 py-3">{tipo === "receta" ? "Medicamentos" : NOMBRE_TIPO[tipo]}</th>
                   <th className="hidden w-[120px] px-3 py-3 sm:table-cell">Correo</th>
                   <th className="w-[120px] px-3 py-3 text-right">Fecha</th>
                   <th className="w-12 px-3 py-3" />
@@ -113,6 +113,13 @@ export function ListaDocumentos({
                       >
                         {d.pacienteNombre}
                       </Link>
+                      {/* El código con el que se reclama en el laboratorio: acá
+                          se ve para poder dictarlo por teléfono. */}
+                      {d.codigo && (
+                        <span className="block font-mono text-[11.5px] text-[var(--texto-3)]">
+                          {d.codigo}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       {d.tipo === "receta" ? (
@@ -123,7 +130,7 @@ export function ListaDocumentos({
                         <span className="flex flex-wrap gap-1.5">
                           <span className="chip chip-verde">{d.examenes.length}</span>
                           <span className="truncate text-[13.5px] text-[var(--texto-2)]">
-                            {agrupar(d.examenes)
+                            {agruparDe(d.tipo as TipoOrden, d.examenes)
                               .map((g) => g.area)
                               .join(", ")}
                           </span>
