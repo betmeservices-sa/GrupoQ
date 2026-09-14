@@ -66,6 +66,15 @@ export function Registro({ codigo }: { codigo: string }) {
         <p className="mx-auto mt-2 max-w-[34ch] text-[15px] leading-relaxed text-[var(--texto-2)]">
           Ya aparecés en la lista del doctor. Podés cerrar esta página y esperar a que te llamen.
         </p>
+        {datos.correo.trim() && (
+          <p className="mx-auto mt-4 max-w-[36ch] text-[14.5px] leading-relaxed text-[var(--texto-2)]">
+            Lo que te deje el doctor también lo encontrás en el{" "}
+            <a href="/portal" className="text-[var(--verde)] underline underline-offset-2">
+              portal del paciente
+            </a>
+            , entrando con {datos.correo.trim()}.
+          </p>
+        )}
         <p className="mt-6 border-t border-[var(--linea)] pt-4 text-[13px] text-[var(--texto-3)]">
           Si te equivocaste en algo, avisale a la persona de recepción.
         </p>

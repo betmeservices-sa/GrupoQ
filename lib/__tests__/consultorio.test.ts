@@ -14,12 +14,20 @@ import {
   crearTurno,
   cuantosDelante,
   doctorPorCodigo,
+  documentosDePacientes,
+  guardarDocumento,
   listarDoctores,
+  listarSucursales,
+  pacientesPorCorreo,
+  registrarPaciente,
   sucursalPorCodigo,
   turnoPorCodigo,
   turnosDe,
 } from "@/lib/consultorio/almacen";
 import { resumenDeHoy, valorDe } from "@/lib/consultorio/estadisticas";
+import { armarPortal, demasiados, normalizarCorreo, patronExacto } from "@/lib/consultorio/portal";
+import { armarCorreo } from "@/lib/consultorio/correo";
+import type { Documento } from "@/lib/consultorio/tipos";
 
 const SUCURSAL = "suc_escalon";
 
@@ -289,5 +297,179 @@ describe("la facturación del mostrador", () => {
     await cerrarTurno(a.id, ["e01001", "e03001"], true, 15);
     const resumen = resumenDeHoy(await turnosDe(SUCURSAL));
     expect(resumen.ingresos).toBe(15);
+  });
+});
+
+// El portal donde el paciente entra con su correo. Lo que se cuida es la línea
+// entre lo propio y lo ajeno: que un correo parecido no abra otro expediente,
+// que no salga el teléfono de nadie, y que cada orden traiga el código que
+// abre la orden en el mostrador.
+describe("el portal del paciente", () => {
+  const paciente = (doctorId: string, nombre: string, telefono: string, correo: string) =>
+    registrarPaciente({
+      doctorId,
+      nombre,
+      telefono,
+      correo,
+      nacimiento: null,
+      sexo: null,
+      motivo: "",
+      alergias: "",
+    }).then((r) => r.paciente);
+
+  const receta = (pacienteId: string, fecha: string): Documento => ({
+    id: `doc_r_${pacienteId}_${fecha}`,
+    tipo: "receta",
+    pacienteId,
+    doctorId: "dr_moran",
+    fecha,
+    codigo: "RECET-000001",
+    medicamentos: [
+      { nombre: "Metformina 850 mg", dosis: "1 tableta", frecuencia: "cada 12 horas", duracion: "30 días" },
+    ],
+    indicaciones: "Tomar con comida",
+    enviado: null,
+  });
+
+  const orden = (
+    pacienteId: string,
+    fecha: string,
+    tipo: "orden" | "imagen",
+    examenes: string[],
+    lados?: Record<string, "der" | "izq" | "ambos">,
+  ): Documento => ({
+    id: `doc_${tipo}_${pacienteId}_${fecha}`,
+    tipo,
+    pacienteId,
+    doctorId: "dr_rivas",
+    fecha,
+    codigo: tipo === "orden" ? "LABOR-123456" : "IMAGE-654321",
+    examenes,
+    lados,
+    diagnostico: "Control de diabetes",
+    indicaciones: "",
+    enviado: null,
+  });
+
+  it("el correo se compara sin espacios ni mayúsculas", () => {
+    expect(normalizarCorreo("  Marta.Guzman@Gmail.com ")).toBe("marta.guzman@gmail.com");
+    expect(normalizarCorreo("martagmail.com")).toBeNull();
+    expect(normalizarCorreo("")).toBeNull();
+  });
+
+  it("un guion bajo en el correo no se vuelve comodín", () => {
+    expect(patronExacto("ana_p%@x.com")).toBe("ana\\_p\\%@x.com");
+  });
+
+  it("junta los expedientes del mismo correo con cualquier doctor, y solo esos", async () => {
+    await paciente("dr_moran", "Marta Guzmán", "70000001", "Marta.Guzman@gmail.com");
+    await paciente("dr_rivas", "Marta Guzmán", "70000001", "marta.guzman@gmail.com");
+    await paciente("dr_moran", "Ana Pérez", "70000002", "ana_p@gmail.com");
+    await paciente("dr_moran", "Anax Pérez", "70000003", "anaxp@gmail.com");
+
+    expect(await pacientesPorCorreo("MARTA.GUZMAN@gmail.com ")).toHaveLength(2);
+    expect((await pacientesPorCorreo("ana_p@gmail.com")).map((p) => p.nombre)).toEqual(["Ana Pérez"]);
+    expect(await pacientesPorCorreo("nadie@gmail.com")).toEqual([]);
+    expect(await pacientesPorCorreo("no es correo")).toEqual([]);
+  });
+
+  it("trae solo lo que se les dejó a esas personas", async () => {
+    const marta = await paciente("dr_moran", "Marta", "70000001", "marta@gmail.com");
+    const otra = await paciente("dr_moran", "Otra", "70000009", "otra@gmail.com");
+    await guardarDocumento(receta(marta.id, "2026-09-10T15:00:00.000Z"));
+    await guardarDocumento(receta(otra.id, "2026-09-11T15:00:00.000Z"));
+    const docs = await documentosDePacientes([marta.id]);
+    expect(docs.map((d) => d.pacienteId)).toEqual([marta.id]);
+  });
+
+  it("separa por lo que es, lo más reciente primero, y cada orden con su código y su lugar", async () => {
+    const marta = await paciente("dr_moran", "Marta Elena Guzmán", "70000001", "marta@gmail.com");
+    const portal = armarPortal(
+      [marta],
+      [
+        receta(marta.id, "2026-09-01T15:00:00.000Z"),
+        orden(marta.id, "2026-09-05T15:00:00.000Z", "orden", ["e01001", "e03001"]),
+        orden(marta.id, "2026-09-03T15:00:00.000Z", "imagen", ["rx104"], { rx104: "der" }),
+      ],
+      listarDoctores(),
+      listarSucursales(),
+    );
+
+    expect(portal.nombre).toBe("Marta Elena Guzmán");
+    expect(portal.varias).toBe(false);
+    expect(portal.secciones.map((s) => [s.id, s.cantidad])).toEqual([
+      ["receta", 1],
+      ["orden", 1],
+      ["imagen", 1],
+    ]);
+    expect(portal.documentos.map((d) => d.tipo)).toEqual(["orden", "imagen", "receta"]);
+
+    const [lab, img] = portal.documentos;
+    if (lab.tipo === "receta" || img.tipo === "receta") throw new Error("esperaba dos órdenes");
+    expect(lab.codigo).toBe("LABOR-123456");
+    expect(lab.preparacion).toContain("ayuno de 8 horas");
+    // La orden de laboratorio se hace en las dos sedes del laboratorio, no en
+    // imagenología; y el estudio con lado lo dice pegado al nombre.
+    expect(lab.lugares.map((l) => l.nombre)).toEqual(["Laboratorio Escalón", "Laboratorio Santa Tecla"]);
+    expect(img.grupos.flatMap((g) => g.estudios)).toEqual(["Conductos auditivos (der)"]);
+    expect(img.lugares.map((l) => l.nombre)).toEqual(["Unidad de Imagenología"]);
+  });
+
+  it("no entrega el teléfono de nadie ni el diagnóstico", async () => {
+    const marta = await paciente("dr_moran", "Marta", "70001234", "marta@gmail.com");
+    const portal = armarPortal(
+      [marta],
+      [orden(marta.id, "2026-09-05T15:00:00.000Z", "orden", ["e01001"])],
+      listarDoctores(),
+      listarSucursales(),
+    );
+    const json = JSON.stringify(portal);
+    expect(json).not.toContain("70001234");
+    expect(json).not.toContain("Control de diabetes");
+  });
+
+  it("con dos personas bajo el mismo correo, cada documento dice para quién es", async () => {
+    const mama = await paciente("dr_moran", "Silvia Menjívar", "70000010", "familia@gmail.com");
+    const hijo = await paciente("dr_rivas", "Nelson Cruz", "70000011", "familia@gmail.com");
+    const portal = armarPortal(
+      [mama, hijo],
+      [receta(mama.id, "2026-09-01T15:00:00.000Z"), receta(hijo.id, "2026-09-02T15:00:00.000Z")],
+      listarDoctores(),
+      listarSucursales(),
+    );
+    expect(portal.varias).toBe(true);
+    expect(portal.documentos.map((d) => d.paciente)).toEqual(["Nelson Cruz", "Silvia Menjívar"]);
+  });
+
+  it("registrado pero sin nada todavía: entra y no hay secciones", async () => {
+    const nuevo = await paciente("dr_moran", "Nuevo", "70000020", "nuevo@gmail.com");
+    const portal = armarPortal([nuevo], [], listarDoctores(), listarSucursales());
+    expect(portal.nombre).toBe("Nuevo");
+    expect(portal.secciones).toEqual([]);
+  });
+
+  it("frena a quien prueba correos en bucle", () => {
+    const golpes = new Map<string, number[]>();
+    for (let i = 0; i < 12; i++) expect(demasiados(golpes, "1.2.3.4", 1000 + i)).toBe(false);
+    expect(demasiados(golpes, "1.2.3.4", 1100)).toBe(true);
+    // Otra IP no paga por la primera, y pasada la ventana se vuelve a poder.
+    expect(demasiados(golpes, "5.6.7.8", 1100)).toBe(false);
+    expect(demasiados(golpes, "1.2.3.4", 1100 + 10 * 60_000 + 1)).toBe(false);
+  });
+
+  it("es público: ningún rol lo cierra", () => {
+    expect(moduloDeRuta("/portal")).toBeNull();
+    expect(puedeVerRuta("recepcion", "/portal")).toBe(true);
+  });
+
+  it("el correo lleva la dirección del portal para el día que se pierda", async () => {
+    const marta = await paciente("dr_moran", "Marta", "70000001", "marta@gmail.com");
+    const doc = orden(marta.id, "2026-09-05T15:00:00.000Z", "orden", ["e01001"]);
+    const dr = listarDoctores()[1];
+    const correo = armarCorreo(doc, marta, dr, "https://demo.miagentia.com/portal");
+    expect(correo.texto).toContain("https://demo.miagentia.com/portal");
+    expect(correo.html).toContain('href="https://demo.miagentia.com/portal"');
+    // Sin portal el correo sale como antes.
+    expect(armarCorreo(doc, marta, dr).texto).not.toContain("/portal");
   });
 });

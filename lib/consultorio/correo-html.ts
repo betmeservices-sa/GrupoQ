@@ -82,8 +82,14 @@ export function armarHtml(
   paciente: Paciente,
   doctor: Doctor,
   clinica: string,
+  /** La URL del portal del paciente, para el día que este correo se pierda. */
+  portal?: string,
 ): string {
   const titulo = doc.tipo === "receta" ? "Receta médica" : NOMBRE_TIPO[doc.tipo];
+
+  const siSePierde = portal
+    ? `<br>Si pierde este correo, entre a <a href="${escapar(portal)}" style="color:${VERDE};">${escapar(portal.replace(/^https?:\/\//, ""))}</a> con ${escapar(paciente.correo)} y ahí lo encuentra.`
+    : "";
 
   // Lo que el paciente tiene que hacer con esto. En la receta, nada: se lleva a
   // la farmacia. En una orden, el código es lo que le ahorra la fila.
@@ -166,7 +172,7 @@ export function armarHtml(
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:1px solid ${LINEA};">
                 <tr>
                   <td style="padding:14px 0 28px;font:400 12.5px ${SANS};color:${SUAVE};line-height:1.6;">
-                    ${escapar(clinica)} · ${escapar(doctor.telefono)}<br>
+                    ${escapar(clinica)} · ${escapar(doctor.telefono)}${siSePierde}<br>
                     Este correo se generó desde el expediente de ${escapar(paciente.nombre)}. Si no es para usted, por favor bórrelo.
                   </td>
                 </tr>

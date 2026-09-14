@@ -43,7 +43,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ ok: false, error: "Ese documento no existe." }, { status: 404 });
   }
 
-  const { salio, porque } = await mandarPorN8n(armarCorreo(doc, paciente, doctor));
+  // El pie del correo lleva el portal del paciente, en el mismo dominio desde el
+  // que se envía: así demo y producción mandan cada uno a su propio portal.
+  const portal = `${new URL(req.url).origin}/portal`;
+  const { salio, porque } = await mandarPorN8n(armarCorreo(doc, paciente, doctor, portal));
 
   await guardarDocumento({
     ...doc,

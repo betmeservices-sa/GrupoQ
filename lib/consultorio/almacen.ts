@@ -14,6 +14,7 @@
 // no cambian, y tenerlos acá evita dos tablas que nadie edita.
 
 import { getSupabase } from "@/lib/supabase";
+import { normalizarCorreo, patronExacto } from "./portal";
 import {
   idNuevo,
   codigoReceta,
@@ -365,6 +366,50 @@ export async function guardarDocumento(doc: Documento): Promise<Documento> {
   if (i >= 0) mem().documentos[i] = doc;
   else mem().documentos.push(doc);
   return doc;
+}
+
+// ── El portal del paciente ──────────────────────────────────────────────────
+
+/**
+ * Todos los expedientes que dejaron este correo, con cualquier doctor.
+ *
+ * Sin distinguir mayúsculas: el correo se guarda como lo escribió la persona en
+ * su teléfono, y el teclado le pone la mayúscula inicial solo. Va con `ilike`
+ * escapado y además se vuelve a comparar exacto acá, para que ningún comodín
+ * cuele el expediente de otra persona.
+ */
+export async function pacientesPorCorreo(correo: string): Promise<Paciente[]> {
+  const c = normalizarCorreo(correo);
+  if (!c) return [];
+  const mismo = (p: Paciente) => normalizarCorreo(p.correo) === c;
+  const sb = db();
+  if (sb) {
+    const { data, error } = await sb
+      .from("consultorio_pacientes")
+      .select("*")
+      .ilike("correo", patronExacto(c));
+    if (!error && data) return data.map(dePaciente).filter(mismo);
+    sinTablas("pacientesPorCorreo", error?.message);
+  }
+  return mem().pacientes.filter(mismo);
+}
+
+/** Lo que se les dejó escrito a varias personas a la vez, lo más reciente primero. */
+export async function documentosDePacientes(ids: string[]): Promise<Documento[]> {
+  if (ids.length === 0) return [];
+  const sb = db();
+  if (sb) {
+    const { data, error } = await sb
+      .from("consultorio_documentos")
+      .select("*")
+      .in("paciente_id", ids)
+      .order("fecha", { ascending: false });
+    if (!error && data) return data.map(deDocumento);
+    sinTablas("documentosDePacientes", error?.message);
+  }
+  return mem()
+    .documentos.filter((d) => ids.includes(d.pacienteId))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
 }
 
 // ── La fila del laboratorio ─────────────────────────────────────────────────

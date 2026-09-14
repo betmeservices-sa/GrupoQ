@@ -14,7 +14,9 @@ import { LiveMount } from "./LiveMount";
 import { LoginPage } from "./LoginPage";
 
 // Rutas públicas que NO llevan el chrome del dashboard (sidebar, store, etc.).
-const PUBLIC_ROUTES = ["/privacy"];
+// "/portal" es el portal del paciente de la clínica: entra con su correo, sin
+// cuenta, igual que las páginas de los QR de abajo.
+const PUBLIC_ROUTES = ["/privacy", "/portal"];
 
 // Lo mismo, pero por prefijo: las dos páginas que abre el PACIENTE al escanear
 // un QR del consultorio (`/r/<código>` la del doctor, `/s/<código>` la del

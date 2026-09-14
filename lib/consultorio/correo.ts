@@ -39,6 +39,8 @@ export function armarCorreo(
   doc: Documento,
   paciente: Paciente,
   doctor: Doctor,
+  /** La URL del portal del paciente, para el día que este correo se pierda. */
+  portal?: string,
 ): CorreoDeDocumento {
   const titulo = doc.tipo === "receta" ? "Receta médica" : NOMBRE_TIPO[doc.tipo];
 
@@ -80,6 +82,7 @@ export function armarCorreo(
     doc.tipo !== "receta"
       ? `\nPresente este código en la recepción y le marcamos todo sin llenar nada: ${doc.codigo}`
       : "",
+    portal ? `\nSi pierde este correo, entre a ${portal} con ${paciente.correo} y ahí lo encuentra.` : "",
     "",
     `${doctor.nombre}`,
     `${doctor.especialidad} · ${doctor.registro}`,
@@ -89,7 +92,7 @@ export function armarCorreo(
   return {
     a: paciente.correo,
     asunto: `${titulo} de ${CLINICA} · ${doc.codigo}`,
-    html: armarHtml(doc, paciente, doctor, CLINICA),
+    html: armarHtml(doc, paciente, doctor, CLINICA, portal),
     texto: lineas.filter((l) => l !== "").join("\n"),
     clinica: CLINICA,
     codigo: doc.codigo,

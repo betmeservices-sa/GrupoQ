@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, Filter, FlaskConical, GitBranch, HandCoins, Headphones, IdCard, Inbox, LogOut, Megaphone, MessageCircle, MessagesSquare, PhoneCall, PhoneOutgoing, Scan, Settings, Share2, Smartphone, Stethoscope, X, type LucideIcon } from "lucide-react";
+import { BadgePercent, MessagesSquare as MsgSq, TicketCheck, BarChart3, BedDouble, Bot, BotOff, Building2, CalendarClock, CalendarDays, ConciergeBell, Contact, FileText, Filter, FlaskConical, GitBranch, HandCoins, Headphones, IdCard, Inbox, LogOut, Megaphone, MessageCircle, MessagesSquare, PhoneCall, PhoneOutgoing, Scan, Settings, Share2, Smartphone, Stethoscope, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRole, type ModuleId } from "@/lib/roles";
 import { MODULOS_CLINICA } from "@/lib/modulos";
@@ -240,6 +240,20 @@ export function Sidebar({
           >
             <Smartphone size={18} strokeWidth={2.1} />
             <span className="min-w-0 flex-1 truncate">Vista del paciente</span>
+          </a>
+        )}
+        {/* El portal donde el paciente entra con su correo y ve sus recetas y
+            órdenes. Público como la vista de arriba: se abre aparte. */}
+        {veClinica && (
+          <a
+            href="/portal"
+            target="_blank"
+            rel="noreferrer"
+            onClick={onClose}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--text-2)] transition hover:bg-surface hover:text-[var(--text)]"
+          >
+            <FileText size={18} strokeWidth={2.1} />
+            <span className="min-w-0 flex-1 truncate">Portal del paciente</span>
           </a>
         )}
       </nav>
