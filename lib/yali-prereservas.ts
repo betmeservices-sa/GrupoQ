@@ -227,16 +227,19 @@ export async function preReservaViva(tenant: string, clave: string): Promise<Pre
  * Lo que hay que mirar: por clave, todo lo de esa conversación (vivo y
  * cerrado, lo más nuevo primero); sin clave, los apartados vivos del tenant y
  * los últimos cerrados, para la lista del panel.
+ *
+ * `tope` es 40 para esa lista. El tablero de la agencia pide más: con 40, un
+ * periodo de 30 días o un rango viejo salían en cero sin avisar.
  */
-export async function listarPreReservas(tenant: string, clave?: string): Promise<PreReserva[]> {
+export async function listarPreReservas(tenant: string, clave?: string, tope = 40): Promise<PreReserva[]> {
   const sb = getSupabase(tenant);
   if (!sb) {
     return [...mem.values()]
       .filter((p) => p.tenant === tenant && (!clave || p.clave === clave))
       .sort((a, b) => (a.creada < b.creada ? 1 : -1))
-      .slice(0, 40);
+      .slice(0, tope);
   }
-  let q = sb.from(TABLA).select("*").eq("tenant", tenant).order("creada", { ascending: false }).limit(40);
+  let q = sb.from(TABLA).select("*").eq("tenant", tenant).order("creada", { ascending: false }).limit(tope);
   if (clave) q = q.eq("clave", clave);
   const { data, error } = await q;
   if (error) throw new Error(error.message);

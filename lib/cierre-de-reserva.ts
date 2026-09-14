@@ -68,7 +68,7 @@ function entre(a: string | null | undefined, b: string | null | undefined): numb
  * silencio largo. Lo de antes de ese silencio es otra visita, de otro mes, y
  * meterla haría que "tardó en cerrar" midiera meses que nadie estuvo esperando.
  */
-export function tandaDelCierre(mensajes: MensajeDelHilo[], cierre?: string | null): MensajeDelHilo[] {
+export function tandaDelCierre<T extends MensajeDelHilo>(mensajes: readonly T[], cierre?: string | null): T[] {
   const hilo = [...mensajes]
     .filter((m) => !Number.isNaN(Date.parse(m.ts)))
     .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));

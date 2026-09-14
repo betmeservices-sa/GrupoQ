@@ -9,6 +9,11 @@
 // cada reserva, o sea una consulta por reserva. Meterlo en el resumen haría
 // lento el panel entero para un bloque que no siempre se mira.
 //
+// GET ?cliente=<tenant>&periodo=hoy|ayer|7d|30d|rango&desde=AAAA-MM-DD&hasta=AAAA-MM-DD
+//
+// Las confirmadas se cortan igual que en el resumen (por el día en que se
+// apartaron), para que "Quién cerró" cuadre con el bloque de la plata.
+//
 // Solo para la agencia: acá se ve la operación de un cliente con nombre y
 // apellido de quién cerró qué.
 
@@ -21,6 +26,8 @@ import { listarPreReservas } from "@/lib/yali-prereservas";
 import { mensajesAnteriores } from "@/lib/meta-messages-store";
 import { comoSeCerro, resumirCierres, type MensajeDelHilo } from "@/lib/cierre-de-reserva";
 import type { MetaCanal } from "@/lib/meta-messages-store";
+import { esPeriodo, rangoDePeriodo } from "@/lib/periodos";
+import { confirmadasDelPeriodo } from "@/lib/agencia-resumen";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +40,9 @@ const HILO = 200;
 /** Hasta cuántas reservas se arman por pedido, para no colgar el panel. */
 const TOPE = 40;
 
+/** Cuántos apartados se leen para cortar el periodo (el mismo que el resumen). */
+const TOPE_RESERVAS = 1000;
+
 export async function GET(req: Request) {
   // La agencia y nadie más: esto muestra quién de un cliente cerró qué.
   const tenantDelPanel = tenantFromRequest(req);
@@ -42,19 +52,17 @@ export async function GET(req: Request) {
   const sesion = await leerSesion(sesionDeCookieHeader(req.headers.get("cookie")));
   if (!sesion) return NextResponse.json({ ok: false, error: "No autenticado" }, { status: 401 });
 
-  const pedido = new URL(req.url).searchParams.get("cliente") ?? "";
+  const q = new URL(req.url).searchParams;
+  const pedido = q.get("cliente") ?? "";
   if (!isTenantId(pedido)) {
     return NextResponse.json({ ok: false, error: "Falta el cliente." }, { status: 400 });
   }
 
-  const desde = new URL(req.url).searchParams.get("desde");
+  const periodo = q.get("periodo");
+  const { desde, hasta } = rangoDePeriodo(esPeriodo(periodo) ? periodo : "7d", new Date(), q.get("desde"), q.get("hasta"));
 
-  const todas = await listarPreReservas(pedido).catch(() => []);
-  const confirmadas = todas
-    .filter((r) => r.estado === "confirmada")
-    .filter((r) => !desde || (r.confirmadaTs ?? r.creada) >= desde)
-    .sort((a, b) => (b.confirmadaTs ?? b.creada).localeCompare(a.confirmadaTs ?? a.creada))
-    .slice(0, TOPE);
+  const todas = await listarPreReservas(pedido, undefined, TOPE_RESERVAS).catch(() => []);
+  const confirmadas = confirmadasDelPeriodo(todas, desde, hasta).slice(0, TOPE);
 
   const cierres = await Promise.all(
     confirmadas.map(async (r) => {
@@ -88,7 +96,7 @@ export async function GET(req: Request) {
         confirmadaTs: r.confirmadaTs ?? null,
         confirmadaPor: r.confirmadaPor ?? null,
         comprobanteTs: r.comprobanteTs ?? null,
-        conversacion: r.clave ?? null,
+        conversacion: canal && pageId && senderId ? r.clave : null,
         cierre: comoSeCerro(mensajes, r.confirmadaTs ?? null),
       };
     }),

@@ -2,19 +2,21 @@
 
 // El tablero de la agencia: un cliente a la vez.
 //
-// Arriba, una pestaña por cliente (Yali primero, es el cliente oficial). Al
-// elegir uno se ve SOLO lo suyo: cuánto costó el agente de IA en el periodo,
-// cuántas respuestas mandó, a cuántas conversaciones, cuánto sale cada
-// respuesta, si la caché está trabajando, por canal, por día u hora, y el
-// detalle por conversación. Debajo, sus tickets, su gente y sus accesos.
+// Arriba, una pestaña por cliente (solo los de verdad: los demos no se
+// reportan). Debajo de los filtros, en este orden: cuánto consumió el agente de
+// IA, las estadías que apartó (la plata), quién cerró cada una, y los tickets,
+// la gente y los accesos del cliente. TODO se corta con el periodo elegido:
+// antes el filtro movía el consumo y la plata seguía mostrando 30 días.
 //
-// Los periodos (hoy, ayer, semana, mes, rango) se cortan en hora de El
+// Los periodos (hoy, ayer, 7 días, 30 días, rango) se cortan en hora de El
 // Salvador en el servidor; acá solo se pintan.
 
 import { useCallback, useEffect, useState } from "react";
 import {
   BedDouble,
   Bot,
+  CalendarDays,
+  ChevronDown,
   CircleDollarSign,
   Coins,
   Database,
@@ -29,7 +31,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { MetricCard } from "@/components/dashboard/MetricCard";
+import { CalendarioRango } from "@/components/dashboard/CalendarioRango";
+import { ConversacionCierre } from "@/components/dashboard/ConversacionCierre";
 import { PERIODOS, type Canal, type Periodo, type ReporteConsumo } from "@/lib/agencia-consumo";
+import { PERIODOS_AGENCIA, type ReservasDelPeriodo, type TicketsDelPeriodo } from "@/lib/agencia-resumen";
 
 interface Cierre {
   inicio: string | null;
@@ -52,6 +57,8 @@ interface ReservaCerrada {
   confirmadaTs: string | null;
   confirmadaPor: string | null;
   comprobanteTs: string | null;
+  /** La clave del chat de Meta. null = entró por otra vía y no hay chat que abrir. */
+  conversacion: string | null;
   cierre: Cierre;
 }
 
@@ -76,24 +83,11 @@ interface Usuario {
   logins: number;
 }
 
-interface Monto {
-  n: number;
-  total: number;
-}
-
 interface Cliente {
   id: string;
   nombre: string;
-  oficial: boolean;
-  tokens: { respuestas: number; costo: number; costoTotalHistorico: number };
-  tickets: { total: number; periodo: number; abiertos: number; resueltos: number; porSofia: number; medianaMinutos: number | null; porTipo: { tipo: string; n: number }[] };
-  reservas: {
-    confirmadas: Monto;
-    pendientePago: Monto;
-    conComprobante: Monto;
-    esperando: Monto;
-    rechazadas: number;
-  };
+  tickets: TicketsDelPeriodo;
+  reservas: ReservasDelPeriodo;
   usuarios: Usuario[];
   activosAhora: number;
 }
@@ -101,7 +95,6 @@ interface Cliente {
 interface Acceso {
   ts: string;
   tenant: string;
-  cliente: string;
   usuario: string;
   nombre: string | null;
   rol: string | null;
@@ -111,7 +104,6 @@ interface Acceso {
 }
 
 interface Resumen {
-  dias: number;
   clientes: Cliente[];
   accesos: Acceso[];
 }
@@ -136,8 +128,10 @@ const CANAL: Record<Canal, string> = {
 };
 
 const TZ = "America/El_Salvador";
-const DIAS_RESUMEN = 30;
 const CLIENTE_INICIAL = "yaly";
+
+// Los filtros del tablero, con sus etiquetas de siempre.
+const FILTROS = PERIODOS_AGENCIA.map((clave) => PERIODOS.find((p) => p.clave === clave)!);
 
 /** "45 min", "2 h 53", "1 d 3 h": el tiempo como lo diría una persona. */
 function duracion(min: number): string {
@@ -215,35 +209,39 @@ export function AgenciaDashboard() {
   // Como se cerro cada reserva. Va aparte del resumen porque lee el hilo de
   // cada una: meterlo ahi haria lento el panel entero.
   const [cierres, setCierres] = useState<Cierres | null>(null);
+  const [verCierres, setVerCierres] = useState(false);
+  const [chat, setChat] = useState<ReservaCerrada | null>(null);
   const [periodo, setPeriodo] = useState<Periodo>("7d");
   const [desde, setDesde] = useState(() => hoySV(-6));
   const [hasta, setHasta] = useState(() => hoySV());
+  const [calendario, setCalendario] = useState(false);
   const [reporte, setReporte] = useState<Reporte | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [metrica, setMetrica] = useState<"respuestas" | "costo">("respuestas");
 
+  // El mismo periodo para las tres consultas: si una se corta distinto, el
+  // tablero vuelve a mostrar números de periodos diferentes lado a lado.
+  const rangoInvalido = periodo === "rango" && (!desde || !hasta || hasta < desde);
+  const filtro = periodo === "rango" ? `periodo=rango&desde=${desde}&hasta=${hasta}` : `periodo=${periodo}`;
+
   const cargarResumen = useCallback(async () => {
+    if (rangoInvalido) return;
     try {
-      const r = await fetch(`/api/agencia/resumen?dias=${DIAS_RESUMEN}`, { cache: "no-store" });
+      const r = await fetch(`/api/agencia/resumen?${filtro}`, { cache: "no-store" });
       const d = (await r.json()) as Resumen & { ok: boolean; error?: string };
       if (d.ok) setResumen(d);
       else setError(d.error ?? "No se pudo leer.");
     } catch {
       setError("No se pudo leer.");
     }
-  }, []);
+  }, [filtro, rangoInvalido]);
 
   const cargarReporte = useCallback(async () => {
-    if (periodo === "rango" && (!desde || !hasta || hasta < desde)) return;
+    if (rangoInvalido) return;
     setCargando(true);
     try {
-      const q = new URLSearchParams({ cliente, periodo });
-      if (periodo === "rango") {
-        q.set("desde", desde);
-        q.set("hasta", hasta);
-      }
-      const r = await fetch(`/api/agencia/consumo?${q}`, { cache: "no-store" });
+      const r = await fetch(`/api/agencia/consumo?cliente=${encodeURIComponent(cliente)}&${filtro}`, { cache: "no-store" });
       const d = (await r.json()) as Reporte & { ok: boolean; error?: string };
       if (d.ok) {
         setReporte(d);
@@ -254,7 +252,7 @@ export function AgenciaDashboard() {
     } finally {
       setCargando(false);
     }
-  }, [cliente, periodo, desde, hasta]);
+  }, [cliente, filtro, rangoInvalido]);
 
   useEffect(() => {
     void cargarResumen();
@@ -269,24 +267,27 @@ export function AgenciaDashboard() {
   }, [cargarReporte]);
 
   useEffect(() => {
+    if (rangoInvalido) return;
     let vivo = true;
-    setCierres(null);
-    fetch(`/api/agencia/cierres?cliente=${encodeURIComponent(cliente)}`, { cache: "no-store" })
+    fetch(`/api/agencia/cierres?cliente=${encodeURIComponent(cliente)}&${filtro}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (vivo && d.ok) setCierres({ resumen: d.resumen, cierres: d.cierres });
+        if (vivo) setCierres(d.ok ? { resumen: d.resumen, cierres: d.cierres } : null);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (vivo) setCierres(null);
+      });
     return () => {
       vivo = false;
     };
-  }, [cliente]);
+  }, [cliente, filtro, rangoInvalido]);
 
-  // La agencia no se reporta a sí misma. Yali va primero; luego los que tienen algo.
-  const clientes = (resumen?.clientes ?? []).filter((c) => c.id !== "miagentia");
+  const cerrarCalendario = useCallback(() => setCalendario(false), []);
+  const cerrarChat = useCallback(() => setChat(null), []);
+
+  const clientes = resumen?.clientes ?? [];
   const seleccionado = clientes.find((c) => c.id === cliente) ?? null;
   const accesos = (resumen?.accesos ?? []).filter((a) => a.tenant === cliente);
-  const conUso = (c: Cliente) => c.oficial || c.tokens.respuestas > 0 || c.tickets.total > 0 || c.usuarios.length > 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -311,7 +312,7 @@ export function AgenciaDashboard() {
         </div>
 
         <nav className="mt-2 flex gap-1 overflow-x-auto px-5" aria-label="Clientes">
-          {(clientes.length ? clientes : [{ id: CLIENTE_INICIAL, nombre: "YALÍ", oficial: true } as Cliente]).map((c) => (
+          {(clientes.length ? clientes : [{ id: CLIENTE_INICIAL, nombre: "YALÍ" }]).map((c) => (
             <button
               key={c.id}
               type="button"
@@ -319,11 +320,9 @@ export function AgenciaDashboard() {
               className={cn(
                 "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] font-semibold transition",
                 cliente === c.id ? "border-brand text-brand" : "border-transparent text-[var(--text-3)] hover:text-[var(--text)]",
-                !conUso(c) && cliente !== c.id && "opacity-60",
               )}
             >
               {c.nombre}
-              {c.oficial && <span className="h-1.5 w-1.5 rounded-full bg-brand" title="Cliente oficial" />}
             </button>
           ))}
         </nav>
@@ -331,28 +330,37 @@ export function AgenciaDashboard() {
 
       <div className="flex-1 space-y-5 overflow-y-auto p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1 rounded-xl border border-line bg-surface p-1">
-            {PERIODOS.map((p) => (
+          <div className="relative flex flex-wrap gap-1 rounded-xl border border-line bg-surface p-1">
+            {FILTROS.map((p) => (
               <button
                 key={p.clave}
                 type="button"
-                onClick={() => setPeriodo(p.clave)}
+                onClick={() => {
+                  setPeriodo(p.clave);
+                  setCalendario(p.clave === "rango");
+                }}
                 className={cn(
-                  "rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold transition",
+                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold transition",
                   periodo === p.clave ? "bg-brand text-white shadow-sm" : "text-[var(--text-2)] hover:bg-card",
                 )}
               >
+                {p.clave === "rango" && <CalendarDays size={13} />}
                 {p.etiqueta}
               </button>
             ))}
+            {calendario && (
+              <CalendarioRango
+                desde={desde}
+                hasta={hasta}
+                max={hoySV()}
+                onElegir={(a, b) => {
+                  setDesde(a);
+                  setHasta(b);
+                }}
+                onCerrar={cerrarCalendario}
+              />
+            )}
           </div>
-          {periodo === "rango" && (
-            <div className="flex items-center gap-1.5 text-[12.5px] text-[var(--text-2)]">
-              <input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} className="rounded-lg border border-line bg-card px-2 py-1.5" />
-              <span>a</span>
-              <input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} className="rounded-lg border border-line bg-card px-2 py-1.5" />
-            </div>
-          )}
           {reporte && (
             <span className="ml-auto text-[12px] text-[var(--text-3)]">
               {fechaCorta(reporte.periodo.desde)}
@@ -364,17 +372,6 @@ export function AgenciaDashboard() {
           )}
         </div>
 
-        {/* LA PLATA VA PRIMERO.
-            Estaba debajo del gráfico de consumo, o sea que para ver cuánto
-            dinero apartó el agente había que pasar por encima de cuánto costó.
-            Es la única cifra que contesta si esto vale la pena.
-
-            Y va antes del error y del "cargando" a propósito: sale del resumen,
-            que se pide aparte del reporte de consumo, así que aparece de una
-            aunque el gráfico todavía esté cargando o haya fallado. */}
-        {seleccionado && <Reservas c={seleccionado} />}
-        {cierres && cierres.resumen.total > 0 && <ComoSeCerraron d={cierres} />}
-
         {error && <p className="rounded-xl border border-[var(--brand-red)]/40 bg-[var(--brand-red)]/10 px-3.5 py-2.5 text-[12.5px]">{error}</p>}
         {cargando && !reporte && (
           <p className="flex items-center gap-2 text-[13px] text-[var(--text-3)]">
@@ -382,17 +379,24 @@ export function AgenciaDashboard() {
           </p>
         )}
 
+        {/* Primero el consumo del agente y, debajo, la plata que apartó: así
+            lo pidió el cliente. Los dos se cortan con el mismo periodo. */}
         {reporte && reporte.cliente.id === cliente && <Consumo r={reporte} metrica={metrica} setMetrica={setMetrica} />}
+
+        {seleccionado && <Reservas c={seleccionado} />}
+        {cierres && cierres.resumen.total > 0 && (
+          <ComoSeCerraron d={cierres} abierto={verCierres} setAbierto={setVerCierres} onChat={setChat} />
+        )}
 
         {seleccionado && <TicketsYGente c={seleccionado} />}
 
         {resumen && (
           <section className="rounded-2xl border border-line bg-card p-5">
             <h2 className="flex items-center gap-2 text-[15px] font-bold text-[var(--text)]">
-              <KeyRound size={15} className="text-brand" /> Accesos al panel · {DIAS_RESUMEN} días
+              <KeyRound size={15} className="text-brand" /> Accesos al panel
             </h2>
             {accesos.length === 0 ? (
-              <p className="mt-2 text-[12.5px] text-[var(--text-3)]">Nadie de {seleccionado?.nombre ?? "este cliente"} ha entrado en los últimos {DIAS_RESUMEN} días.</p>
+              <p className="mt-2 text-[12.5px] text-[var(--text-3)]">Nadie de {seleccionado?.nombre ?? "este cliente"} entró en este periodo.</p>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-[12.5px]">
@@ -426,11 +430,25 @@ export function AgenciaDashboard() {
           </section>
         )}
       </div>
+
+      {chat?.conversacion && (
+        <ConversacionCierre
+          cliente={cliente}
+          clave={chat.conversacion}
+          hasta={chat.confirmadaTs}
+          titulo={chat.huesped || "Sin nombre"}
+          detalle={[chat.sede, chat.habitacion, dinero(chat.total)].filter(Boolean).join(" · ")}
+          onCerrar={cerrarChat}
+        />
+      )}
     </div>
   );
 }
 
 function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas" | "costo"; setMetrica: (m: "respuestas" | "costo") => void }) {
+  // La lista de conversaciones es larga y casi nunca se mira: cerrada hasta
+  // que alguien la abra.
+  const [verConversaciones, setVerConversaciones] = useState(false);
   const a = r.actual;
   const ant = r.anterior;
   const tk = a.tokens;
@@ -540,34 +558,36 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
             </div>
           </section>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_2fr]">
-            <section className="rounded-2xl border border-line bg-card p-5">
-              <h2 className="text-[15px] font-bold text-[var(--text)]">Por canal</h2>
-              <table className="mt-3 w-full text-[12.5px]">
-                <thead className="text-[11px] uppercase tracking-wide text-[var(--text-3)]">
-                  <tr className="text-left">
-                    <th className="py-1.5 pr-3 font-semibold">Canal</th>
-                    <th className="py-1.5 pr-3 text-right font-semibold">Conv.</th>
-                    <th className="py-1.5 pr-3 text-right font-semibold">Resp.</th>
-                    <th className="py-1.5 text-right font-semibold">Costo</th>
+          <section className="rounded-2xl border border-line bg-card p-5">
+            <h2 className="text-[15px] font-bold text-[var(--text)]">Por canal</h2>
+            <table className="mt-3 w-full text-[12.5px]">
+              <thead className="text-[11px] uppercase tracking-wide text-[var(--text-3)]">
+                <tr className="text-left">
+                  <th className="py-1.5 pr-3 font-semibold">Canal</th>
+                  <th className="py-1.5 pr-3 text-right font-semibold">Conv.</th>
+                  <th className="py-1.5 pr-3 text-right font-semibold">Resp.</th>
+                  <th className="py-1.5 text-right font-semibold">Costo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.canales.map((c) => (
+                  <tr key={c.canal} className="border-t border-line">
+                    <td className="py-2 pr-3 font-semibold text-[var(--text)]">{CANAL[c.canal]}</td>
+                    <td className="py-2 pr-3 text-right text-[var(--text-2)]">{miles(c.conversaciones)}</td>
+                    <td className="py-2 pr-3 text-right text-[var(--text-2)]">{miles(c.respuestas)}</td>
+                    <td className="py-2 text-right text-[var(--text-2)]">{dineroFino(c.costo)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {r.canales.map((c) => (
-                    <tr key={c.canal} className="border-t border-line">
-                      <td className="py-2 pr-3 font-semibold text-[var(--text)]">{CANAL[c.canal]}</td>
-                      <td className="py-2 pr-3 text-right text-[var(--text-2)]">{miles(c.conversaciones)}</td>
-                      <td className="py-2 pr-3 text-right text-[var(--text-2)]">{miles(c.respuestas)}</td>
-                      <td className="py-2 text-right text-[var(--text-2)]">{dineroFino(c.costo)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
+                ))}
+              </tbody>
+            </table>
+          </section>
 
-            <section className="rounded-2xl border border-line bg-card p-5">
+          <section className="rounded-2xl border border-line bg-card">
+            <Desplegable abierto={verConversaciones} setAbierto={setVerConversaciones}>
               <h2 className="text-[15px] font-bold text-[var(--text)]">Conversaciones · {r.conversaciones.length}</h2>
-              <div className="mt-3 max-h-80 overflow-auto">
+            </Desplegable>
+            {verConversaciones && (
+              <div className="max-h-80 overflow-auto px-5 pb-5">
                 <table className="w-full text-[12.5px]">
                   <thead className="sticky top-0 bg-card text-[11px] uppercase tracking-wide text-[var(--text-3)]">
                     <tr className="text-left">
@@ -593,8 +613,8 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
                   </tbody>
                 </table>
               </div>
-            </section>
-          </div>
+            )}
+          </section>
         </>
       )}
     </>
@@ -602,17 +622,16 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
 }
 
 /**
- * Lo que el agente APARTÓ, en dinero. Es el resultado de todo lo demás y no
- * estaba en ningún lado del tablero: había respuestas, costo y tickets, pero
- * no cuántas estadías se cerraron ni cuánta plata está esperando comprobante.
+ * Lo que el agente APARTÓ, en dinero. Es el resultado de todo lo demás: había
+ * respuestas, costo y tickets, pero no cuántas estadías se cerraron ni cuánta
+ * plata está esperando comprobante.
  */
 function Reservas({ c }: { c: Cliente }) {
   const r = c.reservas;
-  if (r.confirmadas.n + r.esperando.n + r.rechazadas === 0) return null;
   return (
     <section className="rounded-2xl border border-line bg-card p-5">
       <p className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-        <BedDouble size={12} /> Estadías apartadas por el agente · {DIAS_RESUMEN} días
+        <BedDouble size={12} /> Estadías apartadas por el agente
       </p>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <div>
@@ -652,126 +671,160 @@ function Reservas({ c }: { c: Cliente }) {
  * bien y no dice nada: si al final siempre tiene que entrar una persona a
  * cerrar, el agente está atendiendo, no vendiendo. Acá se ve la plata partida
  * entre los dos, y cuánto tarda cada trato en cerrarse.
+ *
+ * Cerrado por defecto: se abre cuando alguien lo quiere mirar. Cada fila con
+ * chat abre la conversación en una ventana.
  */
-function ComoSeCerraron({ d }: { d: Cierres }) {
+function ComoSeCerraron({
+  d,
+  abierto,
+  setAbierto,
+  onChat,
+}: {
+  d: Cierres;
+  abierto: boolean;
+  setAbierto: (v: boolean) => void;
+  onChat: (c: ReservaCerrada) => void;
+}) {
   const { resumen, cierres } = d;
   const sinHilo = cierres.filter((c) => !c.cierre.inicio).length;
 
   return (
-    <section className="rounded-2xl border border-line bg-card p-5">
-      <p className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-        <Handshake size={12} /> Quién cerró · {resumen.total} confirmada{resumen.total === 1 ? "" : "s"}
-      </p>
+    <section className="rounded-2xl border border-line bg-card">
+      <Desplegable abierto={abierto} setAbierto={setAbierto}>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+          <Handshake size={12} /> Quién cerró · {resumen.total} confirmada{resumen.total === 1 ? "" : "s"}
+        </p>
+      </Desplegable>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div>
-          <p className="text-[24px] font-extrabold leading-none tracking-tight text-brand">
-            {dinero(resumen.sofia.total)}
-          </p>
-          <p className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-2)]">
-            <Bot size={12} className="text-brand" />
-            {resumen.sofia.n} cerró el agente solo
-          </p>
-        </div>
-        <div>
-          <p className="text-[24px] font-extrabold leading-none tracking-tight text-[var(--text)]">
-            {dinero(resumen.persona.total)}
-          </p>
-          <p className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-2)]">
-            <Users size={12} />
-            {resumen.persona.n} las cerró una persona
-          </p>
-        </div>
-        <div>
-          <p className="text-[24px] font-extrabold leading-none tracking-tight text-[var(--text)]">
-            {resumen.medianaMinutos === null ? "·" : duracion(resumen.medianaMinutos)}
-          </p>
-          <p className="mt-1 text-[12px] text-[var(--text-2)]">tarda un trato, mediana</p>
-        </div>
-        <div>
-          <p className="text-[12px] font-semibold text-[var(--text-2)]">Cerraron</p>
-          {resumen.porPersona.length === 0 ? (
-            <p className="text-[12px] text-[var(--text-3)]">nadie tuvo que entrar</p>
-          ) : (
-            <ul className="mt-0.5 space-y-0.5">
-              {resumen.porPersona.map((p) => (
-                <li key={p.nombre} className="text-[12px] text-[var(--text-2)]">
-                  <span className="font-semibold text-[var(--text)]">{p.nombre}</span> · {p.n} ·{" "}
-                  {dinero(p.total)}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      {abierto && (
+        <div className="px-5 pb-5">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div>
+              <p className="text-[24px] font-extrabold leading-none tracking-tight text-brand">
+                {dinero(resumen.sofia.total)}
+              </p>
+              <p className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-2)]">
+                <Bot size={12} className="text-brand" />
+                {resumen.sofia.n} cerró el agente solo
+              </p>
+            </div>
+            <div>
+              <p className="text-[24px] font-extrabold leading-none tracking-tight text-[var(--text)]">
+                {dinero(resumen.persona.total)}
+              </p>
+              <p className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-2)]">
+                <Users size={12} />
+                {resumen.persona.n} las cerró una persona
+              </p>
+            </div>
+            <div>
+              <p className="text-[24px] font-extrabold leading-none tracking-tight text-[var(--text)]">
+                {resumen.medianaMinutos === null ? "·" : duracion(resumen.medianaMinutos)}
+              </p>
+              <p className="mt-1 text-[12px] text-[var(--text-2)]">tarda un trato, mediana</p>
+            </div>
+            <div>
+              <p className="text-[12px] font-semibold text-[var(--text-2)]">Cerraron</p>
+              {resumen.porPersona.length === 0 ? (
+                <p className="text-[12px] text-[var(--text-3)]">nadie tuvo que entrar</p>
+              ) : (
+                <ul className="mt-0.5 space-y-0.5">
+                  {resumen.porPersona.map((p) => (
+                    <li key={p.nombre} className="text-[12px] text-[var(--text-2)]">
+                      <span className="font-semibold text-[var(--text)]">{p.nombre}</span> · {p.n} ·{" "}
+                      {dinero(p.total)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-[12.5px]">
-          <thead className="text-[11px] uppercase tracking-wide text-[var(--text-3)]">
-            <tr className="text-left">
-              <th className="py-1.5 pr-3 font-semibold">Huésped</th>
-              <th className="py-1.5 pr-3 font-semibold">Monto</th>
-              <th className="py-1.5 pr-3 font-semibold">Empezó</th>
-              <th className="py-1.5 pr-3 font-semibold">Pasó a una persona</th>
-              <th className="py-1.5 pr-3 font-semibold">Se cerró</th>
-              <th className="py-1.5 pr-3 font-semibold">Tardó</th>
-              <th className="py-1.5 font-semibold">Mensajes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cierres.map((c) => (
-              <tr key={c.id} className="border-t border-line/60 align-top">
-                <td className="py-2 pr-3">
-                  <span className="font-semibold text-[var(--text)]">{c.huesped || "Sin nombre"}</span>
-                  <span className="block text-[11.5px] text-[var(--text-3)]">
-                    {c.sede}
-                    {c.habitacion ? ` · ${c.habitacion}` : ""}
-                  </span>
-                </td>
-                <td className="py-2 pr-3 font-bold tabular-nums text-[var(--text)]">{dinero(c.total)}</td>
-                <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
-                  {c.cierre.inicio ? fechaHora(c.cierre.inicio) : "sin chat"}
-                </td>
-                <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
-                  {c.cierre.pasoAPersona ? (
-                    <>
-                      {fechaHora(c.cierre.pasoAPersona)}
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-[12.5px]">
+              <thead className="text-[11px] uppercase tracking-wide text-[var(--text-3)]">
+                <tr className="text-left">
+                  <th className="py-1.5 pr-3 font-semibold">Huésped</th>
+                  <th className="py-1.5 pr-3 font-semibold">Monto</th>
+                  <th className="py-1.5 pr-3 font-semibold">Empezó</th>
+                  <th className="py-1.5 pr-3 font-semibold">Pasó a una persona</th>
+                  <th className="py-1.5 pr-3 font-semibold">Se cerró</th>
+                  <th className="py-1.5 pr-3 font-semibold">Tardó</th>
+                  <th className="py-1.5 font-semibold">Mensajes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cierres.map((c) => (
+                  <tr
+                    key={c.id}
+                    onClick={c.conversacion ? () => onChat(c) : undefined}
+                    className={cn("border-t border-line/60 align-top", c.conversacion && "cursor-pointer transition hover:bg-surface")}
+                  >
+                    <td className="py-2 pr-3">
+                      <span className="font-semibold text-[var(--text)]">{c.huesped || "Sin nombre"}</span>
                       <span className="block text-[11.5px] text-[var(--text-3)]">
-                        {c.cierre.persona ?? "el equipo"}
-                        {c.cierre.minutosHastaPersona !== null &&
-                          ` · a los ${duracion(c.cierre.minutosHastaPersona)}`}
+                        {c.sede}
+                        {c.habitacion ? ` · ${c.habitacion}` : ""}
                       </span>
-                    </>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 font-semibold text-brand">
-                      <Bot size={12} /> nunca
-                    </span>
-                  )}
-                </td>
-                <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
-                  {c.confirmadaTs ? fechaHora(c.confirmadaTs) : "·"}
-                  {c.confirmadaPor && (
-                    <span className="block text-[11.5px] text-[var(--text-3)]">{c.confirmadaPor}</span>
-                  )}
-                </td>
-                <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
-                  {c.cierre.minutosTotales === null ? "·" : duracion(c.cierre.minutosTotales)}
-                </td>
-                <td className="py-2 tabular-nums text-[var(--text-3)]">
-                  <span className="text-brand">{c.cierre.mensajesAgente}</span> / {c.cierre.mensajesPersona}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    </td>
+                    <td className="py-2 pr-3 font-bold tabular-nums text-[var(--text)]">{dinero(c.total)}</td>
+                    <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
+                      {c.cierre.inicio ? fechaHora(c.cierre.inicio) : "sin chat"}
+                    </td>
+                    <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
+                      {c.cierre.pasoAPersona ? (
+                        <>
+                          {fechaHora(c.cierre.pasoAPersona)}
+                          <span className="block text-[11.5px] text-[var(--text-3)]">
+                            {c.cierre.persona ?? "el equipo"}
+                            {c.cierre.minutosHastaPersona !== null &&
+                              ` · a los ${duracion(c.cierre.minutosHastaPersona)}`}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 font-semibold text-brand">
+                          <Bot size={12} /> nunca
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
+                      {c.confirmadaTs ? fechaHora(c.confirmadaTs) : "·"}
+                      {c.confirmadaPor && (
+                        <span className="block text-[11.5px] text-[var(--text-3)]">{c.confirmadaPor}</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 tabular-nums text-[var(--text-2)]">
+                      {c.cierre.minutosTotales === null ? "·" : duracion(c.cierre.minutosTotales)}
+                    </td>
+                    <td className="py-2 tabular-nums text-[var(--text-3)]">
+                      {c.conversacion ? (
+                        <button type="button" className="inline-flex items-center gap-1.5 rounded-md hover:text-[var(--text)]">
+                          <span>
+                            <span className="text-brand">{c.cierre.mensajesAgente}</span> / {c.cierre.mensajesPersona}
+                          </span>
+                          <MessageSquareText size={12} />
+                        </button>
+                      ) : (
+                        <>
+                          <span className="text-brand">{c.cierre.mensajesAgente}</span> / {c.cierre.mensajesPersona}
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      <p className="mt-2 text-[11.5px] text-[var(--text-3)]">
-        Mensajes: <span className="text-brand">del agente</span> / de una persona. &quot;Empezó&quot; es
-        el arranque de la última tanda de la conversación, no el primer mensaje de siempre: quien
-        escribió hace meses y volvió ayer cerró en un día, no en cinco meses.
-        {sinHilo > 0 && ` ${sinHilo} sin chat que mirar (entró por otra vía).`}
-      </p>
+          <p className="mt-2 text-[11.5px] text-[var(--text-3)]">
+            Mensajes: <span className="text-brand">del agente</span> / de una persona. Clic en una fila para leer el
+            chat. &quot;Empezó&quot; es el arranque de la última tanda de la conversación, no el primer mensaje de
+            siempre: quien escribió hace meses y volvió ayer cerró en un día, no en cinco meses.
+            {sinHilo > 0 && ` ${sinHilo} sin chat que mirar (entró por otra vía).`}
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -782,7 +835,7 @@ function TicketsYGente({ c }: { c: Cliente }) {
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div>
           <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-            <TicketCheck size={12} /> Tickets · {DIAS_RESUMEN} días
+            <TicketCheck size={12} /> Tickets
           </p>
           <p className="text-[24px] font-extrabold tracking-tight text-[var(--text)]">
             {c.tickets.abiertos} <span className="text-[13px] font-semibold text-[var(--text-3)]">abiertos</span>
@@ -833,6 +886,29 @@ function TicketsYGente({ c }: { c: Cliente }) {
         </div>
       </div>
     </section>
+  );
+}
+
+/** La cabecera de un bloque que se abre y se cierra con un clic. */
+function Desplegable({
+  abierto,
+  setAbierto,
+  children,
+}: {
+  abierto: boolean;
+  setAbierto: (v: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => setAbierto(!abierto)}
+      aria-expanded={abierto}
+      className="flex w-full items-center justify-between gap-2 rounded-2xl px-5 py-4 text-left transition hover:bg-surface/60"
+    >
+      {children}
+      <ChevronDown size={16} className={cn("shrink-0 text-[var(--text-3)] transition", abierto && "rotate-180")} />
+    </button>
   );
 }
 
