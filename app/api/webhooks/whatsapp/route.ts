@@ -4,6 +4,7 @@ import { addInbound } from "@/lib/wa-store";
 import { addAdjunto } from "@/lib/contacts-store";
 import { programarRespuestaIA } from "@/lib/ai-reply";
 import { atenderPedidoDeLlamada } from "@/lib/llamar-por-pedido";
+import { anotarMontoDelChat } from "@/lib/ventas-llamada";
 import { getWaTenant } from "@/lib/wa-routing";
 import { conexionPorPhoneNumberId } from "@/lib/wa-conexiones-store";
 import { phoneNumberIdDe } from "@/lib/wa-webhook-numero";
@@ -261,6 +262,25 @@ export async function POST(req: Request) {
           if (r !== "no lo pidió") console.log(`[pedido-llamada] ${t.from}: ${r}`);
         } catch (e) {
           console.error("[pedido-llamada] falló:", e);
+        }
+
+        // "Ando buscando financiamiento de 15 mil": eso va al caso del embudo.
+        //
+        // Lo dicho por escrito vale igual que lo dicho por teléfono, y hasta
+        // ahora se quedaba en el chat: el vendedor abría la ficha y el lead
+        // valía cero. Solo se toma cuando el mensaje habla de cuánto quiere
+        // financiar; las razones para NO tomarlo (fechas, horas, plazos,
+        // cuotas, teléfonos) están en lib/monto-del-chat.ts, que es puro y
+        // probado.
+        try {
+          const r = await anotarMontoDelChat({
+            tenant: tenantActivo,
+            telefono: t.from,
+            texto: t.texto,
+          });
+          if (r) console.log(`[monto-chat] ${t.from}: ${r}`);
+        } catch (e) {
+          console.error("[monto-chat] falló:", e);
         }
       }
 

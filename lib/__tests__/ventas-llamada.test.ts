@@ -10,7 +10,7 @@
 // que esto ejercita el camino completo: crear el caso, escribirlo y leerlo.
 
 import { describe, expect, it } from "vitest";
-import { anotarLlamadaEnSolicitud } from "@/lib/ventas-llamada";
+import { anotarLlamadaEnSolicitud, anotarMontoDelChat } from "@/lib/ventas-llamada";
 import { guardarSolicitud, leerSolicitud, asegurarSolicitud, eventosDe } from "@/lib/ventas-store";
 
 const TENANT = "grupoq";
@@ -91,5 +91,68 @@ describe("lo que la llamada anota en el caso", () => {
     const t = telefono();
     await anotarLlamadaEnSolicitud({ tenant: TENANT, telefono: t, montoTexto: "quince mil" });
     expect((await leerSolicitud(TENANT, t))?.canal ?? null).toBeNull();
+  });
+});
+
+describe("lo que el lead dice por escrito", () => {
+  it("guarda el monto, aunque el chat llegue con código de país", async () => {
+    const t = telefono();
+    await asegurarSolicitud(TENANT, t, { nombre: "Escribió" });
+    const r = await anotarMontoDelChat({
+      tenant: TENANT,
+      telefono: `503${t}`,
+      texto: "ando buscando financiamiento de 15 mil",
+    });
+    expect(r).toContain("$15,000");
+    expect((await leerSolicitud(TENANT, t))?.monto).toBe(15000);
+  });
+
+  it("NO mete al embudo a quien todavía no está", async () => {
+    // Al número del demo le escribe cualquiera. Un mensaje suelto no es motivo
+    // para crear un caso: para eso están el CSV y la llamada.
+    const t = telefono();
+    const r = await anotarMontoDelChat({
+      tenant: TENANT,
+      telefono: `503${t}`,
+      texto: "quiero financiar 12 mil",
+    });
+    expect(r).toBeNull();
+    expect(await leerSolicitud(TENANT, t)).toBeNull();
+  });
+
+  it("no pisa el monto que ya estaba", async () => {
+    const t = telefono();
+    const base = await asegurarSolicitud(TENANT, t, { nombre: "Ya tenía" });
+    await guardarSolicitud({ ...base, monto: 9000 });
+    await anotarMontoDelChat({
+      tenant: TENANT,
+      telefono: `503${t}`,
+      texto: "busco un credito de 20 mil",
+    });
+    expect((await leerSolicitud(TENANT, t))?.monto).toBe(9000);
+  });
+
+  it("un mensaje que no habla de plata no toca nada", async () => {
+    const t = telefono();
+    await asegurarSolicitud(TENANT, t, { nombre: "Fecha" });
+    const r = await anotarMontoDelChat({
+      tenant: TENANT,
+      telefono: `503${t}`,
+      texto: "nos vemos el 15 de octubre a las 3",
+    });
+    expect(r).toBeNull();
+    expect((await leerSolicitud(TENANT, t))?.monto ?? null).toBeNull();
+  });
+
+  it("deja el rastro, y se ve que vino del chat", async () => {
+    const t = telefono();
+    await asegurarSolicitud(TENANT, t, { nombre: "Rastro" });
+    await anotarMontoDelChat({
+      tenant: TENANT,
+      telefono: `503${t}`,
+      texto: "necesito financiar 18 mil dolares",
+    });
+    const eventos = await eventosDe(TENANT, t);
+    expect(eventos.some((e) => e.tipo === "monto" && e.actor === "chat")).toBe(true);
   });
 });

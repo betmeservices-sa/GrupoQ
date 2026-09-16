@@ -12,6 +12,8 @@
 // puede saber de dónde vino el lead (los canales son WhatsApp, Instagram,
 // Facebook y orgánico); inventarlo sería peor que dejarlo sin marcar.
 
+import { normalizarTelefono } from "./memoria-llamadas";
+import { montoDelChat } from "./monto-del-chat";
 import { comoDinero, montoHablado } from "./monto-hablado";
 import { siguienteVendedor } from "./ventas-pipeline";
 import { vendedoresDe } from "./ventas-equipo";
@@ -19,10 +21,50 @@ import {
   asegurarSolicitud,
   asignarVendedor,
   guardarSolicitud,
+  leerSolicitud,
   listarSolicitudes,
   marcarContactado,
   registrarEvento,
 } from "./ventas-store";
+
+/**
+ * El monto que el lead dijo POR ESCRITO, guardado en su caso del embudo.
+ *
+ * Lo dicho en el chat vale igual que lo dicho por teléfono: hasta ahora se
+ * quedaba en la conversación, el vendedor abría la ficha y el lead valía cero.
+ *
+ * DOS COSAS QUE NO HACE, a propósito:
+ *   - No crea el caso. Al número del demo le escribe cualquiera, y un mensaje
+ *     suelto no es motivo para meter a alguien al embudo. Si todavía no está,
+ *     entra por el CSV o por la llamada, como siempre.
+ *   - No pisa un monto que ya esté puesto. Lo que corrigió una persona manda.
+ *
+ * Devuelve una frase corta para el log, o null si no había nada que anotar.
+ */
+export async function anotarMontoDelChat(opciones: {
+  tenant: string;
+  telefono: string;
+  texto: string;
+}): Promise<string | null> {
+  const monto = montoDelChat(opciones.texto);
+  if (monto === null) return null;
+
+  // El chat llega con código de país y el caso se guarda con la llave de ocho
+  // dígitos, la misma de la ficha. Sin esto no encontraría nada nunca.
+  const telefono = normalizarTelefono(opciones.telefono);
+  const previa = await leerSolicitud(opciones.tenant, telefono);
+  if (!previa || previa.monto != null) return null;
+
+  await guardarSolicitud({ ...previa, monto, actualizado: new Date().toISOString() });
+  await registrarEvento(
+    opciones.tenant,
+    telefono,
+    "monto",
+    "chat",
+    `monto ${comoDinero(monto)}, lo dijo por escrito`,
+  );
+  return `monto ${comoDinero(monto)}`;
+}
 
 export interface LlamadaAnotada {
   /** Frase corta para la respuesta del webhook: qué quedó y qué no. */
