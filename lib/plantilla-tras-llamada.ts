@@ -10,14 +10,20 @@
 //   1. Al colgar: `crediq_seguimiento_requisitos`, con los cuatro papeles. Es
 //      lo que la persona necesita para poder avanzar, y llega mientras todavía
 //      se acuerda de la llamada.
-//   2. A los 5 minutos, SOLO si no contestó: `crediq_continuar_solicitud`, que
+//   2. Al minuto, SOLO si no contestó: `crediq_continuar_solicitud`, que
 //      no repite la lista y le baja el escalón ("empiece por el que tenga a la
 //      mano"). Quien no contestó al primero no necesita leer los requisitos de
 //      nuevo: necesita que le digan que puede empezar por cualquiera.
 //
+// A QUIÉN SE LE ESCRIBE. A todo el que no haya dicho que NO. Quien no contestó
+// el teléfono, cayó al buzón o colgó antes de que se le preguntara es
+// justamente a quien hay que escribirle: la solicitud sigue ahí y el WhatsApp
+// es el único camino que queda. La única puerta cerrada es la de quien dijo
+// expresamente que no le escribiéramos.
+//
 // CADA ENVÍO ES UN WHATSAPP A UNA PERSONA REAL Y SE COBRA, así que la decisión
-// vive acá, pura y probada, y son más las razones para NO mandar que para
-// mandar. Están escritas en cada función.
+// vive acá, pura y probada. Las razones para NO mandar están escritas en cada
+// función.
 //
 // LOS CUERPOS SON LOS APROBADOS POR META, copiados tal cual. Si se cambia una
 // coma acá y no allá, Meta rechaza el envío; y el texto que se guarda en el
@@ -41,7 +47,7 @@ export const REQUISITOS: Plantilla = {
     `Hola ${n}! Le escribimos de CrediQ para dar seguimiento a su solicitud de credito.\n\nEstos son los requisitos que necesitamos:\n1. DUI por ambos lados\n2. Constancia de salario\n3. Recibo de agua o luz reciente\n4. Dos referencias personales, con nombre y telefono\n\nLos puede enviar por este mismo medio, uno por uno, y le vamos confirmando cual ya recibimos. Si tiene alguna duda, escribanos por aqui.`,
 };
 
-/** La segunda: a los 5 minutos, solo si no contestó la primera. */
+/** La segunda: al minuto, solo si no contestó la primera. */
 export const CONTINUAR: Plantilla = {
   nombre: "crediq_continuar_solicitud",
   idioma: "es",
@@ -50,8 +56,15 @@ export const CONTINUAR: Plantilla = {
     `Hola ${n}! Soy Sofia de CrediQ, le hablo continuando con su solicitud.\n\nPor aqui me puede enviar los documentos que le comente en la llamada. Empiece por el que tenga a la mano y yo le voy diciendo cual falta.`,
 };
 
-/** Cuánto se espera antes del recordatorio. */
-export const ESPERA_MIN = 5;
+/**
+ * Cuánto se espera antes del recordatorio.
+ *
+ * Era 5 minutos. Bajó a 1 porque el seguimiento vale mientras la persona
+ * todavía tiene el teléfono en la mano: a los cinco minutos ya se fue a otra
+ * cosa. El barrido corre cada minuto, así que en la práctica sale entre uno y
+ * dos minutos después.
+ */
+export const ESPERA_MIN = 1;
 
 /**
  * Hasta cuándo tiene sentido el recordatorio.
@@ -119,8 +132,16 @@ function ultimoEntrante(hilo: MensajeDelHilo[]): number | null {
 }
 
 export interface EntradaPlantilla {
-  /** Lo que contestó en la llamada cuando se le preguntó si le escribimos. */
-  acepto: boolean;
+  /**
+   * Qué contestó cuando se le preguntó si le escribíamos.
+   *
+   * Tres estados y los tres importan: `true` dijo que sí, `false` dijo que NO
+   * (y esa es la única puerta cerrada), y sin valor es que no se llegó a
+   * preguntar, casi siempre porque no contestó el teléfono. A ese se le
+   * escribe igual: su solicitud sigue abierta y el WhatsApp es lo único que
+   * queda.
+   */
+  acepto?: boolean | null;
   telefono: string;
   nombre?: string | null;
   hilo: MensajeDelHilo[];
@@ -130,12 +151,13 @@ export interface EntradaPlantilla {
 /**
  * PASO 1, al colgar: los requisitos.
  *
- * No se manda si no aceptó, si no sabemos su nombre, si ya se le había mandado,
- * si el número no sirve, o si la ventana de 24 h está abierta, porque ahí el
- * texto libre llega igual y sale gratis.
+ * No se manda si dijo que no, si no sabemos su nombre, si ya se le había
+ * mandado, si el número no sirve, o si la ventana de 24 h está abierta, porque
+ * ahí el texto libre llega igual y sale gratis.
  */
 export function decidirPlantilla(e: EntradaPlantilla): Decision {
-  if (!e.acepto) return { enviar: false, motivo: "no aceptó que le escribiéramos" };
+  // Solo el "no" expreso cierra la puerta. No contestar no es negarse.
+  if (e.acepto === false) return { enviar: false, motivo: "dijo que no le escribiéramos" };
   if (!/^\d{8,15}$/.test(e.telefono)) return { enviar: false, motivo: "sin número usable" };
 
   const nombre = primerNombre(e.nombre);
@@ -159,7 +181,7 @@ export interface EntradaRecordatorio {
 }
 
 /**
- * PASO 2, a los 5 minutos: el recordatorio.
+ * PASO 2, al minuto: el recordatorio.
  *
  * Solo para quien recibió el de requisitos y NO contestó. Si contestó cualquier
  * cosa, aunque sea "ok", el recordatorio sobra y molesta: la conversación ya

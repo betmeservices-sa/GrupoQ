@@ -7,7 +7,7 @@
     },
     {
       "path": "/api/cron/plantilla-recordatorio",
-      "schedule": "*/2 * * * *"
+      "schedule": "* * * * *"
     }
   ]
 }

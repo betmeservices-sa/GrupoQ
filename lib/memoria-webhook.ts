@@ -192,7 +192,10 @@ async function mandarPlantillaTrasLlamada(
 
   const { mensajes } = await mensajesAnteriores(paraWhatsApp, null, 50, tenant);
   const decision = decidirPlantilla({
-    acepto: extracto.agendo === true,
+    // Tal cual, SIN colapsar a booleano: `undefined` (no se llegó a preguntar,
+    // casi siempre porque no contestó) no es lo mismo que `false` (dijo que
+    // no), y solo el segundo cierra la puerta.
+    acepto: extracto.agendo,
     telefono: paraWhatsApp,
     nombre,
     hilo: mensajes.map((m) => ({ direction: m.direccion, texto: m.texto ?? "", ts: m.ts })),

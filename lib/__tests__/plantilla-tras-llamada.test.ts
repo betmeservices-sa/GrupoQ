@@ -54,8 +54,18 @@ describe("1. al colgar salen los REQUISITOS", () => {
     expect(r.texto.startsWith("Hola Karla!")).toBe(true);
   });
 
+  it("si NO contestó el teléfono, se le manda igual", () => {
+    // El caso más común de una tanda: suena, nadie levanta, y el agente nunca
+    // llega a preguntar si le escribimos. Su solicitud sigue abierta y el
+    // WhatsApp es el único camino que queda.
+    for (const acepto of [undefined, null]) {
+      const r = base({ acepto });
+      expect(r.enviar, String(acepto)).toBe(true);
+    }
+  });
+
   const noSeManda: Array<[string, Parameters<typeof base>[0], RegExp]> = [
-    ["dijo que no en la llamada", { acepto: false }, /no acept/],
+    ["dijo expresamente que no", { acepto: false }, /dijo que no/],
     ["el número no sirve", { telefono: "123" }, /sin n[úu]mero/],
     ["no sabemos cómo se llama", { nombre: null }, /nombre/],
     ["el agente transcribió un relleno", { nombre: "no especificado" }, /nombre/],
@@ -77,7 +87,13 @@ describe("1. al colgar salen los REQUISITOS", () => {
   }
 });
 
-describe("2. a los 5 minutos, si no contestó, el recordatorio", () => {
+describe("2. al minuto, si no contestó, el recordatorio", () => {
+  it("espera un solo minuto", () => {
+    // El seguimiento vale mientras la persona todavía tiene el teléfono en la
+    // mano. A los cinco minutos ya se fue a otra cosa.
+    expect(ESPERA_MIN).toBe(1);
+  });
+
   it("es la otra plantilla, la que NO repite la lista", () => {
     const r = recordar();
     expect(r.enviar).toBe(true);
@@ -92,15 +108,15 @@ describe("2. a los 5 minutos, si no contestó, el recordatorio", () => {
     // Aunque haya dicho solo "ok": la conversación ya está viva y ahí escribe
     // una persona o la IA, gratis y sin plantilla.
     const r = recordar({
-      hilo: [salioRequisitos(ESPERA_MIN + 1), { direction: "in", texto: "ok", ts: haceMin(1) }],
+      hilo: [salioRequisitos(ESPERA_MIN + 1), { direction: "in", texto: "ok", ts: haceMin(0.5) }],
     });
     expect(r.enviar).toBe(false);
     if (r.enviar) return;
     expect(r.motivo).toMatch(/s[íi] contest/);
   });
 
-  it("todavía no pasan los 5 minutos", () => {
-    const r = recordar({ hilo: [salioRequisitos(ESPERA_MIN - 1)] });
+  it("todavía no pasa el minuto", () => {
+    const r = recordar({ hilo: [salioRequisitos(0.5)] });
     expect(r.enviar).toBe(false);
     if (r.enviar) return;
     expect(r.motivo).toMatch(/pronto/);

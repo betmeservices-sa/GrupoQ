@@ -47,7 +47,11 @@ const OPCIONES: OpcionesMemoria = {
     // `uso` guarda de cuánto la piensa. Se reusa el campo en vez de agregar uno
     // nuevo al extracto, que sirve a cinco agentes.
     uso: comoTexto(d.monto),
-    agendo: d.acepta_whatsapp === true,
+    // TRES estados, no dos. `true` dijo que sí, `false` dijo que NO, y sin
+    // valor es que no se llegó a preguntar (no contestó el teléfono, cayó al
+    // buzón, colgó antes). A ese último se le escribe igual, y por eso no se
+    // puede colapsar con un `=== true`.
+    agendo: typeof d.acepta_whatsapp === "boolean" ? d.acepta_whatsapp : undefined,
     resumen: comoTexto(d.resumen) ?? comoTexto(resumen),
   }),
   // La redacción del concesionario diría "lo quiere para quince mil dólares".

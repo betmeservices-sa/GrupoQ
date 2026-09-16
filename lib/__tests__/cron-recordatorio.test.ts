@@ -86,12 +86,14 @@ describe("a quién le manda el recordatorio", () => {
     expect(enviadas).toHaveLength(0);
   });
 
-  it("al que lo recibió hace un minuto todavía no", async () => {
+  it("al que lo acaba de recibir todavía no", async () => {
+    // La espera bajó a un minuto: el que lo recibió hace 20 segundos todavía
+    // no cuenta, el de hace un minuto sí.
     await addOutbound({
       waId: "wamid.req",
       to: TEL,
       texto: REQUISITOS.texto("Karla"),
-      ts: haceMin(1),
+      ts: haceMin(0.35),
       tenant: "grupoq",
     });
     const d = (await (await pedir()).json()) as { enviados: number; saltados: Record<string, number> };
