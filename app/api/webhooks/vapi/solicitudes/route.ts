@@ -1,4 +1,10 @@
-import { comoTexto, diagnosticoMemoria, manejarMemoria } from "@/lib/memoria-webhook";
+import {
+  comoTexto,
+  diagnosticoMemoria,
+  manejarMemoria,
+  type OpcionesMemoria,
+} from "@/lib/memoria-webhook";
+import { anotarLlamadaEnSolicitud } from "@/lib/ventas-llamada";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,13 +18,27 @@ export const maxDuration = 30;
 //
 // La ruta es PÚBLICA (la llama Vapi desde sus servidores) y valida el secreto.
 
-const OPCIONES = {
+const OPCIONES: OpcionesMemoria = {
   tenant: "solicitudes",
   tenantFicha: "grupoq",
   // El guion cierra con "le escribo por WhatsApp para seguir con su solicitud".
   // Esto es lo que cumple esa promesa: la plantilla aprobada
   // `crediq_seguimiento_llamada` sale al colgar, y SOLO si dijo que sí.
   plantillaAlColgar: true,
+  // Y ESTO ES LO QUE FALTABA: que lo dicho por teléfono llegue al caso del
+  // embudo. El monto y el vehículo se guardaban en la memoria del agente y en
+  // la nota de la ficha, pero no en la solicitud, que es de donde sale la plata
+  // del tablero: había leads en cero dólares de gente que sí lo había dicho.
+  alColgar: ({ telefono, extracto }) =>
+    anotarLlamadaEnSolicitud({
+      tenant: "grupoq",
+      telefono,
+      nombre: extracto.nombre,
+      vehiculo: extracto.modelos?.[0] ?? null,
+      // En este agente `uso` es el monto (ver `extraer`), en palabras.
+      montoTexto: extracto.uso,
+      actor: "llamada",
+    }).then((r) => r.resumen),
   extraer: (d: Record<string, unknown>, resumen?: string) => ({
     nombre: comoTexto(d.nombre),
     // `modelos` es la lista de vehículos del extracto compartido: acá es uno

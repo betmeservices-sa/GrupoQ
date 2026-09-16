@@ -127,6 +127,22 @@ export interface OpcionesMemoria {
    * puro y probado, porque cada envío es un WhatsApp a una persona real.
    */
   plantillaAlColgar?: boolean;
+  /**
+   * Qué más se hace con lo que dejó la llamada, además de la memoria, la ficha
+   * y la plantilla.
+   *
+   * Existe porque cada agente deja cosas distintas en sitios distintos: el de
+   * solicitudes de CrediQ tiene que escribir el monto en el caso del embudo, y
+   * el del hospital no tiene embudo ninguno. Devuelve una frase corta que sale
+   * en la respuesta del webhook, que es donde uno mira cuando algo no llegó.
+   *
+   * Nunca tumba la llamada: si falla, se registra y se sigue.
+   */
+  alColgar?: (datos: {
+    telefono: string;
+    extracto: ExtractoLlamada;
+    callId?: string;
+  }) => Promise<string | undefined>;
 }
 
 function telefonoDe(msg: CuerpoVapi["message"]): string {
@@ -263,9 +279,30 @@ export async function manejarMemoria(req: Request, op: OpcionesMemoria) {
       }
     }
 
+    // Lo que este agente deja en SU tablero (el caso del embudo, en CrediQ).
+    // Va antes del corte por "nada que recordar" y en su propio try: una
+    // llamada donde lo único que se sacó fue el monto no deja nada para la
+    // memoria, y es justo la que hay que anotar.
+    let anotado: string | undefined;
+    if (op.alColgar) {
+      try {
+        anotado = await op.alColgar({ telefono, extracto, callId: msg.call?.id });
+      } catch (err) {
+        // Un 5xx haría que Vapi reintentara y la llamada se contaría dos veces.
+        console.error(`[alColgar ${op.tenant}] no se pudo anotar:`, err);
+        anotado = "falló";
+      }
+    }
+
     const vacio =
       !extracto.nombre && !extracto.modelos?.length && !extracto.uso && !extracto.pago && !extracto.resumen;
-    if (vacio) return NextResponse.json({ ok: true, ignorado: "sin nada que recordar", ...(plantilla ? { plantilla } : {}) });
+    if (vacio)
+      return NextResponse.json({
+        ok: true,
+        ignorado: "sin nada que recordar",
+        ...(plantilla ? { plantilla } : {}),
+        ...(anotado ? { anotado } : {}),
+      });
 
     try {
       const previo = await leerMemoria(op.tenant, telefono);
@@ -277,6 +314,7 @@ export async function manejarMemoria(req: Request, op: OpcionesMemoria) {
         guardado: r.ok,
         donde: r.donde,
         ...(plantilla ? { plantilla } : {}),
+        ...(anotado ? { anotado } : {}),
         ...(r.error ? { error: r.error } : {}),
       });
     } catch (err) {

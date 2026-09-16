@@ -38,6 +38,9 @@ export type TipoEvento =
   | "asignado"
   | "reasignado"
   | "canal"
+  // Lo que la llamada dejó escrito en el caso: cuánto quiere financiar y qué
+  // vehículo mira.
+  | "monto"
   | "tomado"
   | "cerrado"
   | "aviso_gerente"
