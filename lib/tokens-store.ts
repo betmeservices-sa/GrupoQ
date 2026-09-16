@@ -301,32 +301,51 @@ async function leerFilas(tenant: string | undefined, tope: number): Promise<Fila
   return todas.slice(0, tope);
 }
 
-async function leerFilasEn(sb: NonNullable<ReturnType<typeof getSupabase>>, tenant: string | undefined, tope: number): Promise<FilaConsumo[]> {
-  let q = sb
-    .from("ai_uso_tokens")
-    .select(COLS)
-    .order("ts", { ascending: false })
-    .limit(tope);
-  if (tenant) q = q.eq("tenant", tenant);
+/** Tope duro de PostgREST por respuesta. No se puede subir desde el cliente. */
+const PAGINA = 1000;
 
-  let res = await q;
-  if (res.error && columnaFaltante(res.error)) {
-    // La migración de `tipo` todavía no corrió. Se lee sin esa columna en vez
-    // de devolver un panel en blanco: el consumo ya registrado sigue siendo
-    // válido, y todo lo viejo es una respuesta del agente de todos modos.
-    let q2 = sb
-      .from("ai_uso_tokens")
-      .select(COLS_BASE)
-      .order("ts", { ascending: false })
-      .limit(tope);
-    if (tenant) q2 = q2.eq("tenant", tenant);
-    res = (await q2) as typeof res;
+async function leerFilasEn(sb: NonNullable<ReturnType<typeof getSupabase>>, tenant: string | undefined, tope: number): Promise<FilaConsumo[]> {
+  // SE PIDE DE A MIL, PORQUE `.limit(5000)` NO TRAE CINCO MIL.
+  //
+  // PostgREST corta en 1.000 filas por respuesta y devuelve esas sin avisar.
+  // Con `.limit(5000)` el tablero de la agencia leía las 1.000 más recientes y
+  // reportaba eso como si fuera el periodo entero: el 16 de septiembre de 2026
+  // la tarjeta "Respuestas enviadas" de Yali decía exactamente 1.000 para la
+  // semana del 10 al 16, cuando las reales eran 1.268, y "Conversaciones
+  // atendidas" decía 265 contra 329. El número redondo era la pista.
+  //
+  // Peor que quedarse corto: al leer las MÁS RECIENTES y recortar después por
+  // periodo, cualquier corte más viejo que esas mil filas salía casi vacío.
+  const bruto: Record<string, unknown>[] = [];
+  let cols = COLS;
+  for (let desde = 0; desde < tope; desde += PAGINA) {
+    const hasta = Math.min(desde + PAGINA, tope) - 1;
+    // El filtro va ANTES del rango: `.range()` cierra la consulta y después ya
+    // no se le puede colgar un `.eq()`.
+    const armar = (seleccion: string) => {
+      const base = sb.from("ai_uso_tokens").select(seleccion);
+      const conTenant = tenant ? base.eq("tenant", tenant) : base;
+      return conTenant.order("ts", { ascending: false }).range(desde, hasta);
+    };
+    let res = await armar(cols);
+    if (res.error && columnaFaltante(res.error)) {
+      // La migración de `tipo` todavía no corrió. Se lee sin esa columna en vez
+      // de devolver un panel en blanco: el consumo ya registrado sigue siendo
+      // válido, y todo lo viejo es una respuesta del agente de todos modos.
+      cols = COLS_BASE;
+      res = (await armar(cols)) as typeof res;
+    }
+    if (res.error) {
+      console.error("ai_uso_tokens select:", res.error.message);
+      // Lo que ya se trajo sirve; devolver vacío por fallar la página tres
+      // sería tirar las dos primeras.
+      break;
+    }
+    const pagina = (res.data ?? []) as unknown as Record<string, unknown>[];
+    bruto.push(...pagina);
+    if (pagina.length < hasta - desde + 1) break;
   }
-  const { data, error } = res;
-  if (error) {
-    console.error("ai_uso_tokens select:", error.message);
-    return [];
-  }
+  const data = bruto;
 
   // Se leen los costos GUARDADOS (snapshot con la tarifa del día), no se
   // recalculan: la tabla de precios de hoy no debe reescribir el histórico.
