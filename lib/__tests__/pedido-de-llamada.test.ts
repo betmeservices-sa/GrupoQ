@@ -7,10 +7,13 @@
 import { describe, expect, it } from "vitest";
 import {
   AVISO_LLAMANDO,
+  PREGUNTA_VOLVER,
   contextoDelChat,
   decidirLlamada,
+  intencionDeLlamada,
   pideLlamada,
 } from "@/lib/pedido-de-llamada";
+import { CONTINUAR, REQUISITOS, esPlantillaCrediQ } from "@/lib/plantilla-tras-llamada";
 
 describe("cuándo SÍ está pidiendo que lo llamen", () => {
   const si = [
@@ -141,6 +144,96 @@ describe("la decisión de marcar", () => {
       ],
     });
     expect(r.llamar).toBe(true);
+  });
+});
+
+describe("cuando cuenta que la llamada no se completó", () => {
+  const preguntar = [
+    "no me contestaron",
+    "No me contestaron 😕",
+    "me llamaron y no pude contestar",
+    "no alcancé a contestar",
+    "no me entró la llamada",
+    "se cortó la llamada",
+    "tengo una llamada perdida de ustedes",
+    "¿quién me llamó?",
+  ];
+  for (const t of preguntar) {
+    it(`pregunta: ${JSON.stringify(t)}`, () => expect(intencionDeLlamada(t)).toBe("preguntar"));
+  }
+
+  it("si además pide que lo llamen, se llama directo", () => {
+    expect(intencionDeLlamada("no me contestaron, me puede llamar de nuevo")).toBe("llamar");
+    expect(intencionDeLlamada("se cortó la llamada, llámeme")).toBe("llamar");
+  });
+
+  it("le pregunta por escrito, con su nombre, y no marca", () => {
+    const r = base({
+      texto: "no me contestaron",
+      hilo: [{ direction: "in", texto: "no me contestaron", ts: haceMin(1) }],
+    });
+    expect(r.llamar).toBe(false);
+    if (r.llamar) return;
+    expect(r.pregunta).toBe(`No se preocupe, Karla. ${PREGUNTA_VOLVER}`);
+  });
+
+  it("contesta que sí a la pregunta: marca", () => {
+    for (const si of ["sí", "Si por favor", "claro que sí", "dale", "ok", "sí, ahorita"]) {
+      const r = base({
+        texto: si,
+        hilo: [
+          { direction: "in", texto: "no me contestaron", ts: haceMin(3) },
+          { direction: "out", texto: `No se preocupe, Karla. ${PREGUNTA_VOLVER}`, ts: haceMin(2) },
+          { direction: "in", texto: si, ts: haceMin(1) },
+        ],
+      });
+      expect(r.llamar, si).toBe(true);
+    }
+  });
+
+  it("un sí que no contesta la pregunta, o un sí para más tarde, no marca", () => {
+    const sinPregunta = base({
+      texto: "sí",
+      hilo: [
+        { direction: "out", texto: "¿Le interesa el Kicks?", ts: haceMin(2) },
+        { direction: "in", texto: "sí", ts: haceMin(1) },
+      ],
+    });
+    expect(sinPregunta.llamar).toBe(false);
+
+    const masTarde = base({
+      texto: "sí pero más tarde",
+      hilo: [
+        { direction: "out", texto: `No se preocupe, Karla. ${PREGUNTA_VOLVER}`, ts: haceMin(2) },
+        { direction: "in", texto: "sí pero más tarde", ts: haceMin(1) },
+      ],
+    });
+    expect(masTarde.llamar).toBe(false);
+  });
+
+  it("el mismo mensaje repetido por Meta no pregunta dos veces", () => {
+    const r = base({
+      texto: "no me contestaron",
+      hilo: [
+        { direction: "in", texto: "no me contestaron", ts: haceMin(2) },
+        { direction: "out", texto: `No se preocupe, Karla. ${PREGUNTA_VOLVER}`, ts: haceMin(1) },
+      ],
+    });
+    expect(r.llamar).toBe(false);
+    if (r.llamar) return;
+    expect(r.pregunta).toBeUndefined();
+  });
+});
+
+describe("plantillas de CrediQ en el hilo", () => {
+  it("reconoce las dos automáticas y la mandada a mano sin texto", () => {
+    expect(esPlantillaCrediQ(REQUISITOS.texto("Omar"))).toBe(true);
+    expect(esPlantillaCrediQ(CONTINUAR.texto("Omar"))).toBe(true);
+    expect(esPlantillaCrediQ("[plantilla: crediq_seguimiento_llamada]")).toBe(true);
+  });
+
+  it("una respuesta de Sofía que nombra CrediQ no es la plantilla", () => {
+    expect(esPlantillaCrediQ("El financiamiento es con CrediQ, la financiera de Grupo Q.")).toBe(false);
   });
 });
 

@@ -69,40 +69,89 @@ const DISPONIBLE = [
 ];
 
 /**
- * Lo que PARECE un pedido y no lo es.
+ * Dijo que NO lo llamen.
  *
- * El orden importa: esto se mira ANTES que nada. Llamar a quien pidió que no lo
- * llamen es el peor error que puede cometer esta función, y el único que el
- * cliente va a recordar.
+ * Se mira ANTES que nada: llamar a quien pidió que no lo llamen es el peor error
+ * que puede cometer esta función, y el único que el cliente va a recordar.
  */
-const NO_LLAMAR = [
-  // Negado: "no me llamen", "mejor no me llame", "ya no me llamen".
+const NEGADO = [
+  // "no me llamen", "mejor no me llame", "ya no me llamen".
   /\bno\s+(me|nos)\s+(vuelvan?\s+a\s+)?(llame|llamen|llamar|marque|marquen|marcar|llama|marca)\b/,
   /\b(no|nunca)\s+(quiero|deseo)\s+(que\s+)?(me|nos)?\s*(llame|llamen|llamar|marquen)\b/,
   /\bdejen?\s+de\s+(llamar|marcar)\b/,
   /\bno\s+(puedo|pueden)\s+(hablar|contestar|atender)\b/,
   /\bmejor\s+(por\s+)?(aqui|whatsapp|escrito|mensaje|chat)\b/,
   /\bprefiero\s+(por\s+)?(aqui|whatsapp|escrito|mensaje|chat)\b/,
-  // Pasado: ya ocurrió, no lo está pidiendo.
-  /\b(ya\s+)?(me|nos)\s+(llamaron|llamo|marcaron|marco|hablaron)\b/,
-  /\bme\s+acaban?\s+de\s+llamar\b/,
-  /\bno\s+(me\s+)?(contestaron|contesto|entro la llamada)\b/,
 ];
 
 /**
- * ¿Este mensaje pide una llamada?
- *
- * Pide si dice explícitamente que lo llamen, o si dice que ya tiene tiempo Y
- * menciona hablar. "Ya tengo tiempo" a secas no alcanza: puede estar
- * contestando otra cosa.
+ * Hubo una llamada que no se completó: "no me contestaron", "no pude
+ * contestar", "se cortó la llamada". No pide la llamada con esas palabras, así
+ * que se le PREGUNTA si quiere que le llamen de vuelta.
  */
-export function pideLlamada(texto: string): boolean {
+const PERDIDA = [
+  /\bno\s+(me\s+)?(contestaron|contesto|contestan|contestaste)\b/,
+  /\bno\s+(les?\s+)?conteste\b/,
+  /\bno\s+(pude|alcance\s+a|alcance|logre)\s+(contestar|atender)\b/,
+  /\bno\s+(me\s+)?entro\s+la\s+llamada\b/,
+  /\b(se\s+)?(corto|cayo)\s+la\s+llamada\b/,
+  /\bllamada\s+perdida\b/,
+  /\bquien\s+me\s+(llamo|marco)\b/,
+];
+
+/** Ya ocurrió y no pide nada: "ya me llamaron", o se presenta: "me llamo Karla". */
+const PASADO = [
+  /\b(ya\s+)?(me|nos)\s+(llamaron|llamo|marcaron|marco|hablaron)\b/,
+  /\bme\s+acaban?\s+de\s+llamar\b/,
+];
+
+export type Intencion = "llamar" | "preguntar" | null;
+
+/**
+ * Qué hacer con este mensaje: llamar, preguntar si quiere que lo llamen, o nada.
+ *
+ * Llama si dice explícitamente que lo llamen, o si dice que ya tiene tiempo Y
+ * menciona hablar ("ya tengo tiempo" a secas puede estar contestando otra
+ * cosa). Pregunta si cuenta que una llamada no se completó.
+ */
+export function intencionDeLlamada(texto: string): Intencion {
   const t = plano(texto);
+  if (!t) return null;
+  if (NEGADO.some((re) => re.test(t))) return null;
+
+  const pide = (s: string) =>
+    PIDE.some((re) => re.test(s)) ||
+    // "Ya salí de la reunión, podemos hablar" sin decir "llamar".
+    (DISPONIBLE.some((re) => re.test(s)) && /\bhablar\b|\bplaticar\b|\bconversar\b/.test(s));
+
+  // La llamada perdida va ANTES que el pedido porque "se cortó la llamada" ya
+  // dice "llamada". Se saca ese pedazo y se mira si ADEMÁS pide que lo llamen.
+  // Lo mismo con el pasado: "me llamo Karla" o "ya me llamaron" no piden nada,
+  // pero "ya me llamaron, llámenme otra vez" sí.
+  const sin = (s: string, lista: RegExp[]) =>
+    lista.reduce((acc, re) => acc.replace(new RegExp(re.source, "g"), " "), s);
+  const resto = sin(sin(t, PERDIDA), PASADO);
+  if (pide(resto)) return "llamar";
+  return PERDIDA.some((re) => re.test(t)) ? "preguntar" : null;
+}
+
+/** ¿Este mensaje pide una llamada? */
+export function pideLlamada(texto: string): boolean {
+  return intencionDeLlamada(texto) === "llamar";
+}
+
+/** La pregunta que se le hace tras una llamada que no se completó. Y es la marca. */
+export const PREGUNTA_VOLVER = "¿Quiere que le llame de vuelta ahora?";
+
+/**
+ * "Sí", "claro", "dale, por favor": la respuesta a la pregunta de si le
+ * llamamos. Si trae "más tarde", "mañana" o un "no", no es un sí para AHORA.
+ */
+export function esAfirmativo(texto: string): boolean {
+  const t = plano(texto).replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
   if (!t) return false;
-  if (NO_LLAMAR.some((re) => re.test(t))) return false;
-  if (PIDE.some((re) => re.test(t))) return true;
-  // "Ya salí de la reunión, podemos hablar" sin decir "llamar".
-  return DISPONIBLE.some((re) => re.test(t)) && /\bhablar\b|\bplaticar\b|\bconversar\b/.test(t);
+  if (/\bno\b|\bmas tarde\b|\bluego\b|\bdespues\b|\bmanana\b|\botro dia\b|\bahorita no\b/.test(t)) return false;
+  return /^(si+|claro|dale|ok|okey|okay|oki|va|vaya|bueno|esta bien|de acuerdo|por favor|porfa|sale|simon|correcto|ahora|ahorita|llameme|llamame|marqueme|marcame)\b/.test(t);
 }
 
 export interface MensajeDelHilo {
@@ -151,7 +200,7 @@ export interface EntradaLlamada {
 }
 
 export type Decision =
-  | { llamar: false; motivo: string }
+  | { llamar: false; motivo: string; /** Si viene, se le manda esta pregunta por escrito. */ pregunta?: string }
   | { llamar: true; contexto: string; primerMensaje: string; aviso: string };
 
 /** Solo el primer nombre, y solo si parece uno. */
@@ -160,8 +209,20 @@ export function primerNombre(nombre?: string | null): string {
   return /^[\p{L}\p{M}'’.-]{2,}$/u.test(n) && !/^(no|sin|el|la|cliente|usuario)$/i.test(n) ? n : "";
 }
 
+/** El último mensaje nuestro, si lo hay. */
+function ultimoSaliente(hilo: MensajeDelHilo[]): MensajeDelHilo | undefined {
+  return hilo
+    .filter((m) => m.direction === "out" && !Number.isNaN(Date.parse(m.ts)))
+    .sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))[0];
+}
+
 export function decidirLlamada(e: EntradaLlamada): Decision {
-  if (!pideLlamada(e.texto)) return { llamar: false, motivo: "no pidió que lo llamaran" };
+  let intencion = intencionDeLlamada(e.texto);
+  // "Sí" a la pregunta de si le llamamos de vuelta: cuenta como pedirlo.
+  if (!intencion && esAfirmativo(e.texto) && ultimoSaliente(e.hilo)?.texto.includes(PREGUNTA_VOLVER)) {
+    intencion = "llamar";
+  }
+  if (!intencion) return { llamar: false, motivo: "no pidió que lo llamaran" };
   if (!/^\d{8,15}$/.test(e.telefono)) return { llamar: false, motivo: "sin número usable" };
 
   if (!e.sinDueno) {
@@ -176,21 +237,32 @@ export function decidirLlamada(e: EntradaLlamada): Decision {
 
   // Cada mensaje nuevo que pide llamada, marca. Lo único que no se atiende dos
   // veces es el MISMO mensaje (Meta a veces entrega el webhook repetido): si el
-  // aviso de "le estamos marcando" es posterior al último mensaje de la persona,
-  // ese mensaje ya se atendió.
+  // aviso o la pregunta son posteriores al último mensaje de la persona, ese
+  // mensaje ya se atendió.
   const ultimo = (dir: "in" | "out", pred: (m: MensajeDelHilo) => boolean = () => true) =>
     e.hilo
       .filter((m) => m.direction === dir && pred(m))
       .map((m) => Date.parse(m.ts))
       .filter((t) => !Number.isNaN(t))
       .sort((a, b) => b - a)[0];
-  const ultimoAviso = ultimo("out", (m) => m.texto.includes(AVISO_LLAMANDO));
+  const ultimaRespuesta = ultimo(
+    "out",
+    (m) => m.texto.includes(AVISO_LLAMANDO) || m.texto.includes(PREGUNTA_VOLVER),
+  );
   const ultimoDeLaPersona = ultimo("in");
-  if (ultimoAviso && ultimoDeLaPersona && ultimoAviso > ultimoDeLaPersona) {
+  if (ultimaRespuesta && ultimoDeLaPersona && ultimaRespuesta > ultimoDeLaPersona) {
     return { llamar: false, motivo: "ese mensaje ya se atendió" };
   }
 
   const nombre = primerNombre(e.nombre);
+
+  if (intencion === "preguntar") {
+    return {
+      llamar: false,
+      motivo: "se le preguntó si quiere que le llamen de vuelta",
+      pregunta: `${nombre ? `No se preocupe, ${nombre}.` : "No se preocupe."} ${PREGUNTA_VOLVER}`,
+    };
+  }
   const contexto = contextoDelChat(e.hilo);
 
   return {

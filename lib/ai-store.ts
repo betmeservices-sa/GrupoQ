@@ -58,6 +58,13 @@ export async function setChatOverride(from: string, activa: boolean): Promise<vo
   if (error) console.error("ai_paused upsert:", error.message);
 }
 
+// Al abrir un chat con una plantilla automatica: la IA queda encendida para que
+// Sofia conteste cuando la persona responda. Si alguien ya la prendio o apago a
+// mano en ese chat, se respeta.
+export async function encenderIaSiNadieDecidio(from: string): Promise<void> {
+  if ((await getChatOverride(from)) === null) await setChatOverride(from, true);
+}
+
 // La IA esta activa para este chat? Usa el override si existe; si no, el global.
 export async function getChatAiActiva(from: string): Promise<boolean> {
   const ov = await getChatOverride(from);

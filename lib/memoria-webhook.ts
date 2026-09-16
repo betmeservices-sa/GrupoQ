@@ -21,6 +21,7 @@ import { decidirPlantilla } from "./plantilla-tras-llamada";
 import { enviarPlantilla } from "./wa-send";
 import { addOutbound, mensajesAnteriores } from "./wa-store";
 import { normalizarDestinoSV } from "./phone";
+import { encenderIaSiNadieDecidio } from "./ai-store";
 
 // Marca de las notas que escribió el agente. Sirve para saber cuáles puede
 // volver a pisar: lo que escribió una persona no se toca nunca.
@@ -217,6 +218,8 @@ async function mandarPlantillaTrasLlamada(
       tenant,
     });
   }
+  // Cuando conteste, que le responda Sofía.
+  await encenderIaSiNadieDecidio(paraWhatsApp);
   return "enviada";
 }
 

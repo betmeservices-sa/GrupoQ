@@ -62,6 +62,15 @@ export const CONTINUAR: Plantilla = {
     `Hola ${n}! Soy Sofia de CrediQ, le hablo continuando con su solicitud.\n\nPor aqui me puede enviar los documentos que le comente en la llamada. Empiece por el que tenga a la mano y yo le voy diciendo cual falta.`,
 };
 
+/** ¿Este mensaje nuestro es una plantilla de CrediQ? (automática o mandada a mano) */
+export function esPlantillaCrediQ(texto: string): boolean {
+  return (
+    texto.includes(REQUISITOS.marca) ||
+    texto.includes(CONTINUAR.marca) ||
+    /\[plantilla: crediq_/i.test(texto)
+  );
+}
+
 /**
  * Cuánto se espera antes del recordatorio.
  *

@@ -26,6 +26,7 @@ import { registrarConsumo } from "./tokens-store";
 import { recibirComprobante, textoComprobanteRecibido } from "./yali-prereservas";
 import { paraWhatsApp } from "./negritas";
 import { ultimoEntrante } from "./ultimo-entrante";
+import { esPlantillaCrediQ } from "./plantilla-tras-llamada";
 
 // Último mensaje de la persona que la IA ya leyó al responder, por teléfono.
 const ultimoAtendidoWa = new Map<string, string>();
@@ -251,6 +252,11 @@ export async function programarRespuestaIA(opts: {
         sucursal: decision.sucursal,
         pedirSede: decision.pedirSede === true,
         clave: `wa:${opts.from}`,
+        // Se busca en TODO el chat y no solo en la sesión reciente: la persona
+        // puede contestar la plantilla horas después.
+        plantillaCrediQ:
+          [...conv].reverse().find((m) => m.direccion === "out" && esPlantillaCrediQ(m.texto ?? ""))?.texto ??
+          null,
       },
     );
 

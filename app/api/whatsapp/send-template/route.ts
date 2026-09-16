@@ -3,6 +3,7 @@ import { addOutbound } from "@/lib/wa-store";
 import { enviarPlantilla } from "@/lib/wa-send";
 import { setChatOverride } from "@/lib/ai-store";
 import { tenantFromRequest } from "@/lib/tenants/server";
+import { normalizarDestinoSV } from "@/lib/phone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,13 +38,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Numero invalido" }, { status: 400 });
   }
 
-  // Enviar plantilla cuenta como tomar el chat: la IA se apaga en esta conversación.
-  if (body.manual) await setChatOverride(to, false);
-
   const env = await enviarPlantilla(to, name, language, variables, { tenant: tenantFromRequest(req) });
   if (!env.ok) {
     return NextResponse.json({ ok: false, error: env.error }, { status: 502 });
   }
+  // La IA queda encendida en este chat: cuando la persona conteste la
+  // plantilla, Sofía sigue la conversación.
+  await setChatOverride(normalizarDestinoSV(to)?.replace(/\D/g, "") ?? to, true);
   if (env.id) {
     const texto = body.texto?.trim() || `[plantilla: ${name}]`;
     await addOutbound({ waId: env.id, to, texto, ts: new Date().toISOString(), tenant: tenantFromRequest(req) });

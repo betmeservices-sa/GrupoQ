@@ -386,6 +386,29 @@ Nuestros hoteles: ${lista}.
 4. No des disponibilidad ni precios hasta saber el hotel.`;
 }
 
+/**
+ * Bloque que se le pega al guion cuando este chat lo abrimos con una plantilla
+ * de CrediQ.
+ *
+ * Es la respuesta a un caso real: se le mandó a Omar la plantilla con los
+ * requisitos de su solicitud, contestó "Hola, me interesa" y Sofía le respondió
+ * con el saludo de Grupo Nissan, "¿en qué le puedo ayudar?", como si nunca le
+ * hubiéramos escrito.
+ */
+function contextoCrediQ(plantilla: string): string {
+  return `
+
+ESTE CHAT LO ABRIÓ CREDIQ (tiene prioridad sobre la identidad y el saludo de arriba)
+Le escribimos nosotros con este mensaje de CrediQ, la financiera de Grupo Q, para seguir su solicitud de crédito:
+"""
+${plantilla}
+"""
+En esta conversación eres Sofía, de CrediQ. La conversación ya empezó, así que:
+1. NO uses el saludo de Grupo Nissan ni preguntes "¿en qué le puedo ayudar?".
+2. Si todavía no le has respondido en este chat, preséntate y retoma la solicitud, por ejemplo: "Hola [nombre], ¿qué tal? Soy Sofía, de CrediQ. Vamos a continuar su solicitud por aquí." Y sigue con lo que la persona escribió.
+3. Los documentos son los del mensaje de arriba. No agregues otros.`;
+}
+
 // Zona horaria del negocio de cada tenant. Guatemala y El Salvador comparten
 // UTC-6 sin horario de verano, pero el prompt debe nombrar la del cliente.
 function zonaDe(tenantId?: TenantId): { tz: string; etiqueta: string } {
@@ -704,6 +727,8 @@ export async function generarRespuesta(
     pedirSede?: boolean;
     /** La conversación, para los apartados: "facebook:pagina:persona" o "wa:telefono". */
     clave?: string;
+    /** Texto de la plantilla de CrediQ con la que abrimos este chat, si la hubo. */
+    plantillaCrediQ?: string | null;
   },
 ): Promise<RespuestaIA> {
   const messages: Anthropic.MessageParam[] = historial.map((t) => ({
@@ -713,7 +738,7 @@ export async function generarRespuesta(
 
   const system = `${systemPromptFor(contexto?.tenantId)}${contextoSucursal(
     contexto?.sucursal ?? null,
-  )}${contexto?.pedirSede ? contextoPedirSede(contexto?.tenantId) : ""}${await contextoPromociones(contexto?.tenantId)}\n\n${contextoTemporal(contexto?.tenantId)}`;
+  )}${contexto?.pedirSede ? contextoPedirSede(contexto?.tenantId) : ""}${await contextoPromociones(contexto?.tenantId)}${contexto?.plantillaCrediQ ? contextoCrediQ(contexto.plantillaCrediQ) : ""}\n\n${contextoTemporal(contexto?.tenantId)}`;
   const tools: Anthropic.Tool[] = [
     toolGuardarContacto(contexto?.tenantId),
     ...toolsPara(contexto?.tenantId),

@@ -21,6 +21,7 @@ import { normalizarTelefono } from "@/lib/memoria-llamadas";
 import { normalizarDestinoSV } from "@/lib/phone";
 import { CONTINUAR, REQUISITOS, decidirRecordatorio } from "@/lib/plantilla-tras-llamada";
 import { enviarPlantilla } from "@/lib/wa-send";
+import { encenderIaSiNadieDecidio } from "@/lib/ai-store";
 import { addOutbound, mensajesAnteriores, ultimoPorConversacion } from "@/lib/wa-store";
 
 export const runtime = "nodejs";
@@ -96,6 +97,8 @@ export async function GET(req: Request) {
           tenant: TENANT,
         });
       }
+      // Cuando conteste, que le responda Sofía.
+      await encenderIaSiNadieDecidio(destino);
       enviados.push(telefono);
       console.log(`[recordatorio] ${telefono}: enviado ${CONTINUAR.nombre}.`);
     } catch (e) {

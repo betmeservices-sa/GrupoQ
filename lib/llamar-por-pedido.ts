@@ -18,7 +18,7 @@ import { getContacto } from "./contacts-store";
 import { getConversaciones } from "./conv-store";
 import { normalizarTelefono } from "./memoria-llamadas";
 import { normalizarDestinoSV } from "./phone";
-import { decidirLlamada, pideLlamada, type MensajeDelHilo } from "./pedido-de-llamada";
+import { decidirLlamada, esAfirmativo, intencionDeLlamada, type MensajeDelHilo } from "./pedido-de-llamada";
 import { assistantCampanasDeTenant, esDelTenant } from "./tenants/voz";
 import type { TenantId } from "./tenants/types";
 import { fetchVapiAgentes, hayLlaveVapi, lanzarLlamadaVapi } from "./vapi";
@@ -54,8 +54,10 @@ export async function atenderPedidoDeLlamada(opts: {
   const { tenant, telefono, texto } = opts;
 
   // Descarte barato ANTES de ir a la base: el 99% de los mensajes no pide nada
-  // y no tiene sentido leerle el hilo entero a cada uno.
-  if (!pideLlamada(texto)) return "no lo pidió";
+  // y no tiene sentido leerle el hilo entero a cada uno. El "sí" suelto pasa
+  // porque puede ser la respuesta a "¿quiere que le llame de vuelta?", y eso
+  // solo se sabe mirando el hilo.
+  if (!intencionDeLlamada(texto) && !esAfirmativo(texto)) return "no lo pidió";
 
   const [{ mensajes }, convs, ficha] = await Promise.all([
     mensajesAnteriores(telefono, null, HILO, tenant),
@@ -79,8 +81,10 @@ export async function atenderPedidoDeLlamada(opts: {
     horaLocal: horaSV(new Date()),
   });
 
-  if (!decision.llamar) return `no se llamó: ${decision.motivo}`;
+  if (!decision.llamar && !decision.pregunta) return `no se llamó: ${decision.motivo}`;
 
+  // Antes de preguntar "¿le llamo?" hay que poder llamar: si no, es una promesa
+  // que nadie cumple.
   if (!hayLlaveVapi()) return "no se llamó: falta VAPI_PRIVATE_KEY (modo demostración)";
   const assistantId = assistantCampanasDeTenant(tenant);
   if (!assistantId || !esDelTenant(assistantId, tenant)) {
@@ -89,6 +93,16 @@ export async function atenderPedidoDeLlamada(opts: {
 
   const destino = normalizarDestinoSV(telefono);
   if (!destino) return `no se llamó: ${telefono} no es marcable`;
+
+  if (!decision.llamar) {
+    const pregunta = decision.pregunta as string;
+    const env = await enviarTextoWa(telefono, pregunta, { tenant });
+    if (!env.ok) return `no se pudo preguntar: ${env.error ?? "sin detalle"}`;
+    if (env.id) {
+      await addOutbound({ waId: env.id, to: telefono, texto: pregunta, ts: new Date().toISOString(), tenant });
+    }
+    return decision.motivo;
+  }
 
   const agentes = await fetchVapiAgentes();
   const phoneNumberId = (
