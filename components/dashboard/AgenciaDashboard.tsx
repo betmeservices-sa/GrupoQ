@@ -8,6 +8,12 @@
 // la gente y los accesos del cliente. TODO se corta con el periodo elegido:
 // antes el filtro movía el consumo y la plata seguía mostrando 30 días.
 //
+// DOS VISTAS. "Agencia" es lo de adentro y "Cliente" es lo que se le puede
+// enseñar al cliente: lo mismo SIN un solo costo nuestro (ni dólares del
+// agente, ni tokens, ni caché, ni el modelo que se usa). El dinero que sí se
+// queda es el del cliente: lo que el agente le apartó, que es suyo y es el
+// punto de todo esto.
+//
 // Los periodos (hoy, ayer, 7 días, 30 días, rango) se cortan en hora de El
 // Salvador en el servidor; acá solo se pintan.
 
@@ -24,6 +30,7 @@ import {
   KeyRound,
   Loader2,
   MessageSquareText,
+  MessagesSquare,
   Mic,
   RefreshCw,
   TicketCheck,
@@ -109,6 +116,11 @@ interface Resumen {
 }
 
 type Reporte = ReporteConsumo & { cliente: { id: string; nombre: string }; filasLeidas: number };
+
+/** Qué se está mirando: lo de adentro o lo que ve el cliente. */
+type Vista = "agencia" | "cliente";
+
+const VISTA_KEY = "ccg.agencia.vista";
 
 const ROL: Record<string, string> = {
   admin: "Administrador",
@@ -219,6 +231,27 @@ export function AgenciaDashboard() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [metrica, setMetrica] = useState<"respuestas" | "costo">("respuestas");
+  // Arranca en "agencia" para que el servidor y el primer pintado digan lo
+  // mismo; lo guardado se lee ya montado.
+  const [vista, setVista] = useState<Vista>("agencia");
+
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(VISTA_KEY);
+      if (v === "cliente" || v === "agencia") setVista(v);
+    } catch {
+      // Sin localStorage (ventana privada) se queda en la vista de agencia.
+    }
+  }, []);
+
+  const cambiarVista = useCallback((v: Vista) => {
+    setVista(v);
+    try {
+      window.localStorage.setItem(VISTA_KEY, v);
+    } catch {
+      // Que no se acuerde no es motivo para que no cambie.
+    }
+  }, []);
 
   // El mismo periodo para las tres consultas: si una se corta distinto, el
   // tablero vuelve a mostrar números de periodos diferentes lado a lado.
@@ -288,6 +321,7 @@ export function AgenciaDashboard() {
   const clientes = resumen?.clientes ?? [];
   const seleccionado = clientes.find((c) => c.id === cliente) ?? null;
   const accesos = (resumen?.accesos ?? []).filter((a) => a.tenant === cliente);
+  const paraCliente = vista === "cliente";
 
   return (
     <div className="flex h-full flex-col">
@@ -295,20 +329,39 @@ export function AgenciaDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-3">
           <div>
             <h1 className="text-[17px] font-extrabold tracking-tight text-brand">Agencia</h1>
-            <p className="text-[12.5px] text-[var(--text-3)]">Agente de IA, tickets y accesos, cliente por cliente</p>
+            <p className="text-[12.5px] text-[var(--text-3)]">
+              {paraCliente ? "Lo que hizo el agente de IA, para enseñárselo al cliente" : "Agente de IA, tickets y accesos, cliente por cliente"}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              void cargarResumen();
-              void cargarReporte();
-            }}
-            disabled={cargando}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
-          >
-            <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
-            Actualizar
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1 rounded-lg border border-line bg-surface p-0.5">
+              {(["agencia", "cliente"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => cambiarVista(v)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[12px] font-semibold capitalize transition",
+                    vista === v ? "bg-brand text-white" : "text-[var(--text-2)] hover:bg-card",
+                  )}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                void cargarResumen();
+                void cargarReporte();
+              }}
+              disabled={cargando}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-2)] transition hover:bg-surface disabled:opacity-60"
+            >
+              <RefreshCw size={13} className={cn(cargando && "animate-spin")} />
+              Actualizar
+            </button>
+          </div>
         </div>
 
         <nav className="mt-2 flex gap-1 overflow-x-auto px-5" aria-label="Clientes">
@@ -375,13 +428,15 @@ export function AgenciaDashboard() {
         {error && <p className="rounded-xl border border-[var(--brand-red)]/40 bg-[var(--brand-red)]/10 px-3.5 py-2.5 text-[12.5px]">{error}</p>}
         {cargando && !reporte && (
           <p className="flex items-center gap-2 text-[13px] text-[var(--text-3)]">
-            <Loader2 size={15} className="animate-spin text-brand" /> Leyendo el consumo
+            <Loader2 size={15} className="animate-spin text-brand" /> Leyendo el trabajo del agente
           </p>
         )}
 
-        {/* Primero el consumo del agente y, debajo, la plata que apartó: así
+        {/* Primero el trabajo del agente y, debajo, la plata que apartó: así
             lo pidió el cliente. Los dos se cortan con el mismo periodo. */}
-        {reporte && reporte.cliente.id === cliente && <Consumo r={reporte} metrica={metrica} setMetrica={setMetrica} />}
+        {reporte && reporte.cliente.id === cliente && (
+          <Consumo r={reporte} metrica={metrica} setMetrica={setMetrica} paraCliente={paraCliente} />
+        )}
 
         {seleccionado && <Reservas c={seleccionado} />}
         {cierres && cierres.resumen.total > 0 && (
@@ -445,7 +500,24 @@ export function AgenciaDashboard() {
   );
 }
 
-function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas" | "costo"; setMetrica: (m: "respuestas" | "costo") => void }) {
+/**
+ * El trabajo del agente en el periodo.
+ *
+ * Con `paraCliente` no se pinta NINGÚN costo nuestro: ni el del agente, ni el
+ * costo por respuesta, ni tokens, ni caché, ni el modelo, ni la columna de
+ * costo por canal o por conversación. Eso es de adentro.
+ */
+function Consumo({
+  r,
+  metrica,
+  setMetrica,
+  paraCliente,
+}: {
+  r: Reporte;
+  metrica: "respuestas" | "costo";
+  setMetrica: (m: "respuestas" | "costo") => void;
+  paraCliente: boolean;
+}) {
   // La lista de conversaciones es larga y casi nunca se mira: cerrada hasta
   // que alguien la abra.
   const [verConversaciones, setVerConversaciones] = useState(false);
@@ -453,17 +525,32 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
   const ant = r.anterior;
   const tk = a.tokens;
   const vacio = a.respuestas === 0 && a.transcripciones.cantidad === 0;
-  const maxSerie = Math.max(0.0001, ...r.serie.map((p) => (metrica === "costo" ? p.costo : p.respuestas)));
+  // En la vista de cliente el gráfico es de respuestas y no hay de qué elegir.
+  const serieDe = paraCliente ? "respuestas" : metrica;
+  const maxSerie = Math.max(0.0001, ...r.serie.map((p) => (serieDe === "costo" ? p.costo : p.respuestas)));
   const cadaN = Math.max(1, Math.ceil(r.serie.length / (r.periodo.granularidad === "hora" ? 6 : 10)));
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricCard label={`Costo del agente · ${r.periodo.etiqueta.toLowerCase()}`} valor={dinero(a.costo)} delta={delta(a.costo, ant.costo)} Icon={CircleDollarSign} />
-        <MetricCard label="Respuestas enviadas" valor={miles(a.respuestas)} delta={delta(a.respuestas, ant.respuestas)} Icon={Bot} />
-        <MetricCard label="Conversaciones atendidas" valor={miles(a.conversaciones)} delta={delta(a.conversaciones, ant.conversaciones)} Icon={MessageSquareText} />
-        <MetricCard label="Costo por respuesta" valor={dineroFino(a.costoPorRespuesta)} delta={delta(a.costoPorRespuesta, ant.costoPorRespuesta)} Icon={Coins} />
-      </div>
+      {paraCliente ? (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <MetricCard label="Respuestas enviadas" valor={miles(a.respuestas)} delta={delta(a.respuestas, ant.respuestas)} Icon={Bot} />
+          <MetricCard label="Conversaciones atendidas" valor={miles(a.conversaciones)} delta={delta(a.conversaciones, ant.conversaciones)} Icon={MessageSquareText} />
+          <MetricCard
+            label="Respuestas por conversación"
+            valor={a.respuestasPorConversacion.toFixed(1)}
+            delta={delta(a.respuestasPorConversacion, ant.respuestasPorConversacion)}
+            Icon={MessagesSquare}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <MetricCard label={`Costo del agente · ${r.periodo.etiqueta.toLowerCase()}`} valor={dinero(a.costo)} delta={delta(a.costo, ant.costo)} Icon={CircleDollarSign} />
+          <MetricCard label="Respuestas enviadas" valor={miles(a.respuestas)} delta={delta(a.respuestas, ant.respuestas)} Icon={Bot} />
+          <MetricCard label="Conversaciones atendidas" valor={miles(a.conversaciones)} delta={delta(a.conversaciones, ant.conversaciones)} Icon={MessageSquareText} />
+          <MetricCard label="Costo por respuesta" valor={dineroFino(a.costoPorRespuesta)} delta={delta(a.costoPorRespuesta, ant.costoPorRespuesta)} Icon={Coins} />
+        </div>
+      )}
 
       {vacio ? (
         <section className="rounded-2xl border border-line bg-card p-5 text-[13px] text-[var(--text-3)]">
@@ -471,78 +558,102 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
         </section>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Tarjeta titulo="Respuestas por conversación" Icon={MessageSquareText}>
-              <p className="text-[24px] font-extrabold tracking-tight text-[var(--text)]">{a.respuestasPorConversacion.toFixed(1)}</p>
-              <p className="text-[12px] text-[var(--text-2)]">
-                antes {ant.respuestasPorConversacion.toFixed(1)}
-                {a.imagenes > 0 && ` · ${a.imagenes} ${a.imagenes === 1 ? "imagen leída" : "imágenes leídas"}`}
-              </p>
-              {a.transcripciones.cantidad > 0 && (
-                <p className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-3)]">
-                  <Mic size={12} /> {a.transcripciones.cantidad} {a.transcripciones.cantidad === 1 ? "nota de voz transcrita" : "notas de voz transcritas"} · {dineroFino(a.transcripciones.costo)}
+          {paraCliente ? (
+            (a.imagenes > 0 || a.transcripciones.cantidad > 0) && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <Tarjeta titulo="Fotos y notas de voz" Icon={Mic}>
+                  {a.imagenes > 0 && (
+                    <p className="text-[13px] text-[var(--text-2)]">
+                      {a.imagenes} {a.imagenes === 1 ? "imagen leída" : "imágenes leídas"}
+                    </p>
+                  )}
+                  {a.transcripciones.cantidad > 0 && (
+                    <p className="text-[13px] text-[var(--text-2)]">
+                      {a.transcripciones.cantidad} {a.transcripciones.cantidad === 1 ? "nota de voz escuchada" : "notas de voz escuchadas"}
+                    </p>
+                  )}
+                </Tarjeta>
+              </div>
+            )
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Tarjeta titulo="Respuestas por conversación" Icon={MessageSquareText}>
+                <p className="text-[24px] font-extrabold tracking-tight text-[var(--text)]">{a.respuestasPorConversacion.toFixed(1)}</p>
+                <p className="text-[12px] text-[var(--text-2)]">
+                  antes {ant.respuestasPorConversacion.toFixed(1)}
+                  {a.imagenes > 0 && ` · ${a.imagenes} ${a.imagenes === 1 ? "imagen leída" : "imágenes leídas"}`}
                 </p>
-              )}
-            </Tarjeta>
-
-            <Tarjeta titulo="Tokens" Icon={Coins}>
-              <p className="text-[24px] font-extrabold tracking-tight text-[var(--text)]">{tokensCortos(tk.total)}</p>
-              <p className="text-[12px] text-[var(--text-2)]">
-                {tokensCortos(tk.entrada)} de entrada · {tokensCortos(tk.salida)} de salida
-              </p>
-              <p className="text-[11.5px] text-[var(--text-3)]">
-                entrada: {tokensCortos(tk.entradaSinCache)} normal · {tokensCortos(tk.cacheEscritura)} escribiendo caché · {tokensCortos(tk.cacheLectura)} leyendo caché
-              </p>
-              {r.modelos.length > 0 && (
-                <p className="mt-1 truncate text-[11.5px] text-[var(--text-3)]" title={r.modelos.map((m) => `${m.modelo}: ${dineroFino(m.costo)}`).join("\n")}>
-                  {r.modelos.map((m) => m.modelo).join(" · ")}
-                </p>
-              )}
-            </Tarjeta>
-
-            <Tarjeta titulo="Caché de prompt" Icon={Database}>
-              <p className="flex items-center gap-2 text-[24px] font-extrabold tracking-tight text-[var(--text)]">
-                {r.cache.encendida === null ? "Sin datos" : r.cache.encendida ? "Encendida" : "Apagada"}
-                {r.cache.encendida !== null && (
-                  <span className={cn("h-2.5 w-2.5 rounded-full", r.cache.encendida ? "bg-[#2f9e2f]" : "bg-[var(--brand-red)]")} />
+                {a.transcripciones.cantidad > 0 && (
+                  <p className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-3)]">
+                    <Mic size={12} /> {a.transcripciones.cantidad} {a.transcripciones.cantidad === 1 ? "nota de voz transcrita" : "notas de voz transcritas"} · {dineroFino(a.transcripciones.costo)}
+                  </p>
                 )}
-              </p>
-              {r.cache.encendida !== null && (
-                <>
-                  <p className="text-[12px] text-[var(--text-2)]">
-                    {r.cache.pctEntradaDesdeCache}% de la entrada vino de caché · ahorró {dineroFino(r.cache.ahorro)}
+              </Tarjeta>
+
+              <Tarjeta titulo="Tokens" Icon={Coins}>
+                <p className="text-[24px] font-extrabold tracking-tight text-[var(--text)]">{tokensCortos(tk.total)}</p>
+                <p className="text-[12px] text-[var(--text-2)]">
+                  {tokensCortos(tk.entrada)} de entrada · {tokensCortos(tk.salida)} de salida
+                </p>
+                <p className="text-[11.5px] text-[var(--text-3)]">
+                  entrada: {tokensCortos(tk.entradaSinCache)} normal · {tokensCortos(tk.cacheEscritura)} escribiendo caché · {tokensCortos(tk.cacheLectura)} leyendo caché
+                </p>
+                {r.modelos.length > 0 && (
+                  <p className="mt-1 truncate text-[11.5px] text-[var(--text-3)]" title={r.modelos.map((m) => `${m.modelo}: ${dineroFino(m.costo)}`).join("\n")}>
+                    {r.modelos.map((m) => m.modelo).join(" · ")}
                   </p>
-                  <p className="text-[11.5px] text-[var(--text-3)]">
-                    {r.cache.respuestasConCache} de {r.cache.respuestas} respuestas la usaron · últimas {r.cache.ultimas.total}: {r.cache.ultimas.conCache} con caché
-                  </p>
-                </>
-              )}
-            </Tarjeta>
-          </div>
+                )}
+              </Tarjeta>
+
+              <Tarjeta titulo="Caché de prompt" Icon={Database}>
+                <p className="flex items-center gap-2 text-[24px] font-extrabold tracking-tight text-[var(--text)]">
+                  {r.cache.encendida === null ? "Sin datos" : r.cache.encendida ? "Encendida" : "Apagada"}
+                  {r.cache.encendida !== null && (
+                    <span className={cn("h-2.5 w-2.5 rounded-full", r.cache.encendida ? "bg-[#2f9e2f]" : "bg-[var(--brand-red)]")} />
+                  )}
+                </p>
+                {r.cache.encendida !== null && (
+                  <>
+                    <p className="text-[12px] text-[var(--text-2)]">
+                      {r.cache.pctEntradaDesdeCache}% de la entrada vino de caché · ahorró {dineroFino(r.cache.ahorro)}
+                    </p>
+                    <p className="text-[11.5px] text-[var(--text-3)]">
+                      {r.cache.respuestasConCache} de {r.cache.respuestas} respuestas la usaron · últimas {r.cache.ultimas.total}: {r.cache.ultimas.conCache} con caché
+                    </p>
+                  </>
+                )}
+              </Tarjeta>
+            </div>
+          )}
 
           <section className="rounded-2xl border border-line bg-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-[15px] font-bold text-[var(--text)]">{r.periodo.granularidad === "hora" ? "Por hora" : "Por día"}</h2>
-              <div className="flex gap-1 rounded-lg border border-line bg-surface p-0.5">
-                {(["respuestas", "costo"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMetrica(m)}
-                    className={cn("rounded-md px-2.5 py-1 text-[12px] font-semibold transition", metrica === m ? "bg-brand text-white" : "text-[var(--text-2)] hover:bg-card")}
-                  >
-                    {m === "respuestas" ? "Respuestas" : "Costo"}
-                  </button>
-                ))}
-              </div>
+              {!paraCliente && (
+                <div className="flex gap-1 rounded-lg border border-line bg-surface p-0.5">
+                  {(["respuestas", "costo"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMetrica(m)}
+                      className={cn("rounded-md px-2.5 py-1 text-[12px] font-semibold transition", metrica === m ? "bg-brand text-white" : "text-[var(--text-2)] hover:bg-card")}
+                    >
+                      {m === "respuestas" ? "Respuestas" : "Costo"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="mt-3 flex h-36 items-end gap-[3px]">
               {r.serie.map((p) => {
-                const v = metrica === "costo" ? p.costo : p.respuestas;
+                const v = serieDe === "costo" ? p.costo : p.respuestas;
+                const detalle = paraCliente
+                  ? `${p.etiqueta}: ${p.respuestas} respuestas · ${p.conversaciones} conversaciones`
+                  : `${p.etiqueta}: ${p.respuestas} respuestas · ${p.conversaciones} conversaciones · ${dineroFino(p.costo)} · ${tokensCortos(p.tokens)} tokens`;
                 return (
                   <div
                     key={p.clave}
-                    title={`${p.etiqueta}: ${p.respuestas} respuestas · ${p.conversaciones} conversaciones · ${dineroFino(p.costo)} · ${tokensCortos(p.tokens)} tokens`}
+                    title={detalle}
                     className={cn("min-w-[3px] flex-1 rounded-t transition-all", v > 0 ? "bg-brand/75 hover:bg-brand" : "bg-line/60")}
                     style={{ height: `${v > 0 ? Math.max(4, (v / maxSerie) * 100) : 2}%` }}
                   />
@@ -566,7 +677,7 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
                   <th className="py-1.5 pr-3 font-semibold">Canal</th>
                   <th className="py-1.5 pr-3 text-right font-semibold">Conv.</th>
                   <th className="py-1.5 pr-3 text-right font-semibold">Resp.</th>
-                  <th className="py-1.5 text-right font-semibold">Costo</th>
+                  {!paraCliente && <th className="py-1.5 text-right font-semibold">Costo</th>}
                 </tr>
               </thead>
               <tbody>
@@ -575,7 +686,7 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
                     <td className="py-2 pr-3 font-semibold text-[var(--text)]">{CANAL[c.canal]}</td>
                     <td className="py-2 pr-3 text-right text-[var(--text-2)]">{miles(c.conversaciones)}</td>
                     <td className="py-2 pr-3 text-right text-[var(--text-2)]">{miles(c.respuestas)}</td>
-                    <td className="py-2 text-right text-[var(--text-2)]">{dineroFino(c.costo)}</td>
+                    {!paraCliente && <td className="py-2 text-right text-[var(--text-2)]">{dineroFino(c.costo)}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -594,8 +705,8 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
                       <th className="py-1.5 pr-3 font-semibold">Contacto</th>
                       <th className="py-1.5 pr-3 font-semibold">Canal</th>
                       <th className="py-1.5 pr-3 text-right font-semibold">Resp.</th>
-                      <th className="py-1.5 pr-3 text-right font-semibold">Tokens</th>
-                      <th className="py-1.5 pr-3 text-right font-semibold">Costo</th>
+                      {!paraCliente && <th className="py-1.5 pr-3 text-right font-semibold">Tokens</th>}
+                      {!paraCliente && <th className="py-1.5 pr-3 text-right font-semibold">Costo</th>}
                       <th className="py-1.5 font-semibold">Última</th>
                     </tr>
                   </thead>
@@ -605,8 +716,8 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
                         <td className="whitespace-nowrap py-2 pr-3 font-semibold text-[var(--text)]">{c.id}</td>
                         <td className="py-2 pr-3 text-[var(--text-2)]">{CANAL[c.canal]}</td>
                         <td className="py-2 pr-3 text-right text-[var(--text-2)]">{c.respuestas}</td>
-                        <td className="py-2 pr-3 text-right text-[var(--text-2)]">{tokensCortos(c.tokens)}</td>
-                        <td className="py-2 pr-3 text-right text-[var(--text-2)]">{dineroFino(c.costo)}</td>
+                        {!paraCliente && <td className="py-2 pr-3 text-right text-[var(--text-2)]">{tokensCortos(c.tokens)}</td>}
+                        {!paraCliente && <td className="py-2 pr-3 text-right text-[var(--text-2)]">{dineroFino(c.costo)}</td>}
                         <td className="whitespace-nowrap py-2 text-[var(--text-3)]">{fechaHora(c.ultimo)}</td>
                       </tr>
                     ))}
@@ -625,6 +736,8 @@ function Consumo({ r, metrica, setMetrica }: { r: Reporte; metrica: "respuestas"
  * Lo que el agente APARTÓ, en dinero. Es el resultado de todo lo demás: había
  * respuestas, costo y tickets, pero no cuántas estadías se cerraron ni cuánta
  * plata está esperando comprobante.
+ *
+ * Esta plata es del cliente, no nuestra, así que también se le enseña a él.
  */
 function Reservas({ c }: { c: Cliente }) {
   const r = c.reservas;
