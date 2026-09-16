@@ -21,6 +21,12 @@
 // es el único camino que queda. La única puerta cerrada es la de quien dijo
 // expresamente que no le escribiéramos.
 //
+// Y SE ESCRIBE EN CADA LLAMADA, no una sola vez en la vida del número. Antes
+// valía una vez y punto: quien ya la había recibido semanas atrás colgaba la
+// llamada siguiente esperando el mensaje, y no le llegaba nada. Es seguro
+// porque sale al colgar, o sea una vez por llamada; el recordatorio, que sí lo
+// dispara un barrido cada minuto, conserva su freno.
+//
 // CADA ENVÍO ES UN WHATSAPP A UNA PERSONA REAL Y SE COBRA, así que la decisión
 // vive acá, pura y probada. Las razones para NO mandar están escritas en cada
 // función.
@@ -116,9 +122,14 @@ function conNombre(p: Plantilla, nombre: string): Decision {
   return { enviar: true, nombre, texto: p.texto(nombre), plantilla: p.nombre, idioma: p.idioma };
 }
 
-/** ¿Ya se le mandó esta plantilla alguna vez? */
-function yaSeMando(hilo: MensajeDelHilo[], p: Plantilla): boolean {
-  return hilo.some((m) => m.direction === "out" && m.texto.includes(p.marca));
+/** Cuándo salió por última vez esta plantilla, o null si nunca. */
+function ultimaVez(hilo: MensajeDelHilo[], p: Plantilla): number | null {
+  const t = hilo
+    .filter((m) => m.direction === "out" && m.texto.includes(p.marca))
+    .map((m) => Date.parse(m.ts))
+    .filter((x) => !Number.isNaN(x))
+    .sort((a, b) => b - a)[0];
+  return t ?? null;
 }
 
 /** Cuándo escribió el cliente por última vez, en milisegundos. */
@@ -163,8 +174,11 @@ export function decidirPlantilla(e: EntradaPlantilla): Decision {
   const nombre = primerNombre(e.nombre);
   if (!nombre) return { enviar: false, motivo: "no sabemos su nombre y la plantilla lo exige" };
 
-  if (yaSeMando(e.hilo, REQUISITOS)) return { enviar: false, motivo: "ya se le había mandado" };
-
+  // OJO: acá NO se mira si ya se le mandó antes. Cada llamada cierra con la
+  // misma promesa ("le escribo los requisitos"), así que cada llamada la
+  // cumple. Antes valía una sola vez en la vida del número y eso dejaba mudas
+  // las llamadas siguientes: la persona colgaba esperando el mensaje y no le
+  // llegaba nada. Esto sale UNA vez por llamada, no lo repite ningún barrido.
   const entrante = ultimoEntrante(e.hilo);
   if (entrante && e.ahora.getTime() - entrante < VENTANA_MS) {
     return { enviar: false, motivo: "la ventana de 24 h está abierta: se le puede escribir directo" };
@@ -193,14 +207,18 @@ export function decidirRecordatorio(e: EntradaRecordatorio): Decision {
   const nombre = primerNombre(e.nombre);
   if (!nombre) return { enviar: false, motivo: "no sabemos su nombre y la plantilla lo exige" };
 
-  if (yaSeMando(e.hilo, CONTINUAR)) return { enviar: false, motivo: "ya se le recordó" };
-
-  const requisitos = e.hilo
-    .filter((m) => m.direction === "out" && m.texto.includes(REQUISITOS.marca))
-    .map((m) => Date.parse(m.ts))
-    .filter((x) => !Number.isNaN(x))
-    .sort((a, b) => b - a)[0];
+  const requisitos = ultimaVez(e.hilo, REQUISITOS);
   if (!requisitos) return { enviar: false, motivo: "nunca se le mandaron los requisitos" };
+
+  // UN recordatorio POR TANDA, y acá el matiz importa en los dos sentidos.
+  // Cuenta solo el que salió DESPUÉS de los últimos requisitos: si contara
+  // cualquiera, a la segunda llamada al mismo número no llegaría nunca. Y sin
+  // este corte, el barrido (que pasa cada minuto) lo mandaría una vez por
+  // minuto hasta el tope de horas.
+  const recordatorio = ultimaVez(e.hilo, CONTINUAR);
+  if (recordatorio !== null && recordatorio > requisitos) {
+    return { enviar: false, motivo: "ya se le recordó" };
+  }
 
   // Contestó. La conversación está viva y no hace falta ninguna plantilla.
   const entrante = ultimoEntrante(e.hilo);

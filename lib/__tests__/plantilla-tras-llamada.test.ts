@@ -64,12 +64,21 @@ describe("1. al colgar salen los REQUISITOS", () => {
     }
   });
 
+  it("se le vuelve a mandar aunque ya la haya recibido antes", () => {
+    // Cada llamada cierra con la misma promesa, así que cada llamada la
+    // cumple. Antes valía una sola vez en la vida del número y la segunda
+    // llamada quedaba muda.
+    const r = base({ hilo: [salioRequisitos(9 * 24 * 60)] });
+    expect(r.enviar).toBe(true);
+    if (!r.enviar) return;
+    expect(r.plantilla).toBe("crediq_seguimiento_requisitos");
+  });
+
   const noSeManda: Array<[string, Parameters<typeof base>[0], RegExp]> = [
     ["dijo expresamente que no", { acepto: false }, /dijo que no/],
     ["el número no sirve", { telefono: "123" }, /sin n[úu]mero/],
     ["no sabemos cómo se llama", { nombre: null }, /nombre/],
     ["el agente transcribió un relleno", { nombre: "no especificado" }, /nombre/],
-    ["ya se le había mandado", { hilo: [salioRequisitos(60)] }, /ya se le hab[ií]a mandado/],
     [
       "la ventana de 24 h está abierta",
       { hilo: [{ direction: "in", texto: "hola", ts: haceMin(120) }] },
@@ -136,7 +145,9 @@ describe("2. al minuto, si no contestó, el recordatorio", () => {
     expect(r.motivo).toMatch(/nunca se le mandaron/);
   });
 
-  it("no hay un segundo recordatorio, nunca", () => {
+  it("no hay dos recordatorios para la misma tanda", () => {
+    // Esto es lo que evita que el barrido, que pasa cada minuto, le mande uno
+    // por minuto durante horas.
     const r = recordar({
       hilo: [
         salioRequisitos(120),
@@ -146,6 +157,21 @@ describe("2. al minuto, si no contestó, el recordatorio", () => {
     expect(r.enviar).toBe(false);
     if (r.enviar) return;
     expect(r.motivo).toMatch(/ya se le record/);
+  });
+
+  it("pero con una llamada NUEVA vuelve a recordar", () => {
+    // El recordatorio viejo es de la vuelta anterior: lo que manda es si salió
+    // antes o después de los últimos requisitos.
+    const r = recordar({
+      hilo: [
+        salioRequisitos(9 * 24 * 60),
+        { direction: "out", texto: CONTINUAR.texto("Karla"), ts: haceMin(9 * 24 * 60 - 5) },
+        salioRequisitos(ESPERA_MIN + 1),
+      ],
+    });
+    expect(r.enviar).toBe(true);
+    if (!r.enviar) return;
+    expect(r.plantilla).toBe("crediq_continuar_solicitud");
   });
 });
 
