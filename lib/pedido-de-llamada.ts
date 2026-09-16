@@ -17,7 +17,7 @@
 //   - llamar a quien dijo que NO lo llamen (es el error más caro de todos);
 //   - confundir "ya me llamaron" con "llámenme";
 //   - llamar de madrugada;
-//   - llamar dos veces por el mismo pedido;
+//   - llamar dos veces por el mismo mensaje;
 //   - llamar sin contarle al agente de qué venían hablando: quien pide la
 //     llamada acaba de escribir algo, y que le contesten desde cero es peor que
 //     no llamar.
@@ -160,9 +160,6 @@ export function primerNombre(nombre?: string | null): string {
   return /^[\p{L}\p{M}'’.-]{2,}$/u.test(n) && !/^(no|sin|el|la|cliente|usuario)$/i.test(n) ? n : "";
 }
 
-/** Cuánto se espera antes de aceptar otro pedido del mismo número. */
-export const REPETIR_MIN = 30;
-
 export function decidirLlamada(e: EntradaLlamada): Decision {
   if (!pideLlamada(e.texto)) return { llamar: false, motivo: "no pidió que lo llamaran" };
   if (!/^\d{8,15}$/.test(e.telefono)) return { llamar: false, motivo: "sin número usable" };
@@ -177,16 +174,20 @@ export function decidirLlamada(e: EntradaLlamada): Decision {
     return { llamar: false, motivo: `fuera de horario (son las ${e.horaLocal} en El Salvador)` };
   }
 
-  // Ya se le marcó por un pedido reciente. Si no contestó, insistir a los dos
-  // minutos es acoso; y si contestó, ya se habló.
-  const ultimoAviso = e.hilo
-    .filter((m) => m.direction === "out" && m.texto.includes(AVISO_LLAMANDO))
-    .map((m) => Date.parse(m.ts))
-    .filter((t) => !Number.isNaN(t))
-    .sort((a, b) => b - a)[0];
-  if (ultimoAviso && e.ahora.getTime() - ultimoAviso < REPETIR_MIN * 60_000) {
-    const min = Math.floor((e.ahora.getTime() - ultimoAviso) / 60_000);
-    return { llamar: false, motivo: `ya se le marcó hace ${min} min` };
+  // Cada mensaje nuevo que pide llamada, marca. Lo único que no se atiende dos
+  // veces es el MISMO mensaje (Meta a veces entrega el webhook repetido): si el
+  // aviso de "le estamos marcando" es posterior al último mensaje de la persona,
+  // ese mensaje ya se atendió.
+  const ultimo = (dir: "in" | "out", pred: (m: MensajeDelHilo) => boolean = () => true) =>
+    e.hilo
+      .filter((m) => m.direction === dir && pred(m))
+      .map((m) => Date.parse(m.ts))
+      .filter((t) => !Number.isNaN(t))
+      .sort((a, b) => b - a)[0];
+  const ultimoAviso = ultimo("out", (m) => m.texto.includes(AVISO_LLAMANDO));
+  const ultimoDeLaPersona = ultimo("in");
+  if (ultimoAviso && ultimoDeLaPersona && ultimoAviso > ultimoDeLaPersona) {
+    return { llamar: false, motivo: "ese mensaje ya se atendió" };
   }
 
   const nombre = primerNombre(e.nombre);

@@ -7,7 +7,6 @@
 import { describe, expect, it } from "vitest";
 import {
   AVISO_LLAMANDO,
-  REPETIR_MIN,
   contextoDelChat,
   decidirLlamada,
   pideLlamada,
@@ -113,14 +112,14 @@ describe("la decisión de marcar", () => {
     ["de madrugada", { horaLocal: 3 }, /fuera de horario/],
     ["ya de noche", { horaLocal: 21 }, /fuera de horario/],
     [
-      "ya se le marcó hace poco",
+      "el mismo mensaje entregado dos veces por Meta",
       {
         hilo: [
-          { direction: "out", texto: `Karla, con gusto: ${AVISO_LLAMANDO}.`, ts: haceMin(REPETIR_MIN - 5) },
-          { direction: "in", texto: "me puede llamar", ts: haceMin(1) },
+          { direction: "in", texto: "ya tengo tiempo, me puede llamar", ts: haceMin(2) },
+          { direction: "out", texto: `Karla, con gusto: ${AVISO_LLAMANDO}.`, ts: haceMin(1) },
         ],
       },
-      /ya se le marc/,
+      /ya se atendi/,
     ],
   ];
   for (const [que, extra, motivo] of noMarca) {
@@ -132,11 +131,13 @@ describe("la decisión de marcar", () => {
     });
   }
 
-  it("pasado el tiempo de espera, un pedido nuevo SÍ vuelve a marcar", () => {
+  it("no contestó y a los 3 minutos vuelve a pedir: SÍ marca", () => {
     const r = base({
+      texto: "Ya puedo hablar",
       hilo: [
-        { direction: "out", texto: `Karla, con gusto: ${AVISO_LLAMANDO}.`, ts: haceMin(REPETIR_MIN + 10) },
-        { direction: "in", texto: "no me contestaron, me puede llamar de nuevo", ts: haceMin(1) },
+        { direction: "in", texto: "me puede llamar", ts: haceMin(5) },
+        { direction: "out", texto: `Omar, con gusto: ${AVISO_LLAMANDO}.`, ts: haceMin(4) },
+        { direction: "in", texto: "Ya puedo hablar", ts: haceMin(1) },
       ],
     });
     expect(r.llamar).toBe(true);
