@@ -17,6 +17,9 @@ describe("cuándo SÍ está pidiendo que lo llamen", () => {
   const si = [
     "ya tengo tiempo me puede llamar",
     "Ya tengo tiempo, me puede llamar", // el pedido tal como llegó
+    "llamame ahora tengo tiempo",
+    "llámame ahora, tengo tiempo",
+    "llámenme ahora que tengo tiempo",
     "me pude llamar?", // el error de dedo, que es como se escribe de verdad
     "¿me pueden llamar?",
     "me podría llamar más tarde",
